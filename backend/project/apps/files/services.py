@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from django.conf import settings
+from django.core.files.storage import Storage
 from django.db import transaction
 
 from project.storage_backends import SupabaseStorage
@@ -18,6 +19,10 @@ class FileAssetError(Exception):
 
 class FileAssetAccessError(FileAssetError):
     """Raised when access to a file asset cannot be granted."""
+
+
+class FileAssetUploadError(FileAssetError):
+    """Raised when a direct upload cannot be initiated or completed."""
 
 
 def resolve_visibility(kind: str, requested_visibility: str | None = None) -> str:
@@ -81,16 +86,95 @@ def create_file_asset(
 
 
 @transaction.atomic
+def initiate_file_asset_upload(
+    *,
+    owner: Any,
+    uploaded_by: Any,
+    original_name: str,
+    content_type: str,
+    size: int,
+    kind: str,
+    visibility: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    sha256: str = "",
+) -> tuple[FileAsset, dict[str, Any]]:
+    resolved_visibility = resolve_visibility(kind, visibility)
+    asset = FileAsset.objects.create(
+        owner=owner,
+        uploaded_by=uploaded_by,
+        kind=kind,
+        visibility=resolved_visibility,
+        status=FileAsset.Status.UPLOADING,
+        original_name=(Path(original_name).name[:255] or "file"),
+        content_type=str(content_type or "")[:255],
+        size=int(size),
+        sha256=sha256[:64],
+        metadata=metadata or {},
+    )
+    storage_path = file_storage_path(asset)
+    storage = get_file_storage()
+
+    if not isinstance(storage, SupabaseStorage):
+        raise FileAssetUploadError("Direct upload initiation requires Supabase Storage to be configured.")
+
+    upload_target = storage.client.create_signed_upload(storage_path)
+    asset.storage_path = storage_path
+    asset.storage_bucket = storage.client.bucket
+    asset.save(update_fields=["storage_path", "storage_bucket", "updated_at"])
+
+    return (
+        asset,
+        {
+            "provider": "supabase-storage",
+            "bucket": storage.client.bucket,
+            "path": upload_target["path"],
+            "token": upload_target["token"],
+            "signed_url": upload_target.get("signed_url"),
+            "expires_in": upload_target["expires_in"],
+        },
+    )
+
+
+@transaction.atomic
+def finalize_file_asset_upload(*, asset: FileAsset) -> FileAsset:
+    if asset.is_deleted:
+        raise FileAssetUploadError("This file has been deleted.")
+
+    if asset.status == FileAsset.Status.READY and asset.file:
+        return asset
+
+    if not asset.storage_path:
+        raise FileAssetUploadError("This file does not have a storage path.")
+
+    storage = get_file_storage()
+    if not storage.exists(asset.storage_path):
+        raise FileAssetUploadError("Uploaded file was not found in storage.")
+
+    actual_size = storage.size(asset.storage_path) if hasattr(storage, "size") else None
+    if asset.size and actual_size is not None and int(actual_size) != int(asset.size):
+        raise FileAssetUploadError("Uploaded file size does not match the expected size.")
+
+    asset.file = asset.storage_path
+    if actual_size is not None:
+        asset.size = int(actual_size)
+    asset.status = FileAsset.Status.READY
+    asset.save(update_fields=["file", "size", "status", "updated_at"])
+    return asset
+
+
+@transaction.atomic
 def delete_file_asset(*, asset: FileAsset, actor: Any) -> FileAsset:
     if asset.is_deleted:
         return asset
 
-    if asset.file:
-        current_storage_path = asset.file.name
+    storage_path = asset.storage_path or (asset.file.name if asset.file else "")
+    if storage_path:
+        storage = get_file_storage()
+        if storage.exists(storage_path):
+            storage.delete(storage_path)
         if not asset.storage_path:
-            asset.storage_path = current_storage_path
-        asset.file.delete(save=False)
-        asset.file = ""
+            asset.storage_path = storage_path
+    asset.file = ""
 
     asset.mark_deleted(actor=actor)
     asset.save(update_fields=["file", "storage_path", "status", "deleted_at", "deleted_by", "updated_at"])
@@ -135,3 +219,11 @@ def _resolve_storage_bucket(asset: FileAsset) -> str:
     if isinstance(storage, SupabaseStorage):
         return storage.client.bucket
     return str(getattr(settings, "SUPABASE_STORAGE_BUCKET", "") or "")
+
+
+def get_file_storage() -> Storage:
+    return FileAsset._meta.get_field("file").storage
+
+
+def file_storage_path(asset: FileAsset) -> str:
+    return asset.file.field.generate_filename(asset, asset.original_name)

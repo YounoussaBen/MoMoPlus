@@ -17,6 +17,7 @@ class TestApiDocumentation:
         assert "/api/auth/sync/" in schema["paths"]
         assert "/api/auth/profile/" in schema["paths"]
         assert "/api/files/" in schema["paths"]
+        assert "/api/files/{file_id}/complete/" in schema["paths"]
         assert "/api/files/{file_id}/access-url/" in schema["paths"]
         assert "security" not in staff_login_operation
         assert sync_operation["security"] == [{"SupabaseBearerAuth": []}]

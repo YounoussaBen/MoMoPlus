@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
 
 import jwt
@@ -168,6 +168,45 @@ class SupabaseStorageClient:
 
         return json.loads(body.decode("utf-8")) if body else {}
 
+    def create_signed_upload(self, path: str, *, upsert: bool = False) -> dict[str, Any]:
+        payload = json.dumps({"upsert": upsert}).encode("utf-8")
+        try:
+            body, _ = _request(
+                "POST",
+                self._signed_upload_url(path),
+                headers={**self._auth_headers(), "Content-Type": "application/json"},
+                data=payload,
+            )
+        except HTTPError as exc:
+            raise SupabaseStorageError(_decode_error_message(exc)) from exc
+        except URLError as exc:
+            raise SupabaseStorageError("Unable to reach Supabase Storage.") from exc
+
+        try:
+            response = json.loads(body.decode("utf-8")) if body else {}
+        except json.JSONDecodeError as exc:
+            raise SupabaseStorageError("Supabase Storage returned an invalid response.") from exc
+
+        signed_url = response.get("signedURL")
+        token = response.get("token")
+        if not token and isinstance(signed_url, str):
+            token_values = parse_qs(urlparse(signed_url).query).get("token", [])
+            token = token_values[0] if token_values else None
+
+        if not token:
+            raise SupabaseStorageError("Supabase Storage did not return a signed upload token.")
+
+        full_signed_url = None
+        if isinstance(signed_url, str):
+            full_signed_url = _build_url(f"/storage/v1{signed_url}") if signed_url.startswith("/") else signed_url
+
+        return {
+            "path": response.get("path") or self._normalized_path(path),
+            "token": token,
+            "signed_url": full_signed_url,
+            "expires_in": 7200,
+        }
+
     def download(self, path: str) -> bytes:
         try:
             body, _ = _request(
@@ -300,3 +339,7 @@ class SupabaseStorageClient:
     def _sign_url(self, path: str) -> str:
         encoded_path = quote(self._normalized_path(path), safe="/")
         return _build_url(f"/storage/v1/object/sign/{quote(self.bucket)}/{encoded_path}")
+
+    def _signed_upload_url(self, path: str) -> str:
+        encoded_path = quote(self._normalized_path(path), safe="/")
+        return _build_url(f"/storage/v1/object/upload/sign/{quote(self.bucket)}/{encoded_path}")

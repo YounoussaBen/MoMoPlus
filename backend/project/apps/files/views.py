@@ -5,7 +5,6 @@ from django.http import Http404
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,14 +14,21 @@ from .serializers import (
     FileAssetAccessUrlSerializer,
     FileAssetSerializer,
     FileAssetUpdateSerializer,
+    FileAssetUploadInitResponseSerializer,
     FileAssetUploadSerializer,
 )
-from .services import FileAssetAccessError, build_access_url, create_file_asset, delete_file_asset
+from .services import (
+    FileAssetAccessError,
+    FileAssetUploadError,
+    build_access_url,
+    delete_file_asset,
+    finalize_file_asset_upload,
+    initiate_file_asset_upload,
+)
 
 
 class FileAssetListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
         if self.request.user.is_staff or self.request.user.is_superuser:
@@ -94,24 +100,34 @@ class FileAssetListCreateView(generics.ListCreateAPIView):
         tags=["Files"],
         request=FileAssetUploadSerializer,
         responses={
-            status.HTTP_201_CREATED: FileAssetSerializer,
+            status.HTTP_201_CREATED: FileAssetUploadInitResponseSerializer,
             status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
         },
     )
     def post(self, request: Request, *args, **kwargs) -> Response:
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        asset = create_file_asset(
-            owner=request.user,
-            uploaded_by=request.user,
-            uploaded_file=serializer.validated_data["file"],
-            kind=serializer.validated_data["kind"],
-            visibility=serializer.validated_data.get("visibility"),
-            metadata=serializer.validated_data.get("metadata"),
-        )
-        response_serializer = FileAssetSerializer(asset, context=self.get_serializer_context())
-        headers = self.get_success_headers(response_serializer.data)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        try:
+            asset, upload_target = initiate_file_asset_upload(
+                owner=request.user,
+                uploaded_by=request.user,
+                original_name=serializer.validated_data["original_name"],
+                content_type=serializer.validated_data["content_type"],
+                size=serializer.validated_data["size"],
+                kind=serializer.validated_data["kind"],
+                visibility=serializer.validated_data.get("visibility"),
+                metadata=serializer.validated_data.get("metadata"),
+                sha256=serializer.validated_data.get("sha256", ""),
+            )
+        except FileAssetUploadError as exc:
+            raise PermissionDenied(str(exc)) from exc
+
+        payload = {
+            "file": FileAssetSerializer(asset, context=self.get_serializer_context()).data,
+            "upload": upload_target,
+        }
+        headers = self.get_success_headers(payload)
+        return Response(payload, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class FileAssetDetailView(APIView):
@@ -216,3 +232,43 @@ class FileAssetAccessUrlView(APIView):
             raise PermissionDenied(str(exc)) from exc
 
         return Response(payload, status=status.HTTP_200_OK)
+
+
+class FileAssetCompleteUploadView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self, file_id):
+        try:
+            return FileAsset.objects.active().select_related("owner").get(pk=file_id)
+        except FileAsset.DoesNotExist as exc:
+            raise Http404 from exc
+
+    @extend_schema(
+        tags=["Files"],
+        request=None,
+        parameters=[
+            OpenApiParameter(
+                name="file_id",
+                type=str,
+                location=OpenApiParameter.PATH,
+                description="File asset UUID.",
+            )
+        ],
+        responses={
+            status.HTTP_200_OK: FileAssetSerializer,
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Upload could not be finalized"),
+            status.HTTP_403_FORBIDDEN: OpenApiResponse(description="Permission denied"),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(description="File not found"),
+        },
+    )
+    def post(self, request: Request, file_id, *args, **kwargs) -> Response:
+        asset = self.get_object(file_id)
+        if not asset.can_manage(request.user):
+            raise PermissionDenied("You do not have permission to manage this file.")
+
+        try:
+            asset = finalize_file_asset_upload(asset=asset)
+        except FileAssetUploadError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(FileAssetSerializer(asset, context={"request": request}).data, status=status.HTTP_200_OK)

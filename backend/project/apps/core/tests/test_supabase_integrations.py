@@ -64,6 +64,39 @@ class TestSupabaseStorageClient:
         )
         request.assert_called_once()
 
+    def test_create_signed_upload_returns_upload_target(self, settings, mocker):
+        settings.SUPABASE_URL = "https://example.supabase.co"
+        settings.SUPABASE_SERVICE_ROLE_KEY = "service-role"
+        settings.SUPABASE_STORAGE_BUCKET = "media"
+        settings.SUPABASE_STORAGE_BASE_PATH = "uploads"
+        request = mocker.patch(
+            "project.integrations.supabase._request",
+            return_value=(
+                json.dumps(
+                    {
+                        "path": "uploads/documents/report.pdf",
+                        "token": "upload-token",
+                        "signedURL": "/object/upload/sign/media/uploads/documents/report.pdf?token=upload-token",
+                    }
+                ).encode("utf-8"),
+                {},
+            ),
+        )
+
+        client = SupabaseStorageClient()
+        upload_target = client.create_signed_upload("documents/report.pdf")
+
+        assert upload_target == {
+            "path": "uploads/documents/report.pdf",
+            "token": "upload-token",
+            "signed_url": (
+                "https://example.supabase.co/storage/v1/object/upload/sign/media/uploads/documents/report.pdf"
+                "?token=upload-token"
+            ),
+            "expires_in": 7200,
+        }
+        request.assert_called_once()
+
 
 class TestSupabaseStorageBackend:
     def test_save_uploads_content_via_client(self, mocker):

@@ -64,10 +64,13 @@ class FileAssetSerializer(serializers.ModelSerializer):
 
 
 class FileAssetUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
+    original_name = serializers.CharField(max_length=255)
+    content_type = serializers.CharField(max_length=255)
+    size = serializers.IntegerField(min_value=1)
     kind = serializers.ChoiceField(choices=FileAsset.FileKind.choices)
     visibility = serializers.ChoiceField(choices=FileAsset.Visibility.choices, required=False)
     metadata = serializers.JSONField(required=False)
+    sha256 = serializers.CharField(max_length=64, required=False, allow_blank=True)
 
     def validate_metadata(self, value: Any) -> dict[str, Any]:
         if value in (None, ""):
@@ -90,6 +93,7 @@ class FileAssetUploadSerializer(serializers.Serializer):
         except ValueError as exc:
             raise serializers.ValidationError({"visibility": str(exc)}) from exc
         attrs["metadata"] = attrs.get("metadata", {})
+        attrs["sha256"] = attrs.get("sha256", "")
         return attrs
 
 
@@ -115,3 +119,17 @@ class FileAssetUpdateSerializer(serializers.ModelSerializer):
 class FileAssetAccessUrlSerializer(serializers.Serializer):
     url = serializers.URLField(read_only=True)
     expires_in = serializers.IntegerField(read_only=True, allow_null=True)
+
+
+class FileAssetUploadTargetSerializer(serializers.Serializer):
+    provider = serializers.CharField(read_only=True)
+    bucket = serializers.CharField(read_only=True)
+    path = serializers.CharField(read_only=True)
+    token = serializers.CharField(read_only=True)
+    signed_url = serializers.URLField(read_only=True, allow_null=True)
+    expires_in = serializers.IntegerField(read_only=True)
+
+
+class FileAssetUploadInitResponseSerializer(serializers.Serializer):
+    file = FileAssetSerializer(read_only=True)
+    upload = FileAssetUploadTargetSerializer(read_only=True)

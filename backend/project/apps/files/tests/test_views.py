@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -8,6 +9,7 @@ from rest_framework import status
 
 from project.apps.files.models import FileAsset
 from project.apps.files.services import create_file_asset
+from project.storage_backends import SupabaseStorage
 
 
 def build_claims(email: str, *, sub: str | None = None, is_staff: bool = False) -> dict[str, object]:
@@ -30,42 +32,115 @@ def media_root(settings, tmp_path):
     return tmp_path
 
 
+@pytest.fixture
+def mocked_supabase_storage(mocker):
+    storage: Any = SupabaseStorage.__new__(SupabaseStorage)
+    storage.client = mocker.Mock()
+    storage.client.bucket = "media"
+    storage.client.create_signed_upload = mocker.Mock(
+        side_effect=lambda path: {
+            "path": path,
+            "token": "upload-token",
+            "signed_url": f"https://example.supabase.co/storage/v1/object/upload/sign/media/{path}?token=upload-token",
+            "expires_in": 7200,
+        }
+    )
+    storage.exists = mocker.Mock(return_value=True)
+    storage.size = mocker.Mock(return_value=11)
+    storage.delete = mocker.Mock(return_value=None)
+    mocker.patch("project.apps.files.services.get_file_storage", return_value=storage)
+    return storage
+
+
 class TestFileAssetViews:
     @pytest.mark.django_db
-    def test_upload_creates_private_document_by_default(self, authenticated_client, media_root):
-        uploaded_file = SimpleUploadedFile("notes.txt", b"hello world", content_type="text/plain")
-
+    def test_upload_init_creates_pending_private_document_by_default(
+        self,
+        authenticated_client,
+        mocked_supabase_storage,
+        media_root,
+    ):
         response = authenticated_client.post(
             "/api/files/",
             {
-                "file": uploaded_file,
+                "original_name": "notes.txt",
+                "content_type": "text/plain",
+                "size": 11,
                 "kind": FileAsset.FileKind.DOCUMENT,
             },
-            format="multipart",
+            format="json",
         )
 
         assert response.status_code == status.HTTP_201_CREATED
-        asset = FileAsset.objects.get(pk=response.data["id"])
+        asset = FileAsset.objects.get(pk=response.data["file"]["id"])
         assert asset.visibility == FileAsset.Visibility.PRIVATE
         assert asset.owner.email == "supabase@example.com"
-        assert asset.status == FileAsset.Status.READY
+        assert asset.status == FileAsset.Status.UPLOADING
+        assert asset.file.name == ""
+        assert asset.storage_bucket == "media"
+        assert asset.storage_path == response.data["upload"]["path"]
+        assert response.data["upload"]["token"] == "upload-token"
+        mocked_supabase_storage.client.create_signed_upload.assert_called_once_with(asset.storage_path)
 
     @pytest.mark.django_db
-    def test_upload_rejects_invalid_visibility_for_passport(self, authenticated_client, media_root):
-        uploaded_file = SimpleUploadedFile("passport.pdf", b"passport", content_type="application/pdf")
-
+    def test_upload_init_rejects_invalid_visibility_for_passport(self, authenticated_client, media_root):
         response = authenticated_client.post(
             "/api/files/",
             {
-                "file": uploaded_file,
+                "original_name": "passport.pdf",
+                "content_type": "application/pdf",
+                "size": 8,
                 "kind": FileAsset.FileKind.PASSPORT,
                 "visibility": FileAsset.Visibility.AUTHENTICATED,
             },
-            format="multipart",
+            format="json",
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "passport files only support" in str(response.data).lower()
+
+    @pytest.mark.django_db
+    def test_complete_marks_uploaded_file_ready(self, authenticated_client, mocked_supabase_storage, media_root):
+        init_response = authenticated_client.post(
+            "/api/files/",
+            {
+                "original_name": "notes.txt",
+                "content_type": "text/plain",
+                "size": 11,
+                "kind": FileAsset.FileKind.DOCUMENT,
+            },
+            format="json",
+        )
+        file_id = init_response.data["file"]["id"]
+
+        complete_response = authenticated_client.post(f"/api/files/{file_id}/complete/")
+
+        assert complete_response.status_code == status.HTTP_200_OK
+
+        asset = FileAsset.objects.get(pk=file_id)
+        assert asset.status == FileAsset.Status.READY
+        assert asset.file.name == asset.storage_path
+        mocked_supabase_storage.exists.assert_called_with(asset.storage_path)
+
+    @pytest.mark.django_db
+    def test_complete_rejects_missing_uploaded_blob(self, authenticated_client, mocked_supabase_storage, media_root):
+        mocked_supabase_storage.exists.return_value = False
+        init_response = authenticated_client.post(
+            "/api/files/",
+            {
+                "original_name": "notes.txt",
+                "content_type": "text/plain",
+                "size": 11,
+                "kind": FileAsset.FileKind.DOCUMENT,
+            },
+            format="json",
+        )
+        file_id = init_response.data["file"]["id"]
+
+        complete_response = authenticated_client.post(f"/api/files/{file_id}/complete/")
+
+        assert complete_response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "not found in storage" in complete_response.data["detail"].lower()
 
     @pytest.mark.django_db
     def test_list_returns_only_owned_files(self, auth_client_factory, user_factory, media_root):
