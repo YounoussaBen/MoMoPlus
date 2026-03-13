@@ -26,8 +26,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third party
     "rest_framework",
-    "rest_framework_simplejwt",
-    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_spectacular",
     "django_celery_beat",
@@ -36,6 +34,7 @@ INSTALLED_APPS = [
     "project.apps.accounts",
     "project.apps.core",
     "project.apps.api",
+    "project.apps.files",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -90,10 +89,13 @@ TEMPLATES = [
 # DATABASES SETTINGS
 # ==============================================================================
 
+SUPABASE_DB_URL = config("SUPABASE_DB_URL", default="")
+
 DATABASES = {
     "default": dj_database_url.config(
-        default=config("DATABASE_URL", default="sqlite:///db.sqlite3"),
+        default=SUPABASE_DB_URL or config("DATABASE_URL", default="sqlite:///db.sqlite3"),
         conn_max_age=600,
+        ssl_require=config("SUPABASE_DB_SSL_REQUIRE", default=bool(SUPABASE_DB_URL), cast=bool),
     )
 }
 
@@ -172,7 +174,7 @@ PROJECT_ENVIRONMENT = config("PROJECT_ENVIRONMENT", default="local")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "project.apps.accounts.authentication.HybridAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -198,33 +200,48 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ==============================================================================
-# JWT SETTINGS
+# DJANGO STAFF JWT SETTINGS
 # ==============================================================================
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),  # Shorter for security
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),  # Shorter refresh window
-    "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": True,
-    # Use custom signing key
-    "SIGNING_KEY": config("JWT_SIGNING_KEY", default=SECRET_KEY),
     "ALGORITHM": "HS256",
-    # Security headers
+    "SIGNING_KEY": config("DJANGO_JWT_SIGNING_KEY", default=SECRET_KEY),
+    "VERIFYING_KEY": "",
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
     "AUTH_HEADER_TYPES": ("Bearer",),
-    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
-    "USER_ID_FIELD": "id",
-    "USER_ID_CLAIM": "user_id",
-    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
-    # Token claims
-    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
-    "TOKEN_TYPE_CLAIM": "token_type",
-    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
-    # Sliding tokens (optional - more secure)
-    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
-    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=15),
-    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
+
+# ==============================================================================
+# SUPABASE SETTINGS
+# ==============================================================================
+
+SUPABASE_URL = config("SUPABASE_URL", default="")
+SUPABASE_ANON_KEY = config("SUPABASE_ANON_KEY", default="")
+SUPABASE_SERVICE_ROLE_KEY = config("SUPABASE_SERVICE_ROLE_KEY", default="")
+SUPABASE_JWT_AUDIENCE = config("SUPABASE_JWT_AUDIENCE", default="authenticated")
+SUPABASE_JWT_ISSUER = config(
+    "SUPABASE_JWT_ISSUER",
+    default=f"{SUPABASE_URL.rstrip('/')}/auth/v1" if SUPABASE_URL else "",
+)
+SUPABASE_JWKS_URL = config(
+    "SUPABASE_JWKS_URL",
+    default=f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json" if SUPABASE_URL else "",
+)
+SUPABASE_HTTP_TIMEOUT = config("SUPABASE_HTTP_TIMEOUT", default=10, cast=int)
+SUPABASE_STORAGE_BUCKET = config("SUPABASE_STORAGE_BUCKET", default="")
+SUPABASE_STORAGE_BASE_PATH = config("SUPABASE_STORAGE_BASE_PATH", default="")
+SUPABASE_STORAGE_PUBLIC = config("SUPABASE_STORAGE_PUBLIC", default=False, cast=bool)
+SUPABASE_STORAGE_SIGNED_URL_EXPIRY = config("SUPABASE_STORAGE_SIGNED_URL_EXPIRY", default=3600, cast=int)
+
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_STORAGE_BUCKET:
+    STORAGES = {
+        "default": {
+            "BACKEND": "project.storage_backends.SupabaseStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 # ==============================================================================
 # CORS SETTINGS

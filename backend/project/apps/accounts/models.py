@@ -5,6 +5,7 @@ from project.apps.core.models import BaseModel
 
 
 class User(AbstractUser, BaseModel):
+    supabase_user_id: models.UUIDField = models.UUIDField(unique=True, null=True, blank=True)
     email: models.EmailField = models.EmailField(unique=True)
     first_name: models.CharField = models.CharField(max_length=150)
     last_name: models.CharField = models.CharField(max_length=150)

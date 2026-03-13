@@ -1,46 +1,86 @@
+from django.conf import settings
+from django.contrib.auth import authenticate
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken
 
-from project.apps.core.tasks import send_welcome_email
-
-from .serializers import LogoutSerializer, MessageSerializer, RegistrationResponseSerializer, UserProfileSerializer
-from .serializers import UserRegistrationSerializer
+from .serializers import (
+    AuthSyncResponseSerializer,
+    MessageSerializer,
+    StaffLoginResponseSerializer,
+    StaffLoginSerializer,
+    StaffUserSerializer,
+    UserProfileSerializer,
+)
 
 
 @extend_schema(
     tags=["Authentication"],
-    request=UserRegistrationSerializer,
+    auth=[],
+    request=StaffLoginSerializer,
     responses={
-        status.HTTP_201_CREATED: RegistrationResponseSerializer,
-        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+        status.HTTP_200_OK: StaffLoginResponseSerializer,
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Invalid credentials"),
+        status.HTTP_403_FORBIDDEN: OpenApiResponse(description="Staff access required"),
     },
 )
 @api_view(["POST"])
 @permission_classes([AllowAny])
-def register(request: Request) -> Response:
-    """Register a new user"""
-    serializer = UserRegistrationSerializer(data=request.data)
+def staff_login(request: Request) -> Response:
+    serializer = StaffLoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
-    if serializer.is_valid():
-        user = serializer.save()
+    user = authenticate(
+        request=request,
+        email=serializer.validated_data["email"],
+        password=serializer.validated_data["password"],
+    )
+    if user is None:
+        return Response({"detail": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        # Send welcome email in background
-        send_welcome_email.delay(user.email, user.first_name or user.username)
+    if not (user.is_staff or user.is_superuser):
+        return Response({"detail": "Staff access is required."}, status=status.HTTP_403_FORBIDDEN)
 
-        refresh = RefreshToken.for_user(user)
-        user_data = UserProfileSerializer(user).data
+    token = AccessToken.for_user(user)
+    token["staff_session"] = True
+    token["auth_source"] = "django_staff"
+    token["email"] = user.email
 
-        return Response(
-            {"refresh": str(refresh), "access": str(refresh.access_token), "user": user_data},
-            status=status.HTTP_201_CREATED,
-        )
+    return Response(
+        {
+            "access": str(token),
+            "token_type": "Bearer",
+            "expires_in": int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds()),
+            "user": StaffUserSerializer(user).data,
+        },
+        status=status.HTTP_200_OK,
+    )
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@extend_schema(
+    tags=["Authentication"],
+    request=None,
+    responses={
+        status.HTTP_200_OK: AuthSyncResponseSerializer,
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def sync_profile(request: Request) -> Response:
+    """Ensure the Supabase identity is mapped into Django and return the current profile."""
+    serializer = UserProfileSerializer(request.user)
+    return Response(
+        {
+            "message": "Supabase user is synced with Django.",
+            "user": serializer.data,
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 @extend_schema(
@@ -81,21 +121,16 @@ def profile(request: Request) -> Response:
 
 @extend_schema(
     tags=["Authentication"],
-    request=LogoutSerializer,
+    request=None,
     responses={
         status.HTTP_200_OK: MessageSerializer,
-        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid refresh token"),
         status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
     },
 )
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout(request: Request) -> Response:
-    """Logout user by blacklisting refresh token"""
-    try:
-        refresh_token = request.data["refresh"]
-        token = RefreshToken(refresh_token)
-        token.blacklist()
-        return Response({"message": "Successfully logged out"})
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    """Explain the expected logout flow for bearer-token clients."""
+    return Response(
+        {"message": "Discard the current bearer token on the client. Mobile clients should also sign out Supabase."}
+    )

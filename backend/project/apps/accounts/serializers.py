@@ -1,39 +1,39 @@
-from typing import Any
-
-from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from .models import User
 
 
-class UserRegistrationSerializer(serializers.ModelSerializer):
-    password: serializers.CharField = serializers.CharField(write_only=True, validators=[validate_password])
-    password_confirm: serializers.CharField = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = User
-        fields = ["username", "email", "password", "password_confirm", "first_name", "last_name"]
-
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError("Passwords don't match")
-        return attrs
-
-    def create(self, validated_data: dict[str, Any]) -> User:
-        validated_data.pop("password_confirm")
-        user = User.objects.create_user(**validated_data)
-        return user
-
-
-class LogoutSerializer(serializers.Serializer):
-    refresh = serializers.CharField()
-
-
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "created_at", "updated_at", "is_active"]
+        fields = [
+            "id",
+            "supabase_user_id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "created_at",
+            "updated_at",
+            "is_active",
+        ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class StaffUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+        ]
+        read_only_fields = fields
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -41,17 +41,38 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "username", "email", "first_name", "last_name", "full_name", "created_at", "updated_at"]
-        read_only_fields = ["id", "username", "email", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "supabase_user_id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "full_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "supabase_user_id", "username", "email", "created_at", "updated_at"]
 
     def get_full_name(self, obj: User) -> str:
         return f"{obj.first_name} {obj.last_name}".strip()
 
 
-class RegistrationResponseSerializer(serializers.Serializer):
-    refresh = serializers.CharField(read_only=True)
-    access = serializers.CharField(read_only=True)
+class AuthSyncResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(read_only=True)
     user = UserProfileSerializer(read_only=True)
+
+
+class StaffLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+
+class StaffLoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(read_only=True)
+    token_type = serializers.CharField(read_only=True)
+    expires_in = serializers.IntegerField(read_only=True)
+    user = StaffUserSerializer(read_only=True)
 
 
 class MessageSerializer(serializers.Serializer):

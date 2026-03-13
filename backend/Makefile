@@ -97,10 +97,8 @@ setup: dev migrate superuser
 
 # API testing
 test-api:
-	@echo "Testing API endpoints..."
-	curl -X POST http://127.0.0.1:8000/api/auth/register/ \
-		-H "Content-Type: application/json" \
-		-d '{"username": "testuser", "email": "test@example.com", "password": "testpass123", "password_confirm": "testpass123", "first_name": "Test", "last_name": "User"}'
+	@echo "Fetching the public API schema..."
+	curl http://127.0.0.1:8000/api/schema/
 
 # Check everything
 check: lint test

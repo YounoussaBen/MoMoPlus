@@ -15,6 +15,8 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.csrf import requires_csrf_token
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 
@@ -28,9 +30,9 @@ def status_page(request):
     """Human-friendly status dashboard."""
     status_data, _ = build_status_payload(request)
     context = {
-        "headline": "All Systems Operational"
-        if status_data["overall_status"] == "healthy"
-        else "Some Systems Need Attention",
+        "headline": (
+            "All Systems Operational" if status_data["overall_status"] == "healthy" else "Some Systems Need Attention"
+        ),
         "summary_status": humanize_status(status_data["overall_status"]),
         "summary_tone": normalize_status(status_data["overall_status"]),
         "overview_items": build_overview_items(status_data),
@@ -111,6 +113,14 @@ def build_status_payload(request) -> tuple[dict[str, Any], int]:
     return status_data, status_code
 
 
+@extend_schema(
+    tags=["Monitoring"],
+    request=None,
+    responses={
+        200: OpenApiTypes.OBJECT,
+        503: OpenApiTypes.OBJECT,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def api_status(request):
@@ -119,6 +129,14 @@ def api_status(request):
     return JsonResponse(status_data, status=status_code)
 
 
+@extend_schema(
+    tags=["Monitoring"],
+    request=None,
+    responses={
+        200: OpenApiTypes.OBJECT,
+        500: OpenApiTypes.OBJECT,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def celery_status(request):
@@ -147,6 +165,21 @@ def celery_status(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@extend_schema(
+    tags=["Monitoring"],
+    request=None,
+    parameters=[
+        OpenApiParameter(
+            name="task_id",
+            type=str,
+            location=OpenApiParameter.PATH,
+            description="Celery task identifier.",
+        )
+    ],
+    responses={
+        200: OpenApiTypes.OBJECT,
+    },
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def task_status(request, task_id):
@@ -291,7 +324,7 @@ def build_status_section(name: str, payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_detail_item(key: str, value: Any) -> dict[str, Any]:
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict | list):
         return {
             "label": humanize_key(key),
             "value": json.dumps(value, indent=2, sort_keys=True),

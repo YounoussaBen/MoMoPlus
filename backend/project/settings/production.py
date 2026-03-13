@@ -1,10 +1,11 @@
-# flake8: noqa
-from django.http import JsonResponse
+# ruff: noqa: F403, F405
+
 import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
+from django.http import JsonResponse
 from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
+
 from .base import *
 
 # ==============================================================================
@@ -65,14 +66,6 @@ PERMISSIONS_POLICY: dict[str, list[str]] = {
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS", default="https://yourdomain.com,https://www.yourdomain.com", cast=Csv()
-)
-
-# JWT Security in production
-SIMPLE_JWT.update(
-    {
-        "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),  # Very short in production
-        "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    }
 )
 
 # Sentry configuration

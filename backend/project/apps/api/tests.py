@@ -8,13 +8,19 @@ class TestApiDocumentation:
 
         assert response.status_code == 200
         schema = response.json()
-        register_operation = schema["paths"]["/api/auth/register/"]["post"]
+        staff_login_operation = schema["paths"]["/api/auth/staff/login/"]["post"]
+        sync_operation = schema["paths"]["/api/auth/sync/"]["post"]
+        upload_operation = schema["paths"]["/api/files/"]["post"]
 
         assert schema["openapi"].startswith("3.")
-        assert "/api/auth/register/" in schema["paths"]
-        assert "/api/token/" in schema["paths"]
-        assert "requestBody" in register_operation
-        assert "application/json" in register_operation["requestBody"]["content"]
+        assert "/api/auth/staff/login/" in schema["paths"]
+        assert "/api/auth/sync/" in schema["paths"]
+        assert "/api/auth/profile/" in schema["paths"]
+        assert "/api/files/" in schema["paths"]
+        assert "/api/files/{file_id}/access-url/" in schema["paths"]
+        assert "security" not in staff_login_operation
+        assert sync_operation["security"] == [{"SupabaseBearerAuth": []}]
+        assert upload_operation["security"] == [{"SupabaseBearerAuth": []}]
 
     @pytest.mark.django_db
     def test_swagger_ui_is_available(self, django_client):

@@ -1,8 +1,10 @@
+from typing import cast
+from uuid import uuid4
+
 import factory
-from django.contrib.auth import get_user_model
 from factory.django import DjangoModelFactory
 
-User = get_user_model()
+from .models import User
 
 
 class UserFactory(DjangoModelFactory):
@@ -13,6 +15,7 @@ class UserFactory(DjangoModelFactory):
     email = factory.LazyAttribute(lambda obj: f"{obj.username}@example.com")
     first_name = factory.Faker("first_name")
     last_name = factory.Faker("last_name")
+    supabase_user_id = factory.LazyFunction(uuid4)
     is_active = True
     is_staff = False
     is_superuser = False
@@ -21,6 +24,7 @@ class UserFactory(DjangoModelFactory):
     def password(self, create, extracted, **kwargs):
         if not create:
             return
+        user = cast(User, self)
         password = extracted or "testpass123"
-        self.set_password(password)
-        self.save()
+        user.set_password(password)
+        user.save()

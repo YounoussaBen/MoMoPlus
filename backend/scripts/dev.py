@@ -33,16 +33,10 @@ def run_tests():
 
 def test_api():
     """Test API endpoints"""
-    print("Testing API endpoints...")
+    print("Fetching the public API schema...")
     cmd = [
         "curl",
-        "-X",
-        "POST",
-        "http://127.0.0.1:8000/api/auth/register/",
-        "-H",
-        "Content-Type: application/json",
-        "-d",
-        '{"username": "testuser", "email": "test@example.com", "password": "testpass123", "first_name": "Test"}',
+        "http://127.0.0.1:8000/api/schema/",
     ]
     subprocess.run(cmd)
 
