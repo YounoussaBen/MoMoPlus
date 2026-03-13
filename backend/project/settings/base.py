@@ -187,10 +187,14 @@ REST_FRAMEWORK = {
 # ==============================================================================
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Project API",
+    "TITLE": "MoMoPlus API",
     "DESCRIPTION": "Modern Django REST API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "SWAGGER_UI_SETTINGS": {
+        "displayRequestDuration": True,
+        "persistAuthorization": True,
+    },
 }
 
 # ==============================================================================

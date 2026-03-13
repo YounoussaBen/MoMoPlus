@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoMoPlus Status</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f5f5f7;
+            --surface-hover: #ececef;
+            --text: #111111;
+            --muted: #6e6e73;
+            --success: #17a34a;
+            --danger: #dc2626;
+            --unknown: #a1a1aa;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            min-height: 100%;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            min-height: 100vh;
+            padding: 28px 20px 48px;
+        }
+
+        .page {
+            margin: 0 auto;
+            max-width: 1180px;
+            width: 100%;
+        }
+
+        .topbar {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 32px;
+        }
+
+        .back {
+            background: var(--surface);
+            border-radius: 999px;
+            color: var(--text);
+            display: inline-flex;
+            font-size: 0.92rem;
+            font-weight: 600;
+            padding: 10px 16px;
+            text-decoration: none;
+        }
+
+        .back:hover,
+        .back:focus-visible {
+            background: var(--surface-hover);
+            outline: none;
+        }
+
+        .eyebrow {
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .headline {
+            font-size: clamp(3.2rem, 8vw, 6.4rem);
+            font-weight: 600;
+            letter-spacing: -0.08em;
+            line-height: 0.92;
+            margin: 12px 0 18px;
+            max-width: 10ch;
+        }
+
+        .summary {
+            align-items: center;
+            display: inline-flex;
+            gap: 10px;
+            margin-bottom: 36px;
+        }
+
+        .summary-dot,
+        .service-dot {
+            border-radius: 50%;
+            display: inline-block;
+            flex: 0 0 auto;
+            height: 10px;
+            width: 10px;
+        }
+
+        .tone-healthy {
+            background: var(--success);
+            color: var(--success);
+        }
+
+        .tone-unhealthy {
+            background: var(--danger);
+            color: var(--danger);
+        }
+
+        .tone-unknown {
+            background: var(--unknown);
+            color: var(--unknown);
+        }
+
+        .summary-text {
+            color: var(--muted);
+            font-size: 0.98rem;
+            font-weight: 600;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin: 0 0 14px;
+        }
+
+        .overview-grid,
+        .services-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .overview-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-bottom: 28px;
+        }
+
+        .services-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 28px;
+            padding: 22px;
+        }
+
+        .overview-label,
+        .detail-label {
+            color: var(--muted);
+            display: block;
+            font-size: 0.83rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .overview-value,
+        .detail-value {
+            color: var(--text);
+            font-size: 1rem;
+            line-height: 1.55;
+            overflow-wrap: anywhere;
+        }
+
+        .overview-link {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        .overview-link:hover,
+        .overview-link:focus-visible {
+            color: var(--muted);
+            outline: none;
+        }
+
+        .service-header {
+            align-items: center;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .service-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+            margin: 0;
+        }
+
+        .service-status {
+            align-items: center;
+            color: var(--muted);
+            display: inline-flex;
+            font-size: 0.9rem;
+            font-weight: 600;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .service-error {
+            color: var(--danger);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin: 0 0 18px;
+        }
+
+        .details {
+            display: grid;
+            gap: 14px;
+        }
+
+        .detail-code {
+            color: var(--muted);
+            font-family: "SF Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+            font-size: 0.83rem;
+            line-height: 1.6;
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .empty-state {
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        @media (max-width: 900px) {
+            .overview-grid,
+            .services-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 20px 16px 36px;
+            }
+
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <div class="topbar">
+            <a href="/" class="back">Back Home</a>
+            <div class="eyebrow">MoMoPlus Status</div>
+        </div>
+
+        <h1 class="headline">{{ headline }}</h1>
+
+        <div class="summary">
+            <span class="summary-dot tone-{{ summary_tone }}"></span>
+            <span class="summary-text">Overall backend status: {{ summary_status }}</span>
+        </div>
+
+        <section aria-labelledby="overview-heading">
+            <h2 class="section-title" id="overview-heading">Overview</h2>
+            <div class="overview-grid">
+                {% for item in overview_items %}
+                    <div class="card">
+                        <span class="overview-label">{{ item.label }}</span>
+                        {% if item.url %}
+                            <a href="{{ item.url }}" class="overview-value overview-link">{{ item.value }}</a>
+                        {% else %}
+                            <span class="overview-value">{{ item.value }}</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section aria-labelledby="services-heading">
+            <h2 class="section-title" id="services-heading">Backend Checks</h2>
+            <div class="services-grid">
+                {% for service in service_sections %}
+                    <article class="card">
+                        <div class="service-header">
+                            <h3 class="service-title">{{ service.title }}</h3>
+                            <div class="service-status">
+                                <span class="service-dot tone-{{ service.tone }}"></span>
+                                <span>{{ service.status }}</span>
+                            </div>
+                        </div>
+
+                        {% if service.error %}
+                            <p class="service-error">{{ service.error }}</p>
+                        {% endif %}
+
+                        {% if service.details %}
+                            <div class="details">
+                                {% for detail in service.details %}
+                                    <div>
+                                        <span class="detail-label">{{ detail.label }}</span>
+                                        {% if detail.is_code %}
+                                            <pre class="detail-code">{{ detail.value }}</pre>
+                                        {% else %}
+                                            <div class="detail-value">{{ detail.value }}</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-state">No additional diagnostic details were returned.</p>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,3 +1,12 @@
+import json
+import platform
+import re
+import shutil
+import subprocess
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 import redis
 from celery import current_app
 from django.conf import settings
@@ -15,10 +24,24 @@ def home(request):
     return render(request, "core/home.html")
 
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def api_status(request):
-    """Enhanced API Status endpoint with comprehensive health checks"""
+def status_page(request):
+    """Human-friendly status dashboard."""
+    status_data, _ = build_status_payload(request)
+    context = {
+        "headline": "All Systems Operational"
+        if status_data["overall_status"] == "healthy"
+        else "Some Systems Need Attention",
+        "summary_status": humanize_status(status_data["overall_status"]),
+        "summary_tone": normalize_status(status_data["overall_status"]),
+        "overview_items": build_overview_items(status_data),
+        "service_sections": build_service_sections(status_data),
+        "status_json_url": "/api/status/",
+    }
+    return render(request, "core/status.html", context)
+
+
+def build_status_payload(request) -> tuple[dict[str, Any], int]:
+    """Collect backend health checks for API and HTML status views."""
     status_data = {
         "status": "online",
         "timestamp": timezone.now().isoformat(),
@@ -36,8 +59,8 @@ def api_status(request):
             cursor.execute("SELECT 1")
             cursor.fetchone()
         status_data["services"]["database"] = {"status": "healthy", "type": "postgresql", "response_time": "< 1ms"}
-    except Exception as e:
-        status_data["services"]["database"] = {"status": "unhealthy", "error": str(e)}
+    except Exception as exc:
+        status_data["services"]["database"] = {"status": "unhealthy", "error": str(exc)}
         overall_healthy = False
 
     # Redis Health Check
@@ -51,8 +74,8 @@ def api_status(request):
             "used_memory_human": info.get("used_memory_human", "unknown"),
             "uptime_in_seconds": info.get("uptime_in_seconds", 0),
         }
-    except Exception as e:
-        status_data["services"]["redis"] = {"status": "unhealthy", "error": str(e)}
+    except Exception as exc:
+        status_data["services"]["redis"] = {"status": "unhealthy", "error": str(exc)}
         overall_healthy = False
 
     # Celery Health Check
@@ -77,38 +100,22 @@ def api_status(request):
         else:
             status_data["services"]["celery"] = {"status": "unhealthy", "error": "No workers available"}
             overall_healthy = False
-    except Exception as e:
-        status_data["services"]["celery"] = {"status": "unhealthy", "error": str(e)}
+    except Exception as exc:
+        status_data["services"]["celery"] = {"status": "unhealthy", "error": str(exc)}
         overall_healthy = False
 
-    # System Resources
-    try:
-        # Get disk usage
-        import shutil
-
-        disk_usage = shutil.disk_usage("/")
-        disk_free_gb = disk_usage.free // (1024**3)
-        disk_total_gb = disk_usage.total // (1024**3)
-
-        # Get memory info (Linux)
-        with open("/proc/meminfo") as f:
-            meminfo = f.read()
-        mem_total = int([line for line in meminfo.split("\n") if "MemTotal" in line][0].split()[1]) // 1024
-        mem_available = int([line for line in meminfo.split("\n") if "MemAvailable" in line][0].split()[1]) // 1024
-
-        status_data["system"] = {
-            "disk_free_gb": disk_free_gb,
-            "disk_total_gb": disk_total_gb,
-            "memory_total_mb": mem_total,
-            "memory_available_mb": mem_available,
-            "memory_usage_percent": round((1 - mem_available / mem_total) * 100, 2),
-        }
-    except Exception as e:
-        status_data["system"] = {"error": str(e)}
-
+    status_data["system"] = collect_system_status()
     status_data["overall_status"] = "healthy" if overall_healthy else "unhealthy"
     status_code = 200 if overall_healthy else 503
 
+    return status_data, status_code
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def api_status(request):
+    """Enhanced API Status endpoint with comprehensive health checks"""
+    status_data, status_code = build_status_payload(request)
     return JsonResponse(status_data, status=status_code)
 
 
@@ -167,6 +174,165 @@ def task_status(request, task_id):
         }
 
     return JsonResponse(response)
+
+
+def collect_system_status() -> dict[str, Any]:
+    """Collect host-level system metrics."""
+    disk_usage = shutil.disk_usage("/")
+    system_status: dict[str, Any] = {
+        "platform": platform.system(),
+        "disk_free_gb": disk_usage.free // (1024**3),
+        "disk_total_gb": disk_usage.total // (1024**3),
+    }
+
+    try:
+        system_status.update(collect_memory_status())
+    except Exception as exc:
+        system_status["error"] = str(exc)
+
+    return system_status
+
+
+def collect_memory_status() -> dict[str, Any]:
+    """Collect memory metrics for Linux and macOS."""
+    proc_meminfo = Path("/proc/meminfo")
+    if proc_meminfo.exists():
+        return collect_linux_memory_status(proc_meminfo)
+
+    if platform.system() == "Darwin":
+        return collect_macos_memory_status()
+
+    raise FileNotFoundError("Memory metrics are not available on this platform")
+
+
+def collect_linux_memory_status(meminfo_path: Path) -> dict[str, Any]:
+    meminfo = meminfo_path.read_text()
+    mem_total = int([line for line in meminfo.split("\n") if "MemTotal" in line][0].split()[1]) // 1024
+    mem_available = int([line for line in meminfo.split("\n") if "MemAvailable" in line][0].split()[1]) // 1024
+    return {
+        "memory_total_mb": mem_total,
+        "memory_available_mb": mem_available,
+        "memory_usage_percent": round((1 - mem_available / mem_total) * 100, 2),
+    }
+
+
+def collect_macos_memory_status() -> dict[str, Any]:
+    mem_total_bytes = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True).strip())
+    vm_stat_output = subprocess.check_output(["vm_stat"], text=True)
+
+    page_size_match = re.search(r"page size of (\d+) bytes", vm_stat_output)
+    if not page_size_match:
+        raise ValueError("Unable to determine macOS memory page size")
+
+    page_size = int(page_size_match.group(1))
+    page_counts: dict[str, int] = {}
+
+    for line in vm_stat_output.splitlines():
+        if ":" not in line:
+            continue
+
+        name, raw_value = line.split(":", 1)
+        numeric_value = re.sub(r"[^\d]", "", raw_value)
+        if numeric_value:
+            page_counts[name.strip()] = int(numeric_value)
+
+    available_pages = sum(
+        page_counts.get(page_name, 0)
+        for page_name in (
+            "Pages free",
+            "Pages inactive",
+            "Pages speculative",
+        )
+    )
+    mem_total = mem_total_bytes // (1024**2)
+    mem_available = (available_pages * page_size) // (1024**2)
+    usage_percent = round((1 - mem_available / mem_total) * 100, 2)
+    usage_percent = max(0.0, min(100.0, usage_percent))
+
+    return {
+        "memory_total_mb": mem_total,
+        "memory_available_mb": mem_available,
+        "memory_usage_percent": usage_percent,
+    }
+
+
+def build_overview_items(status_data: dict[str, Any]) -> list[dict[str, str]]:
+    return [
+        {"label": "Overall", "value": humanize_status(status_data["overall_status"])},
+        {"label": "Last Updated", "value": format_timestamp(status_data["timestamp"])},
+        {"label": "Environment", "value": str(status_data["environment"]).title()},
+        {"label": "Version", "value": status_data["version"]},
+        {"label": "Docs", "value": "Open Swagger", "url": status_data["docs"]},
+        {"label": "JSON", "value": "View Raw Status", "url": "/api/status/"},
+    ]
+
+
+def build_service_sections(status_data: dict[str, Any]) -> list[dict[str, Any]]:
+    sections = [build_status_section(name, payload) for name, payload in status_data["services"].items()]
+    sections.append(build_status_section("system", status_data["system"]))
+    return sections
+
+
+def build_status_section(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    section_status = payload.get("status")
+    if section_status is None:
+        section_status = "healthy" if not payload.get("error") else "unhealthy"
+
+    normalized_status = normalize_status(section_status, payload.get("error"))
+    details = [build_detail_item(key, value) for key, value in payload.items() if key not in {"status", "error"}]
+
+    return {
+        "title": humanize_key(name),
+        "status": humanize_status(normalized_status),
+        "tone": normalized_status,
+        "error": payload.get("error"),
+        "details": details,
+    }
+
+
+def build_detail_item(key: str, value: Any) -> dict[str, Any]:
+    if isinstance(value, (dict, list)):
+        return {
+            "label": humanize_key(key),
+            "value": json.dumps(value, indent=2, sort_keys=True),
+            "is_code": True,
+        }
+
+    return {
+        "label": humanize_key(key),
+        "value": str(value),
+        "is_code": False,
+    }
+
+
+def normalize_status(status: Any, error: str | None = None) -> str:
+    if status in {"healthy", "online"}:
+        return "healthy"
+    if status in {"unhealthy", "offline"} or error:
+        return "unhealthy"
+    return "unknown"
+
+
+def humanize_status(status: Any) -> str:
+    normalized = normalize_status(status)
+    if normalized == "healthy":
+        return "Healthy"
+    if normalized == "unhealthy":
+        return "Unhealthy"
+    return "Unknown"
+
+
+def humanize_key(value: str) -> str:
+    return value.replace("_", " ").title()
+
+
+def format_timestamp(value: str) -> str:
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+
+    return timezone.localtime(parsed).strftime("%b %d, %Y at %H:%M %Z")
 
 
 @requires_csrf_token

@@ -1,4 +1,4 @@
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -8,10 +8,18 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from project.apps.core.tasks import send_welcome_email
 
-from .serializers import UserProfileSerializer, UserRegistrationSerializer
+from .serializers import LogoutSerializer, MessageSerializer, RegistrationResponseSerializer, UserProfileSerializer
+from .serializers import UserRegistrationSerializer
 
 
-@extend_schema(tags=["Authentication"])
+@extend_schema(
+    tags=["Authentication"],
+    request=UserRegistrationSerializer,
+    responses={
+        status.HTTP_201_CREATED: RegistrationResponseSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+    },
+)
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def register(request: Request) -> Response:
@@ -35,7 +43,24 @@ def register(request: Request) -> Response:
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@extend_schema(tags=["Authentication"])
+@extend_schema(
+    methods=["GET"],
+    tags=["Authentication"],
+    responses={
+        status.HTTP_200_OK: UserProfileSerializer,
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+    },
+)
+@extend_schema(
+    methods=["PUT", "PATCH"],
+    tags=["Authentication"],
+    request=UserProfileSerializer,
+    responses={
+        status.HTTP_200_OK: UserProfileSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+    },
+)
 @api_view(["GET", "PUT", "PATCH"])
 @permission_classes([IsAuthenticated])
 def profile(request: Request) -> Response:
@@ -54,7 +79,15 @@ def profile(request: Request) -> Response:
     return Response({"error": "Method not allowed"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-@extend_schema(tags=["Authentication"])
+@extend_schema(
+    tags=["Authentication"],
+    request=LogoutSerializer,
+    responses={
+        status.HTTP_200_OK: MessageSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid refresh token"),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+    },
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout(request: Request) -> Response:

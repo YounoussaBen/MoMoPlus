@@ -4,6 +4,8 @@ from . import views
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("status/", views.status_page, name="status_page"),
+    path("status", views.status_page),
     path("api/status/", views.api_status, name="api_status"),
     path("api/celery-status/", views.celery_status, name="celery_status"),
     path("api/task-status/<str:task_id>/", views.task_status, name="task_status"),

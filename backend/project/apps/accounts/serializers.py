@@ -46,3 +46,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj: User) -> str:
         return f"{obj.first_name} {obj.last_name}".strip()
+
+
+class RegistrationResponseSerializer(serializers.Serializer):
+    refresh = serializers.CharField(read_only=True)
+    access = serializers.CharField(read_only=True)
+    user = UserProfileSerializer(read_only=True)
+
+
+class MessageSerializer(serializers.Serializer):
+    message = serializers.CharField(read_only=True)

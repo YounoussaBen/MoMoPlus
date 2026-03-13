@@ -1,6 +1,6 @@
-# Project API
+# MoMoPlus API
 
-Django REST API
+Django REST API Backend for MoMoPlus
 
 ## Requirements
 
@@ -41,6 +41,10 @@ make celery
 ```
 
 Visit: http://127.0.0.1:8000
+
+Swagger UI: http://127.0.0.1:8000/api/docs/
+OpenAPI schema: http://127.0.0.1:8000/api/schema/
+ReDoc: http://127.0.0.1:8000/api/redoc/
 
 
 ## Development
