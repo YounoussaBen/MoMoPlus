@@ -4,6 +4,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework import status
 
@@ -29,7 +30,14 @@ def build_claims(email: str, *, sub: str | None = None, is_staff: bool = False) 
 @pytest.fixture
 def media_root(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
-    return tmp_path
+    storage = FileSystemStorage(location=tmp_path, base_url=settings.MEDIA_URL)
+    field = FileAsset._meta.get_field("file")
+    original_storage = field.storage
+    field.storage = storage
+    try:
+        yield tmp_path
+    finally:
+        field.storage = original_storage
 
 
 @pytest.fixture
