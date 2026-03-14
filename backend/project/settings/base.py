@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import dj_database_url
 from decouple import Csv, config
@@ -89,11 +90,41 @@ TEMPLATES = [
 # DATABASES SETTINGS
 # ==============================================================================
 
+
+def _normalize_database_url(value: str) -> str:
+    if not value:
+        return value
+
+    parsed = urlsplit(value)
+    if not parsed.query:
+        return value
+
+    filtered_query = [
+        (key, query_value)
+        for key, query_value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key.lower() not in {"pgbouncer"}
+    ]
+
+    if len(filtered_query) == len(parse_qsl(parsed.query, keep_blank_values=True)):
+        return value
+
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(filtered_query, doseq=True),
+            parsed.fragment,
+        )
+    )
+
+
 SUPABASE_DB_URL = config("SUPABASE_DB_URL", default="")
+DATABASE_URL = _normalize_database_url(SUPABASE_DB_URL or config("DATABASE_URL", default="sqlite:///db.sqlite3"))
 
 DATABASES = {
     "default": dj_database_url.config(
-        default=SUPABASE_DB_URL or config("DATABASE_URL", default="sqlite:///db.sqlite3"),
+        default=DATABASE_URL,
         conn_max_age=600,
         ssl_require=config("SUPABASE_DB_SSL_REQUIRE", default=bool(SUPABASE_DB_URL), cast=bool),
     )
