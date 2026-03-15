@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+set -eu
+
+web_staged_files="$(git diff --cached --name-only --diff-filter=ACMR -- web)"
+backend_staged_files="$(git diff --cached --name-only --diff-filter=ACMR -- backend)"
+
+if [ -n "$web_staged_files" ]; then
+  printf '%s\n' "Running web staged checks..."
+  pnpm --dir web lint:staged
+  pnpm --dir web typecheck
+fi
+
+if [ -n "$backend_staged_files" ]; then
+  printf '%s\n' "Running backend pre-commit hooks..."
+  (
+    cd backend
+    printf '%s\n' "$backend_staged_files" \
+      | sed 's|^backend/||' \
+      | tr '\n' '\0' \
+      | xargs -0 ./.venv/bin/pre-commit run --config .pre-commit-config.yaml --files
+  )
+fi

@@ -1,0 +1,49 @@
+{
+  "name": "momoplus-admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0 --cache --cache-location .next/cache/eslint/",
+    "lint:fix": "eslint . --fix --max-warnings=0 --cache --cache-location .next/cache/eslint/",
+    "typecheck": "next typegen && tsc --noEmit",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint:staged": "lint-staged",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck",
+    "prepare": "node .husky/install.mjs"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "lint-staged": {
+    "*.{js,cjs,mjs,jsx,ts,tsx}": [
+      "eslint --fix --max-warnings=0 --no-warn-ignored",
+      "prettier --write"
+    ],
+    "*.{css,html,json,md,mdx,scss,yaml,yml}": "prettier --write"
+  },
+  "packageManager": "pnpm@10.11.1+sha512.e519b9f7639869dc8d5c3c5dfef73b3f091094b0a006d7317353c72b124e80e1afd429732e28705ad6bfa1ee879c1fce46c128ccebd3192101f43dd67c667912"
+}
