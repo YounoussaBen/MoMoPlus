@@ -8,3 +8,4 @@ This repository currently contains the core MoMo Plus platforms:
 
 - `backend/` - Django backend for APIs, authentication, and business logic
 - `mobile/` - Flutter mobile application for iOS and Android
+- `web/` - NextJs we application for staff

@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,12 +7,14 @@
     <title>MoMoPlus Status</title>
     <style>
         :root {
-            --bg: #ffffff;
-            --surface: #f5f5f7;
-            --surface-hover: #ececef;
+            --bg: #f4faf0;
+            --surface: #ffffff;
+            --surface-hover: #f0f7eb;
             --text: #111111;
             --muted: #6e6e73;
-            --success: #17a34a;
+            --accent: #6DC940;
+            --accent-dark: #56a030;
+            --success: #6DC940;
             --danger: #dc2626;
             --unknown: #a1a1aa;
         }
@@ -47,6 +50,18 @@
             margin-bottom: 32px;
         }
 
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo-wrap img {
+            display: block;
+            height: 120px;
+            width: auto;
+        }
+
         .back {
             background: var(--surface);
             border-radius: 999px;
@@ -56,6 +71,7 @@
             font-weight: 600;
             padding: 10px 16px;
             text-decoration: none;
+            transition: background-color 0.15s ease;
         }
 
         .back:hover,
@@ -65,9 +81,9 @@
         }
 
         .eyebrow {
-            color: var(--muted);
+            color: var(--accent);
             font-size: 0.8rem;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: 0.14em;
             text-transform: uppercase;
         }
@@ -166,13 +182,14 @@
         }
 
         .overview-link {
-            color: var(--text);
+            color: var(--accent);
             text-decoration: none;
+            font-weight: 600;
         }
 
         .overview-link:hover,
         .overview-link:focus-visible {
-            color: var(--muted);
+            color: var(--accent-dark);
             outline: none;
         }
 
@@ -253,8 +270,12 @@
 <body>
     <main class="page">
         <div class="topbar">
-            <a href="/" class="back">Back Home</a>
-            <div class="eyebrow">MoMoPlus Status</div>
+            <div class="topbar-left">
+                <div class="logo-wrap">
+                    <img src="{% static 'logo.png' %}" alt="MoMoPlus" />
+                </div>
+            </div>
+            <div> <a href="/" class="back">Back Home</a></div>
         </div>
 
         <h1 class="headline">{{ headline }}</h1>
