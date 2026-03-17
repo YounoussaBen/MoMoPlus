@@ -12,7 +12,7 @@ async function main() {
   process.chdir("..");
 
   const husky = (await import("husky")).default;
-  const result = husky("web/.husky");
+  const result = husky(".husky");
 
   if (result) {
     throw new Error(result);

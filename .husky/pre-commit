@@ -3,6 +3,7 @@ set -eu
 
 web_staged_files="$(git diff --cached --name-only --diff-filter=ACMR -- web)"
 backend_staged_files="$(git diff --cached --name-only --diff-filter=ACMR -- backend)"
+mobile_staged_files="$(git diff --cached --name-only --diff-filter=ACMR -- mobile)"
 
 if [ -n "$web_staged_files" ]; then
   printf '%s\n' "Running web staged checks..."
@@ -18,5 +19,14 @@ if [ -n "$backend_staged_files" ]; then
       | sed 's|^backend/||' \
       | tr '\n' '\0' \
       | xargs -0 ./.venv/bin/pre-commit run --config .pre-commit-config.yaml --files
+  )
+fi
+
+if [ -n "$mobile_staged_files" ]; then
+  printf '%s\n' "Running mobile staged checks..."
+  (
+    cd mobile
+    dart format --set-exit-if-changed .
+    flutter analyze
   )
 fi

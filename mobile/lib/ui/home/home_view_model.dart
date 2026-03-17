@@ -1,0 +1,22 @@
+import 'package:flutter/material.dart';
+import '../../data/repositories/auth_repository.dart';
+
+class HomeViewModel extends ChangeNotifier {
+  final AuthRepository _authRepository;
+  bool _isLoading = false;
+
+  HomeViewModel(this._authRepository);
+
+  bool get isLoading => _isLoading;
+
+  Future<void> signOut() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await _authRepository.signOut();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+}
