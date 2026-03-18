@@ -16,6 +16,8 @@ abstract class AuthRepository {
   });
   Future<void> signOut();
   Future<void> syncWithBackend();
+  Future<Map<String, dynamic>?> getBackendProfile();
+  Future<void> requestAgent();
 }
 
 class SupabaseAuthRepository implements AuthRepository {
@@ -62,4 +64,11 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> syncWithBackend() => _backendService.syncUser();
+
+  @override
+  Future<Map<String, dynamic>?> getBackendProfile() =>
+      _backendService.getProfile();
+
+  @override
+  Future<void> requestAgent() => _backendService.requestAgent();
 }

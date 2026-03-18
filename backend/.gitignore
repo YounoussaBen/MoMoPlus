@@ -118,3 +118,6 @@ staticfiles/
 static/
 
 .ruff_cache/
+
+# Documentation
+docs/

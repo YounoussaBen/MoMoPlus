@@ -49,4 +49,15 @@ class BackendApiService {
     }
     return null;
   }
+
+  /// Submit an application to become an agent.
+  Future<void> requestAgent() async {
+    if (_accessToken == null) return;
+    final uri = Uri.parse('$_baseUrl/api/auth/request-agent/');
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      throw Exception(body['detail'] ?? 'Failed to submit agent application.');
+    }
+  }
 }

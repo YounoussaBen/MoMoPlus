@@ -49,10 +49,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "full_name",
+            "role",
+            "agent_status",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "supabase_user_id", "username", "email", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "supabase_user_id",
+            "username",
+            "email",
+            "role",
+            "agent_status",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_full_name(self, obj: User) -> str:
         return f"{obj.first_name} {obj.last_name}".strip()

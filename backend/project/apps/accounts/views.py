@@ -8,6 +8,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 
+from .models import AgentStatus, UserRole
 from .serializers import (
     AuthSyncResponseSerializer,
     MessageSerializer,
@@ -134,3 +135,32 @@ def logout(request: Request) -> Response:
     return Response(
         {"message": "Discard the current bearer token on the client. Mobile clients should also sign out Supabase."}
     )
+
+
+@extend_schema(
+    tags=["Authentication"],
+    request=None,
+    responses={
+        status.HTTP_200_OK: MessageSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Already an agent or application already pending"),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def request_agent(request: Request) -> Response:
+    """Submit an application to become an agent. Pending admin approval."""
+    user = request.user
+
+    if user.role == UserRole.AGENT:
+        return Response({"detail": "You are already an agent."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if user.agent_status == AgentStatus.PENDING:
+        return Response(
+            {"detail": "Your agent application is already pending review."}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user.agent_status = AgentStatus.PENDING
+    user.save(update_fields=["agent_status", "updated_at"])
+
+    return Response({"message": "Agent application submitted. Pending admin approval."}, status=status.HTTP_200_OK)

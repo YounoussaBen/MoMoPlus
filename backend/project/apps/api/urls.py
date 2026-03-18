@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny
 
 urlpatterns = [
     path("auth/", include("project.apps.accounts.urls")),
+    path("staff/", include("project.apps.accounts.staff_urls")),
     path("files/", include("project.apps.files.urls")),
     # API Documentation
     path(

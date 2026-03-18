@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../domain/models/app_user.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -11,6 +12,7 @@ class AuthViewModel extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   User? _currentUser;
+  AppUser? _appUser;
 
   AuthViewModel(this._authRepository) {
     _isAuthenticated = _authRepository.currentSession != null;
@@ -24,16 +26,45 @@ class AuthViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   User? get currentUser => _currentUser;
+  AppUser? get appUser => _appUser;
 
   void _onAuthStateChange(AuthState state) {
     _isAuthenticated = state.session != null;
     _currentUser = state.session?.user;
+    if (state.event == AuthChangeEvent.signedOut) {
+      _appUser = null;
+    }
     notifyListeners();
-    // After every successful sign-in, explicitly sync the backend user row.
-    // This is a convenience call — any subsequent protected Django API request
-    // would also trigger the same sync automatically via HybridAuthentication.
     if (state.event == AuthChangeEvent.signedIn) {
-      _authRepository.syncWithBackend().catchError((_) {});
+      _syncAndLoadProfile();
+    }
+  }
+
+  Future<void> _syncAndLoadProfile() async {
+    try {
+      await _authRepository.syncWithBackend();
+      final profileData = await _authRepository.getBackendProfile();
+      if (profileData != null) {
+        _appUser = AppUser.fromBackendProfile(profileData);
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> requestAgent() async {
+    _setLoading(true);
+    try {
+      await _authRepository.requestAgent();
+      // Refresh profile to get updated agent_status
+      final profileData = await _authRepository.getBackendProfile();
+      if (profileData != null) {
+        _appUser = AppUser.fromBackendProfile(profileData);
+      }
+      _clearError();
+    } catch (e) {
+      _setError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      _setLoading(false);
     }
   }
 

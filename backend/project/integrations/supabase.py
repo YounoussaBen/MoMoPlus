@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
@@ -88,7 +88,7 @@ class SupabaseAuthClient:
         try:
             jwks_client = jwt.PyJWKClient(settings.SUPABASE_JWKS_URL)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
-            options = {"verify_aud": bool(settings.SUPABASE_JWT_AUDIENCE)}
+            options = cast(jwt.api_jwt.Options, {"verify_aud": bool(settings.SUPABASE_JWT_AUDIENCE)})
             return jwt.decode(
                 token,
                 key=signing_key.key,

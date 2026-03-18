@@ -7,4 +7,5 @@ urlpatterns = [
     path("sync/", views.sync_profile, name="sync"),
     path("profile/", views.profile, name="profile"),
     path("logout/", views.logout, name="logout"),
+    path("request-agent/", views.request_agent, name="request-agent"),
 ]
