@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/app_button.dart';
 import 'onboarding_view_model.dart';
-import '../core/themes/app_theme.dart';
-import '../core/widgets/app_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});

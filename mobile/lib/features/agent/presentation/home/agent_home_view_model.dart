@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../data/repositories/auth_repository.dart';
+import '../../../../core/data/repositories/auth_repository.dart';
 
-class HomeViewModel extends ChangeNotifier {
+class AgentHomeViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
   bool _isLoading = false;
 
-  HomeViewModel(this._authRepository);
+  AgentHomeViewModel(this._authRepository);
 
   bool get isLoading => _isLoading;
 

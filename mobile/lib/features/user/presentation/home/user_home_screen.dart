@@ -1,31 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'home_view_model.dart';
-import '../../data/repositories/auth_repository.dart';
-import '../../domain/models/app_user.dart';
-import '../../ui/auth/auth_view_model.dart';
-import '../core/themes/app_theme.dart';
-import '../core/widgets/app_logo.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/data/repositories/auth_repository.dart';
+import '../../../../core/domain/models/app_user.dart';
+import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/widgets/app_logo.dart';
+import '../../../auth/presentation/auth_view_model.dart';
+import 'user_home_view_model.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class UserHomeScreen extends StatelessWidget {
+  const UserHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (ctx) => HomeViewModel(ctx.read<AuthRepository>()),
-      child: const _HomeView(),
+      create: (ctx) => UserHomeViewModel(ctx.read<AuthRepository>()),
+      child: const _UserHomeView(),
     );
   }
 }
 
-class _HomeView extends StatelessWidget {
-  const _HomeView();
+class _UserHomeView extends StatelessWidget {
+  const _UserHomeView();
 
   @override
   Widget build(BuildContext context) {
-    final appUser = context.watch<AuthViewModel>().appUser;
+    final vm = context.watch<UserHomeViewModel>();
+    final authVm = context.watch<AuthViewModel>();
+    final appUser = authVm.appUser;
 
     if (appUser == null) {
       return const Scaffold(
@@ -39,20 +41,6 @@ class _HomeView extends StatelessWidget {
       );
     }
 
-    return appUser.isAgent
-        ? _AgentHome(appUser: appUser)
-        : _UserHome(appUser: appUser);
-  }
-}
-
-class _UserHome extends StatelessWidget {
-  final AppUser appUser;
-  const _UserHome({required this.appUser});
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = context.watch<HomeViewModel>();
-    final authVm = context.watch<AuthViewModel>();
     final displayName = appUser.firstName.isNotEmpty
         ? appUser.firstName
         : appUser.email.split('@').first;
@@ -80,7 +68,7 @@ class _UserHome extends StatelessWidget {
               const SizedBox(height: 8),
               _RoleBadge(label: 'User', color: AppColors.primary),
               const SizedBox(height: 24),
-              _AgentApplicationButton(appUser: appUser, authVm: authVm),
+              _AgentApplicationSection(appUser: appUser, authVm: authVm),
               if (authVm.errorMessage != null) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -100,69 +88,7 @@ class _UserHome extends StatelessWidget {
                       )
                     : TextButton(
                         onPressed: () =>
-                            context.read<HomeViewModel>().signOut(),
-                        child: Text(
-                          'Sign Out',
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
-              ),
-              const Spacer(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AgentHome extends StatelessWidget {
-  final AppUser appUser;
-  const _AgentHome({required this.appUser});
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = context.watch<HomeViewModel>();
-    final displayName = appUser.firstName.isNotEmpty
-        ? appUser.firstName
-        : appUser.email.split('@').first;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              const AppLogo(size: 120),
-              const Spacer(),
-              Text(
-                'Hello, $displayName 👋',
-                style: Theme.of(context).textTheme.displayLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                appUser.email,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 8),
-              _RoleBadge(label: 'Agent', color: const Color(0xFF1A7A4A)),
-              const Spacer(),
-              Center(
-                child: vm.isLoading
-                    ? const CircularProgressIndicator(
-                        color: AppColors.primary,
-                        strokeWidth: 2,
-                      )
-                    : TextButton(
-                        onPressed: () =>
-                            context.read<HomeViewModel>().signOut(),
+                            context.read<UserHomeViewModel>().signOut(),
                         child: Text(
                           'Sign Out',
                           style: GoogleFonts.inter(
@@ -208,10 +134,10 @@ class _RoleBadge extends StatelessWidget {
   }
 }
 
-class _AgentApplicationButton extends StatelessWidget {
+class _AgentApplicationSection extends StatelessWidget {
   final AppUser appUser;
   final AuthViewModel authVm;
-  const _AgentApplicationButton({required this.appUser, required this.authVm});
+  const _AgentApplicationSection({required this.appUser, required this.authVm});
 
   @override
   Widget build(BuildContext context) {

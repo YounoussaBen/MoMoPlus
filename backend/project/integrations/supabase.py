@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
-from typing import Any, cast
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
 
 import jwt
 from django.conf import settings
+from jwt.types import Options as JwtOptions
 
 
 class SupabaseError(Exception):
@@ -88,7 +89,7 @@ class SupabaseAuthClient:
         try:
             jwks_client = jwt.PyJWKClient(settings.SUPABASE_JWKS_URL)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
-            options = cast(jwt.api_jwt.Options, {"verify_aud": bool(settings.SUPABASE_JWT_AUDIENCE)})
+            options = JwtOptions(verify_aud=bool(settings.SUPABASE_JWT_AUDIENCE))
             return jwt.decode(
                 token,
                 key=signing_key.key,

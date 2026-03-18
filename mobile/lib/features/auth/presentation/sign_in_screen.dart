@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/app_logo.dart';
+import '../../../core/ui/widgets/app_text_field.dart';
 import 'auth_view_model.dart';
-import '../core/themes/app_theme.dart';
-import '../core/widgets/app_button.dart';
-import '../core/widgets/app_text_field.dart';
-import '../core/widgets/app_logo.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});

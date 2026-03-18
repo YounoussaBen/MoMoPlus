@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../data/repositories/auth_repository.dart';
-import '../../domain/models/app_user.dart';
+import '../../../core/data/repositories/auth_repository.dart';
+import '../../../core/domain/models/app_user.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -55,7 +55,6 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
     try {
       await _authRepository.requestAgent();
-      // Refresh profile to get updated agent_status
       final profileData = await _authRepository.getBackendProfile();
       if (profileData != null) {
         _appUser = AppUser.fromBackendProfile(profileData);

@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../auth/auth_view_model.dart';
-import '../core/widgets/app_logo.dart';
+import '../../../core/ui/widgets/app_logo.dart';
+import '../../auth/presentation/auth_view_model.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -30,7 +30,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    // Capture context-dependent values before any async gaps.
     final authVm = context.read<AuthViewModel>();
 
     await Future.delayed(const Duration(milliseconds: 1600));
@@ -42,7 +41,8 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     if (authVm.isAuthenticated) {
-      context.go('/home');
+      final isAgent = authVm.appUser?.isAgent == true;
+      context.go(isAgent ? '/agent/home' : '/user/home');
     } else if (!onboardingSeen) {
       context.go('/onboarding');
     } else {
