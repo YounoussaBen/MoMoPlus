@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/repositories/auth_repository.dart';
 import '../../../core/domain/models/app_user.dart';
@@ -8,15 +9,22 @@ class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
 
   StreamSubscription<AuthState>? _authSubscription;
+  Future<void>? _profileRefreshFuture;
   bool _isAuthenticated = false;
   bool _isLoading = false;
   String? _errorMessage;
   User? _currentUser;
   AppUser? _appUser;
+  KycStatus? _resolvedKycStatus;
+  String? _kycApprovalToken;
+  bool _shouldShowApprovedKycScreen = false;
 
   AuthViewModel(this._authRepository) {
     _isAuthenticated = _authRepository.currentSession != null;
     _currentUser = _authRepository.currentUser;
+    if (_isAuthenticated) {
+      unawaited(refreshProfile());
+    }
     _authSubscription = _authRepository.authStateChanges.listen(
       _onAuthStateChange,
     );
@@ -27,28 +35,51 @@ class AuthViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   User? get currentUser => _currentUser;
   AppUser? get appUser => _appUser;
+  KycStatus get kycStatus =>
+      _resolvedKycStatus ?? _appUser?.kycStatus ?? KycStatus.none;
+  bool get isKycApproved => kycStatus == KycStatus.approved;
+  bool get shouldShowApprovedKycScreen => _shouldShowApprovedKycScreen;
 
   void _onAuthStateChange(AuthState state) {
     _isAuthenticated = state.session != null;
     _currentUser = state.session?.user;
     if (state.event == AuthChangeEvent.signedOut) {
       _appUser = null;
+      _resolvedKycStatus = null;
+      _kycApprovalToken = null;
+      _shouldShowApprovedKycScreen = false;
     }
     notifyListeners();
-    if (state.event == AuthChangeEvent.signedIn) {
-      _syncAndLoadProfile();
+    if (state.session != null &&
+        (state.event == AuthChangeEvent.signedIn || _appUser == null)) {
+      unawaited(refreshProfile());
     }
   }
 
   Future<void> _syncAndLoadProfile() async {
     try {
       await _authRepository.syncWithBackend();
+    } catch (_) {}
+
+    try {
       final profileData = await _authRepository.getBackendProfile();
       if (profileData != null) {
         _appUser = AppUser.fromBackendProfile(profileData);
-        notifyListeners();
       }
     } catch (_) {}
+
+    try {
+      final kycData = await _authRepository.getKycStatus();
+      final status = _parseKycStatus(kycData?['status'] as String?);
+      _resolvedKycStatus = status ?? _appUser?.kycStatus;
+      await _hydrateKycApprovalPresentation(kycData);
+    } catch (_) {
+      _resolvedKycStatus ??= _appUser?.kycStatus;
+      _kycApprovalToken = null;
+      _shouldShowApprovedKycScreen = false;
+    }
+
+    notifyListeners();
   }
 
   Future<void> requestAgent() async {
@@ -123,7 +154,34 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshProfile() => _syncAndLoadProfile();
+  Future<void> refreshProfile() {
+    final inFlight = _profileRefreshFuture;
+    if (inFlight != null) return inFlight;
+
+    final future = _syncAndLoadProfile();
+    _profileRefreshFuture = future;
+    return future.whenComplete(() {
+      if (identical(_profileRefreshFuture, future)) {
+        _profileRefreshFuture = null;
+      }
+    });
+  }
+
+  Future<void> acknowledgeKycApproval() async {
+    final userId = _kycPreferenceUserId;
+    final token = _kycApprovalToken;
+
+    if (userId == null || token == null) {
+      _shouldShowApprovedKycScreen = false;
+      notifyListeners();
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_seenKycApprovalKey(userId), token);
+    _shouldShowApprovedKycScreen = false;
+    notifyListeners();
+  }
 
   void clearError() => _clearError();
 
@@ -141,6 +199,46 @@ class AuthViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
   }
+
+  KycStatus? _parseKycStatus(String? value) {
+    if (value == null || value.isEmpty) return null;
+    return KycStatus.values.firstWhere(
+      (status) => status.name == value,
+      orElse: () => KycStatus.none,
+    );
+  }
+
+  Future<void> _hydrateKycApprovalPresentation(
+    Map<String, dynamic>? kycData,
+  ) async {
+    final userId = _kycPreferenceUserId;
+    final token = _buildKycApprovalToken(kycData);
+    _kycApprovalToken = token;
+
+    if (userId == null || token == null) {
+      _shouldShowApprovedKycScreen = false;
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final seenToken = prefs.getString(_seenKycApprovalKey(userId));
+    _shouldShowApprovedKycScreen = seenToken != token;
+  }
+
+  String? _buildKycApprovalToken(Map<String, dynamic>? kycData) {
+    final status = kycData?['status'] as String?;
+    if (status != KycStatus.approved.name) return null;
+
+    final submissionId = kycData?['id'] as String?;
+    if (submissionId == null || submissionId.isEmpty) return null;
+
+    final updatedAt = kycData?['updated_at'] as String? ?? '';
+    return '$submissionId:$updatedAt';
+  }
+
+  String? get _kycPreferenceUserId => _appUser?.id ?? _currentUser?.id;
+
+  String _seenKycApprovalKey(String userId) => 'seen_kyc_approval_$userId';
 
   @override
   void dispose() {

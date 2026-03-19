@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/app_button.dart';
+import '../../auth/presentation/auth_view_model.dart';
 import 'kyc_view_model.dart';
 
 class KycStatusScreen extends StatelessWidget {
@@ -110,8 +112,10 @@ class _ApprovedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<KycViewModel>();
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           width: 80,
@@ -127,12 +131,35 @@ class _ApprovedView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        Text('Verified', style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          'Verified',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         const SizedBox(height: 10),
         Text(
           'Your identity has been verified.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 28),
+        SizedBox(
+          width: double.infinity,
+          child: AppButton(
+            label: 'Continue',
+            isLoading: vm.isGoingHome,
+            onPressed: () async {
+              await vm.goHome();
+              if (context.mounted) {
+                final authVm = context.read<AuthViewModel>();
+                context.go(
+                  authVm.appUser?.isAgent == true
+                      ? '/agent/home'
+                      : '/user/home',
+                );
+              }
+            },
+          ),
         ),
       ],
     );

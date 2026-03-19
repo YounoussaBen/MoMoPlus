@@ -7,7 +7,6 @@ import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
-import '../domain/models/app_user.dart';
 
 class AppRouter {
   static GoRouter create(AuthViewModel authViewModel) {
@@ -30,19 +29,23 @@ class AppRouter {
           return isAuthRoute ? null : '/auth/sign-in';
         }
 
-        final isKycApproved = appUser?.kycStatus == KycStatus.approved;
+        final isKycApproved = authViewModel.isKycApproved;
+        final shouldShowApprovedKycScreen =
+            authViewModel.shouldShowApprovedKycScreen;
 
         // Authenticated user on an auth route → KYC gate or role home.
         if (isAuthRoute) {
-          if (!isKycApproved) return '/kyc';
+          if (!isKycApproved || shouldShowApprovedKycScreen) return '/kyc';
           return appUser?.isAgent == true ? '/agent/home' : '/user/home';
         }
 
         // KYC gate: not yet approved → hold on /kyc.
-        if (!isKycApproved && !isKycRoute) return '/kyc';
+        if ((!isKycApproved || shouldShowApprovedKycScreen) && !isKycRoute) {
+          return '/kyc';
+        }
 
-        // KYC approved but still on /kyc → advance to role home.
-        if (isKycApproved && isKycRoute) {
+        // KYC approved and already acknowledged → skip /kyc.
+        if (isKycApproved && !shouldShowApprovedKycScreen && isKycRoute) {
           return appUser?.isAgent == true ? '/agent/home' : '/user/home';
         }
 

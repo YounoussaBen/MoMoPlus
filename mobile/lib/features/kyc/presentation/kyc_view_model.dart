@@ -42,6 +42,7 @@ class KycViewModel extends ChangeNotifier {
   KycSubmission? _submission;
   String? _errorMessage;
   bool _isSubmitting = false;
+  bool _isGoingHome = false;
 
   int _step = 0;
   String? _idType;
@@ -62,6 +63,7 @@ class KycViewModel extends ChangeNotifier {
   KycSubmission? get submission => _submission;
   String? get errorMessage => _errorMessage;
   bool get isSubmitting => _isSubmitting;
+  bool get isGoingHome => _isGoingHome;
   int get step => _step;
   String? get idType => _idType;
 
@@ -348,6 +350,21 @@ class KycViewModel extends ChangeNotifier {
 
     if (_submission != null) {
       await _restoreFromSubmission(_submission!);
+      notifyListeners();
+    }
+  }
+
+  Future<void> goHome() async {
+    if (_isGoingHome) return;
+
+    _isGoingHome = true;
+    notifyListeners();
+
+    try {
+      await _authViewModel.refreshProfile();
+      await _authViewModel.acknowledgeKycApproval();
+    } finally {
+      _isGoingHome = false;
       notifyListeners();
     }
   }

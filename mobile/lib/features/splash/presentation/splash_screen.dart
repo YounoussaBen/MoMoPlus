@@ -41,7 +41,14 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     if (authVm.isAuthenticated) {
+      await authVm.refreshProfile();
+      if (!mounted) return;
+
       final isAgent = authVm.appUser?.isAgent == true;
+      if (!authVm.isKycApproved || authVm.shouldShowApprovedKycScreen) {
+        context.go('/kyc');
+        return;
+      }
       context.go(isAgent ? '/agent/home' : '/user/home');
     } else if (!onboardingSeen) {
       context.go('/onboarding');
