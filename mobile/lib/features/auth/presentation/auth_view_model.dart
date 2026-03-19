@@ -123,6 +123,8 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshProfile() => _syncAndLoadProfile();
+
   void clearError() => _clearError();
 
   void _setLoading(bool value) {

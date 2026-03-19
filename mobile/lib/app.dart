@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/data/repositories/auth_repository.dart';
 import 'core/data/services/backend_api_service.dart';
+import 'core/data/services/file_upload_service.dart';
 import 'core/data/services/supabase_auth_service.dart';
 import 'core/routing/router.dart';
 import 'core/ui/theme/app_theme.dart';
@@ -18,6 +19,8 @@ class MomoPlusApp extends StatefulWidget {
 
 class _MomoPlusAppState extends State<MomoPlusApp> {
   late final SupabaseClient _supabaseClient;
+  late final BackendApiService _backendService;
+  late final FileUploadService _fileUploadService;
   late final AuthRepository _authRepository;
   late final AuthViewModel _authViewModel;
   late final GoRouter _router;
@@ -27,10 +30,11 @@ class _MomoPlusAppState extends State<MomoPlusApp> {
     super.initState();
     _supabaseClient = Supabase.instance.client;
     final authService = SupabaseAuthService(_supabaseClient);
-    final backendService = BackendApiService(_supabaseClient);
+    _backendService = BackendApiService(_supabaseClient);
+    _fileUploadService = FileUploadService(_backendService);
     _authRepository = SupabaseAuthRepository(
       authService: authService,
-      backendService: backendService,
+      backendService: _backendService,
     );
     _authViewModel = AuthViewModel(_authRepository);
     _router = AppRouter.create(_authViewModel);
@@ -47,6 +51,8 @@ class _MomoPlusAppState extends State<MomoPlusApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<BackendApiService>.value(value: _backendService),
+        Provider<FileUploadService>.value(value: _fileUploadService),
         Provider<AuthRepository>.value(value: _authRepository),
         ChangeNotifierProvider<AuthViewModel>.value(value: _authViewModel),
       ],

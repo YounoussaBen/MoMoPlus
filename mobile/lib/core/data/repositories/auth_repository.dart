@@ -18,6 +18,17 @@ abstract class AuthRepository {
   Future<void> syncWithBackend();
   Future<Map<String, dynamic>?> getBackendProfile();
   Future<void> requestAgent();
+  Future<Map<String, dynamic>?> getKycStatus();
+  Future<Map<String, dynamic>> getKycDraft();
+  Future<void> saveKycDraft(Map<String, dynamic> draft);
+
+  Future<void> submitKyc({
+    required String idType,
+    required String idFrontId,
+    required String idBackId,
+    required String selfieId,
+    required String proofOfAddressId,
+  });
 }
 
 class SupabaseAuthRepository implements AuthRepository {
@@ -71,4 +82,30 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> requestAgent() => _backendService.requestAgent();
+
+  @override
+  Future<Map<String, dynamic>?> getKycStatus() =>
+      _backendService.getKycStatus();
+
+  @override
+  Future<Map<String, dynamic>> getKycDraft() => _backendService.getKycDraft();
+
+  @override
+  Future<void> saveKycDraft(Map<String, dynamic> draft) =>
+      _backendService.saveKycDraft(draft);
+
+  @override
+  Future<void> submitKyc({
+    required String idType,
+    required String idFrontId,
+    required String idBackId,
+    required String selfieId,
+    required String proofOfAddressId,
+  }) => _backendService.submitKyc(
+    idType: idType,
+    idFrontId: idFrontId,
+    idBackId: idBackId,
+    selfieId: selfieId,
+    proofOfAddressId: proofOfAddressId,
+  );
 }

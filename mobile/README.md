@@ -13,6 +13,9 @@ cp .env.example .env
 # Install dependencies
 flutter pub get
 
+# Port forwarding
+adb reverse tcp:8000 tcp:8000
+
 # Run
 flutter run
 ```

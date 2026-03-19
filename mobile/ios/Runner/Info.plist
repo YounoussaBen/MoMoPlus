@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>MoMo Plus uses your camera to capture identity documents and a selfie for verification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MoMo Plus needs access to your photo library to upload identity documents.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MoMo Plus may save photos to your library.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
