@@ -53,6 +53,7 @@ def mocked_supabase_storage(mocker):
             "expires_in": 7200,
         }
     )
+    storage.client.size = mocker.Mock(return_value=11)
     storage.exists = mocker.Mock(return_value=True)
     storage.size = mocker.Mock(return_value=11)
     storage.delete = mocker.Mock(return_value=None)
@@ -149,6 +150,34 @@ class TestFileAssetViews:
 
         assert complete_response.status_code == status.HTTP_400_BAD_REQUEST
         assert "not found in storage" in complete_response.data["detail"].lower()
+
+    @pytest.mark.django_db
+    def test_complete_allows_supabase_upload_when_size_metadata_is_unavailable(
+        self,
+        authenticated_client,
+        mocked_supabase_storage,
+        media_root,
+    ):
+        mocked_supabase_storage.client.size.return_value = None
+        init_response = authenticated_client.post(
+            "/api/files/",
+            {
+                "original_name": "notes.txt",
+                "content_type": "text/plain",
+                "size": 11,
+                "kind": FileAsset.FileKind.DOCUMENT,
+            },
+            format="json",
+        )
+        file_id = init_response.data["file"]["id"]
+
+        complete_response = authenticated_client.post(f"/api/files/{file_id}/complete/")
+
+        assert complete_response.status_code == status.HTTP_200_OK
+
+        asset = FileAsset.objects.get(pk=file_id)
+        assert asset.status == FileAsset.Status.READY
+        assert asset.size == 11
 
     @pytest.mark.django_db
     def test_list_returns_only_owned_files(self, auth_client_factory, user_factory, media_root):

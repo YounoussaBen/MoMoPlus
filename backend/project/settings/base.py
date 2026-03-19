@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "project.apps.core",
     "project.apps.api",
     "project.apps.files",
+    "project.apps.kyc",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -197,6 +198,8 @@ MEDIA_ROOT = BASE_DIR.parent / "media"
 # ==============================================================================
 
 PROJECT_ENVIRONMENT = config("PROJECT_ENVIRONMENT", default="local")
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20 MB
 
 
 # ==============================================================================

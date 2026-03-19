@@ -16,6 +16,13 @@ class AgentStatus(models.TextChoices):
     REJECTED = "rejected", "Rejected"
 
 
+class KycStatus(models.TextChoices):
+    NONE = "none", "None"
+    PENDING = "pending", "Pending"
+    APPROVED = "approved", "Approved"
+    REJECTED = "rejected", "Rejected"
+
+
 class User(AbstractUser, BaseModel):
     supabase_user_id: models.UUIDField = models.UUIDField(unique=True, null=True, blank=True)
     email: models.EmailField = models.EmailField(unique=True)
@@ -25,6 +32,8 @@ class User(AbstractUser, BaseModel):
     agent_status: models.CharField = models.CharField(
         max_length=10, choices=AgentStatus.choices, default=AgentStatus.NONE
     )
+    kyc_status: models.CharField = models.CharField(max_length=10, choices=KycStatus.choices, default=KycStatus.NONE)
+    kyc_draft: models.JSONField = models.JSONField(default=dict, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]

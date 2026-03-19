@@ -6,6 +6,8 @@ urlpatterns = [
     path("auth/", include("project.apps.accounts.urls")),
     path("staff/", include("project.apps.accounts.staff_urls")),
     path("files/", include("project.apps.files.urls")),
+    path("kyc/", include("project.apps.kyc.urls")),
+    path("staff/kyc/", include("project.apps.kyc.staff_urls")),
     # API Documentation
     path(
         "schema/",

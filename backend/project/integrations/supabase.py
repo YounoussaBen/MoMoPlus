@@ -188,8 +188,11 @@ class SupabaseStorageClient:
         except json.JSONDecodeError as exc:
             raise SupabaseStorageError("Supabase Storage returned an invalid response.") from exc
 
-        signed_url = response.get("signedURL")
+        # Supabase may return the signed URL as "signedURL" (older) or "url" (newer).
+        signed_url = response.get("signedURL") or response.get("url")
         token = response.get("token")
+
+        # Extract token from the signed URL if not returned separately.
         if not token and isinstance(signed_url, str):
             token_values = parse_qs(urlparse(signed_url).query).get("token", [])
             token = token_values[0] if token_values else None
@@ -197,9 +200,20 @@ class SupabaseStorageClient:
         if not token:
             raise SupabaseStorageError("Supabase Storage did not return a signed upload token.")
 
-        full_signed_url = None
-        if isinstance(signed_url, str):
-            full_signed_url = _build_url(f"/storage/v1{signed_url}") if signed_url.startswith("/") else signed_url
+        # Build a fully-qualified upload URL.
+        if isinstance(signed_url, str) and signed_url.startswith("http"):
+            full_signed_url = signed_url
+        elif isinstance(signed_url, str):
+            # Relative path — prepend base URL; add /storage/v1 prefix only if missing.
+            prefix = "" if signed_url.startswith("/storage/v1") else "/storage/v1"
+            full_signed_url = _build_url(f"{prefix}{signed_url}")
+        else:
+            # Fallback: construct from path and token.
+            normalized = self._normalized_path(path)
+            encoded = quote(normalized, safe="/")
+            full_signed_url = _build_url(
+                f"/storage/v1/object/upload/sign/{quote(self.bucket)}/{encoded}?token={token}"
+            )
 
         return {
             "path": response.get("path") or self._normalized_path(path),
@@ -259,8 +273,11 @@ class SupabaseStorageClient:
         return True
 
     def size(self, path: str) -> int | None:
-        metadata = self.info(path).get("metadata", {})
-        size = metadata.get("size")
+        object_info = self.info(path)
+        size = object_info.get("size")
+        if size is None:
+            metadata = object_info.get("metadata", {})
+            size = metadata.get("size") if isinstance(metadata, dict) else None
         return int(size) if size is not None else None
 
     def info(self, path: str) -> dict[str, Any]:

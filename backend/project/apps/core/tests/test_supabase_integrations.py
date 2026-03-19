@@ -97,6 +97,20 @@ class TestSupabaseStorageClient:
         }
         request.assert_called_once()
 
+    def test_size_reads_top_level_size_field(self, settings, mocker):
+        settings.SUPABASE_URL = "https://example.supabase.co"
+        settings.SUPABASE_SERVICE_ROLE_KEY = "service-role"
+        settings.SUPABASE_STORAGE_BUCKET = "media"
+        settings.SUPABASE_STORAGE_BASE_PATH = ""
+        mocker.patch(
+            "project.integrations.supabase._request",
+            return_value=(json.dumps({"size": 123}).encode("utf-8"), {}),
+        )
+
+        client = SupabaseStorageClient()
+
+        assert client.size("report.pdf") == 123
+
 
 class TestSupabaseStorageBackend:
     def test_save_uploads_content_via_client(self, mocker):

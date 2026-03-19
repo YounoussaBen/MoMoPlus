@@ -51,6 +51,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "full_name",
             "role",
             "agent_status",
+            "kyc_status",
             "created_at",
             "updated_at",
         ]
@@ -61,6 +62,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "email",
             "role",
             "agent_status",
+            "kyc_status",
             "created_at",
             "updated_at",
         ]

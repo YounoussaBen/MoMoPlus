@@ -42,6 +42,7 @@ class FileAsset(BaseModel):
         PROFILE_PICTURE = "profile_picture", "Profile picture"
         PASSPORT = "passport", "Passport"
         DOCUMENT = "document", "Document"
+        SELFIE = "selfie", "Selfie"
         OTHER = "other", "Other"
 
     class Visibility(models.TextChoices):

@@ -150,7 +150,7 @@ def finalize_file_asset_upload(*, asset: FileAsset) -> FileAsset:
     if not storage.exists(asset.storage_path):
         raise FileAssetUploadError("Uploaded file was not found in storage.")
 
-    actual_size = storage.size(asset.storage_path) if hasattr(storage, "size") else None
+    actual_size = _get_uploaded_size(storage=storage, path=asset.storage_path)
     if asset.size and actual_size is not None and int(actual_size) != int(asset.size):
         raise FileAssetUploadError("Uploaded file size does not match the expected size.")
 
@@ -227,3 +227,15 @@ def get_file_storage() -> Storage:
 
 def file_storage_path(asset: FileAsset) -> str:
     return asset.file.field.generate_filename(asset, asset.original_name)
+
+
+def _get_uploaded_size(*, storage: Storage, path: str) -> int | None:
+    if isinstance(storage, SupabaseStorage):
+        size = storage.client.size(path)
+        return int(size) if size is not None else None
+
+    if not hasattr(storage, "size"):
+        return None
+
+    size = storage.size(path)
+    return int(size) if size is not None else None
