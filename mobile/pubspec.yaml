@@ -42,6 +42,7 @@ dependencies:
   lottie: ^3.3.1
   image_picker: ^1.1.2
   camera: ^0.11.2
+  flutter_svg: ^2.0.17
 
 dev_dependencies:
   flutter_test:
@@ -77,6 +78,7 @@ flutter:
   assets:
     - assets/logo.png
     - assets/logo-white.png
+    - assets/icons/
     - assets/animations/
     - .env
 

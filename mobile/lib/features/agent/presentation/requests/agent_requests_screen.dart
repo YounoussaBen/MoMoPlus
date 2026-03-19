@@ -7,7 +7,7 @@ class AgentRequestsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.surface,
       appBar: AppBar(backgroundColor: AppColors.primary, toolbarHeight: 12),
       body: Padding(
         padding: const EdgeInsets.only(bottom: 100),

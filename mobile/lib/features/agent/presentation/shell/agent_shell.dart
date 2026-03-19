@@ -14,6 +14,7 @@ class AgentShell extends StatelessWidget {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
+      backgroundColor: AppColors.surface,
       body: Stack(
         children: [
           navigationShell,
@@ -29,10 +30,10 @@ class AgentShell extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.white.withValues(alpha: 0),
-                      Colors.white.withValues(alpha: 0.6),
-                      Colors.white.withValues(alpha: 0.95),
-                      Colors.white,
+                      AppColors.surface.withValues(alpha: 0),
+                      AppColors.surface.withValues(alpha: 0.6),
+                      AppColors.surface.withValues(alpha: 0.95),
+                      AppColors.surface,
                     ],
                     stops: const [0.0, 0.35, 0.7, 1.0],
                   ),

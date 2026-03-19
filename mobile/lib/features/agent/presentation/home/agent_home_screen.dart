@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/widgets/app_logo.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 
 class AgentHomeScreen extends StatelessWidget {
@@ -12,7 +14,7 @@ class AgentHomeScreen extends StatelessWidget {
 
     if (appUser == null) {
       return const Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
         body: Center(
           child: CircularProgressIndicator(
             color: AppColors.primary,
@@ -27,17 +29,26 @@ class AgentHomeScreen extends StatelessWidget {
         : appUser.email.split('@').first;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
-        toolbarHeight: 48,
-        title: const SizedBox.shrink(),
+        toolbarHeight: 56,
+        title: const AppLogo(size: 100, useWhite: true),
+        centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
+            icon: SvgPicture.asset(
+              'assets/icons/bell-notification.svg',
+              width: 26,
+              height: 26,
+              colorFilter: const ColorFilter.mode(
+                AppColors.textPrimary,
+                BlendMode.srcIn,
+              ),
+            ),
+            onPressed: () => _showNotifications(context),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
         ],
       ),
       body: ListView(
@@ -56,7 +67,7 @@ class AgentHomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Agent Dashboard',
+                      'Welcome back to MoMo Plus',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
@@ -65,13 +76,22 @@ class AgentHomeScreen extends StatelessWidget {
               _AvailabilityToggle(),
             ],
           ),
+          const SizedBox(height: 28),
+          _QuickActions(),
+          const SizedBox(height: 28),
+          _PendingRequests(),
+          const SizedBox(height: 28),
+          _RecentTransactions(),
           const SizedBox(height: 24),
-          _DailySummary(),
-          const SizedBox(height: 16),
-          _QuickStats(),
         ],
       ),
     );
+  }
+
+  void _showNotifications(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const _NotificationsPage()));
   }
 }
 
@@ -131,94 +151,32 @@ class _AvailabilityToggleState extends State<_AvailabilityToggle> {
   }
 }
 
-class _DailySummary extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, Color(0xFF4AA025)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Today's Summary",
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withValues(alpha: 0.9),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _SummaryItem(value: '0', label: 'Requests'),
-              const SizedBox(width: 32),
-              _SummaryItem(value: '0', label: 'Pending'),
-              const SizedBox(width: 32),
-              _SummaryItem(value: '0.00', label: 'Earned'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryItem extends StatelessWidget {
-  final String value;
-  final String label;
-  const _SummaryItem({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.white.withValues(alpha: 0.8),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickStats extends StatelessWidget {
+class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: _StatTile(
-            icon: Icons.inbox,
-            label: 'Active\nRequests',
-            value: '0',
+          child: _ActionTile(
+            icon: Icons.account_balance_wallet_rounded,
+            label: 'Add Wallet',
+            onTap: () {},
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 16),
         Expanded(
-          child: _StatTile(
-            icon: Icons.payments,
-            label: 'Pending\nRepayments',
-            value: '0',
+          child: _ActionTile(
+            icon: Icons.tune_rounded,
+            label: 'Set Limits',
+            onTap: () {},
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.location_on_rounded,
+            label: 'My Location',
+            onTap: () {},
           ),
         ),
       ],
@@ -226,53 +184,294 @@ class _QuickStats extends StatelessWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
+class _ActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
-  const _StatTile({
+  final VoidCallback onTap;
+  const _ActionTile({
     required this.icon,
     required this.label,
-    required this.value,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: AppColors.primary, size: 20),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: 0.10),
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              child: Icon(icon, color: AppColors.primary, size: 24),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _PendingRequests extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Pending Requests',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {},
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.inbox_outlined,
+                  size: 40,
+                  color: AppColors.textSecondary.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'No pending requests',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RecentTransactions extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Transactions',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {},
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 40,
+                  color: AppColors.textSecondary.withValues(alpha: 0.4),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'No transactions yet',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationsPage extends StatelessWidget {
+  const _NotificationsPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final notifications = [
+      _NotificationItem(
+        icon: Icons.campaign_rounded,
+        title: 'Welcome Agent!',
+        subtitle: 'You are now ready to receive loan requests from users.',
+        time: '2h ago',
+      ),
+      _NotificationItem(
+        icon: Icons.verified_rounded,
+        title: 'Profile verified',
+        subtitle: 'Your agent profile has been verified successfully.',
+        time: '1d ago',
+      ),
+      _NotificationItem(
+        icon: Icons.trending_up_rounded,
+        title: 'Weekly tip',
+        subtitle: 'Stay available during peak hours to get more requests.',
+        time: '3d ago',
+      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Notifications',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        centerTitle: true,
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        itemCount: notifications.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (_, index) {
+          final n = notifications[index];
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(n.icon, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        n.title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        n.subtitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  n.time,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NotificationItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String time;
+
+  const _NotificationItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.time,
+  });
 }

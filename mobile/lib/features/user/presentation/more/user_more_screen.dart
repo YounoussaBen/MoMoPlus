@@ -58,9 +58,9 @@ class UserMoreScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Transactions',
-                      subtitle: 'View all completed transactions',
+                      icon: Icons.swap_horiz_outlined,
+                      title: 'Loans',
+                      subtitle: 'View all your loans',
                       onTap: () {},
                     ),
                   ],
@@ -251,19 +251,11 @@ class _AgentApplicationSection extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: authVm.isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(10),
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(
-                      Icons.badge_rounded,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+              child: const Icon(
+                Icons.badge_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -291,11 +283,20 @@ class _AgentApplicationSection extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.arrow_forward_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
+            authVm.isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
           ],
         ),
       ),
