@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 enum AppButtonVariant { primary, secondary, ghost }
@@ -129,7 +128,7 @@ class _SecondaryButton extends StatelessWidget {
                   if (icon != null) ...[icon!, const SizedBox(width: 8)],
                   Text(
                     label,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textPrimary,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/app_button.dart';
@@ -48,7 +47,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const Spacer(),
               Text(
                 'Emergency funds,\ninstantly.',
-                style: GoogleFonts.inter(
+                style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
@@ -60,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: 16),
               Text(
                 'When life catches\nyou off guard. No hidden fees.',
-                style: GoogleFonts.inter(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w400,
                   color: AppColors.textSecondary,

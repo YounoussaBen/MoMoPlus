@@ -1,12 +1,20 @@
 import 'package:go_router/go_router.dart';
+import '../../features/agent/presentation/active/agent_active_screen.dart';
 import '../../features/agent/presentation/home/agent_home_screen.dart';
+import '../../features/agent/presentation/more/agent_more_screen.dart';
+import '../../features/agent/presentation/requests/agent_requests_screen.dart';
+import '../../features/agent/presentation/shell/agent_shell.dart';
 import '../../features/auth/presentation/auth_view_model.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/user/presentation/agents/user_agents_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
+import '../../features/user/presentation/loans/user_loans_screen.dart';
+import '../../features/user/presentation/more/user_more_screen.dart';
+import '../../features/user/presentation/shell/user_shell.dart';
 
 class AppRouter {
   static GoRouter create(AuthViewModel authViewModel) {
@@ -77,13 +85,85 @@ class AppRouter {
           builder: (context, state) => const SignUpScreen(),
         ),
         GoRoute(path: '/kyc', builder: (context, state) => const KycScreen()),
-        GoRoute(
-          path: '/user/home',
-          builder: (context, state) => const UserHomeScreen(),
+
+        // ── User shell (5 tabs) ──
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) =>
+              UserShell(navigationShell: navigationShell),
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/user/home',
+                  builder: (context, state) => const UserHomeScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/user/agents',
+                  builder: (context, state) => const UserAgentsScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/user/loans',
+                  builder: (context, state) => const UserLoansScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/user/more',
+                  builder: (context, state) => const UserMoreScreen(),
+                ),
+              ],
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/agent/home',
-          builder: (context, state) => const AgentHomeScreen(),
+
+        // ── Agent shell (5 tabs) ──
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) =>
+              AgentShell(navigationShell: navigationShell),
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/agent/home',
+                  builder: (context, state) => const AgentHomeScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/agent/requests',
+                  builder: (context, state) => const AgentRequestsScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/agent/active',
+                  builder: (context, state) => const AgentActiveScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/agent/more',
+                  builder: (context, state) => const AgentMoreScreen(),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     );

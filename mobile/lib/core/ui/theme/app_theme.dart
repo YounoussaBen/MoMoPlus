@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+String get _fontFamily => Platform.isIOS ? 'SF-Pro-Text' : 'Roboto';
 
 class AppColors {
   static const background = Color(0xFFFFFFFF);
@@ -13,6 +15,7 @@ class AppColors {
 
 class AppTheme {
   static ThemeData get light {
+    final font = _fontFamily;
     final base = ThemeData.light(useMaterial3: true);
     return base.copyWith(
       scaffoldBackgroundColor: AppColors.background,
@@ -23,36 +26,43 @@ class AppTheme {
         onSurface: AppColors.textPrimary,
         error: AppColors.error,
       ),
-      textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
-        displayLarge: GoogleFonts.inter(
-          fontSize: 32,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary,
-          letterSpacing: -0.5,
-        ),
-        headlineMedium: GoogleFonts.inter(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-          letterSpacing: -0.3,
-        ),
-        bodyLarge: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textPrimary,
-        ),
-        bodyMedium: GoogleFonts.inter(
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: AppColors.textSecondary,
-        ),
-        labelLarge: GoogleFonts.inter(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: Colors.white,
-          letterSpacing: 0,
-        ),
-      ),
+      textTheme: base.textTheme
+          .apply(fontFamily: font)
+          .copyWith(
+            displayLarge: TextStyle(
+              fontFamily: font,
+              fontSize: 32,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.5,
+            ),
+            headlineMedium: TextStyle(
+              fontFamily: font,
+              fontSize: 24,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+            bodyLarge: TextStyle(
+              fontFamily: font,
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textPrimary,
+            ),
+            bodyMedium: TextStyle(
+              fontFamily: font,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: AppColors.textSecondary,
+            ),
+            labelLarge: TextStyle(
+              fontFamily: font,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              letterSpacing: 0,
+            ),
+          ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
@@ -80,11 +90,13 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        hintStyle: GoogleFonts.inter(
+        hintStyle: TextStyle(
+          fontFamily: font,
           fontSize: 15,
           color: AppColors.textSecondary,
         ),
-        labelStyle: GoogleFonts.inter(
+        labelStyle: TextStyle(
+          fontFamily: font,
           fontSize: 14,
           color: AppColors.textSecondary,
         ),
@@ -100,7 +112,8 @@ class AppTheme {
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           minimumSize: const Size(double.infinity, 52),
-          textStyle: GoogleFonts.inter(
+          textStyle: TextStyle(
+            fontFamily: font,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -109,7 +122,8 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
-          textStyle: GoogleFonts.inter(
+          textStyle: TextStyle(
+            fontFamily: font,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -120,7 +134,8 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.inter(
+        titleTextStyle: TextStyle(
+          fontFamily: font,
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,

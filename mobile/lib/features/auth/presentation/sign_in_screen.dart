@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/app_button.dart';
@@ -112,7 +111,7 @@ class _SignInScreenState extends State<SignInScreen> {
                         onTap: () {},
                         child: Text(
                           'Forgot password?',
-                          style: GoogleFonts.inter(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: AppColors.primary,
@@ -139,7 +138,7 @@ class _SignInScreenState extends State<SignInScreen> {
                             onTap: () => context.go('/auth/sign-up'),
                             child: Text(
                               'Sign up',
-                              style: GoogleFonts.inter(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.primary,
@@ -183,7 +182,7 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.inter(color: AppColors.error, fontSize: 13),
+              style: TextStyle(color: AppColors.error, fontSize: 13),
             ),
           ),
           GestureDetector(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/app_button.dart';
@@ -35,7 +34,7 @@ class Step1IdTypeScreen extends StatelessWidget {
         const SizedBox(height: 28),
         Text(
           'Document photos',
-          style: GoogleFonts.inter(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -101,7 +100,7 @@ class _IdTypeDropdown extends StatelessWidget {
             Expanded(
               child: Text(
                 selectedLabel.isEmpty ? 'Select ID type' : selectedLabel,
-                style: GoogleFonts.inter(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: selectedType != null
                       ? FontWeight.w500
@@ -151,7 +150,7 @@ class _IdTypeDropdown extends StatelessWidget {
                 (opt) => ListTile(
                   title: Text(
                     opt.$2,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: selectedType == opt.$1
                           ? FontWeight.w600

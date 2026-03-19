@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/app_button.dart';
@@ -51,10 +50,7 @@ class Step3AddressScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     vm.errorMessage!,
-                    style: GoogleFonts.inter(
-                      color: AppColors.error,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: AppColors.error, fontSize: 13),
                   ),
                 ),
                 GestureDetector(

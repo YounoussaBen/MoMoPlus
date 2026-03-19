@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 
 class PhotoPickerTile extends StatelessWidget {
@@ -95,7 +94,7 @@ class PhotoPickerTile extends StatelessWidget {
                         : uploadError != null
                         ? 'Tap to retry'
                         : label,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
                       fontSize: 13,
                       color: uploadError != null
                           ? AppColors.error
