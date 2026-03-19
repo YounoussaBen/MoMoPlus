@@ -272,7 +272,7 @@ class _PendingRequests extends StatelessWidget {
             child: Column(
               children: [
                 Icon(
-                  Icons.inbox_outlined,
+                  Icons.swap_horiz_outlined,
                   size: 40,
                   color: AppColors.textSecondary.withValues(alpha: 0.4),
                 ),

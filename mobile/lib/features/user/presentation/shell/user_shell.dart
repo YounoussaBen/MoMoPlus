@@ -74,7 +74,7 @@ class UserShell extends StatelessWidget {
                       _TabItem(
                         icon: Icons.swap_horiz_outlined,
                         activeIcon: Icons.swap_horiz_rounded,
-                        label: 'Loans',
+                        label: 'Requests',
                         isSelected: selectedIndex == 2,
                         onTap: () => _onTap(2),
                       ),

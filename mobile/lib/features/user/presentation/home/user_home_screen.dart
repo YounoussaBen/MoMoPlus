@@ -69,7 +69,7 @@ class UserHomeScreen extends StatelessWidget {
           const SizedBox(height: 28),
           _QuickActions(),
           const SizedBox(height: 28),
-          _RecentLoans(),
+          _RecentRequests(),
           const SizedBox(height: 24),
         ],
       ),
@@ -100,7 +100,7 @@ class _StatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'No active loans',
+            'No active requests',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -109,7 +109,7 @@ class _StatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Request a loan to get started',
+            'Make a request to get started',
             style: TextStyle(
               fontSize: 14,
               color: Colors.white.withValues(alpha: 0.8),
@@ -137,7 +137,7 @@ class _QuickActions extends StatelessWidget {
         Expanded(
           child: _ActionTile(
             icon: Icons.add_rounded,
-            label: 'Request Loan',
+            label: 'Make Request',
             onTap: () {},
           ),
         ),
@@ -202,7 +202,7 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-class _RecentLoans extends StatelessWidget {
+class _RecentRequests extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -211,7 +211,7 @@ class _RecentLoans extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Recent Loans',
+              'Recent Requests',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -248,7 +248,7 @@ class _RecentLoans extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 const Text(
-                  'No loans yet',
+                  'No requests yet',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,

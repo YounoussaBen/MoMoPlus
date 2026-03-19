@@ -56,19 +56,6 @@ class AgentMoreScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
-                      icon: Icons.bar_chart_outlined,
-                      title: 'Earnings',
-                      subtitle: 'Transaction history and breakdown',
-                      onTap: () {},
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(title: 'Agent'),
-                const SizedBox(height: 8),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
                       icon: Icons.tune_outlined,
                       title: 'Limits',
                       subtitle: 'Max amount and service area',

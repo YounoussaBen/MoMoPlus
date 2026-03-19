@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 
-class AgentActiveScreen extends StatelessWidget {
-  const AgentActiveScreen({super.key});
+class UserRequestsScreen extends StatelessWidget {
+  const UserRequestsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,18 +16,18 @@ class AgentActiveScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.pending_actions_outlined,
+                Icons.swap_horiz_rounded,
                 size: 64,
                 color: AppColors.textSecondary.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 16),
               Text(
-                'In Progress',
+                'Your Requests',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 8),
               Text(
-                'Disbursements, repayments,\nand active sessions.',
+                'Pending requests, active requests,\nand repayment actions.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),

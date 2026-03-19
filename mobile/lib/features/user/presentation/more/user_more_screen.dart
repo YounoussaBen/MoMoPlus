@@ -59,8 +59,8 @@ class UserMoreScreen extends StatelessWidget {
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
                       icon: Icons.swap_horiz_outlined,
-                      title: 'Loans',
-                      subtitle: 'View all your loans',
+                      title: 'Requests',
+                      subtitle: 'View all your requests',
                       onTap: () {},
                     ),
                   ],

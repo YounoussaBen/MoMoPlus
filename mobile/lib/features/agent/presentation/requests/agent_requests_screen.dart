@@ -16,7 +16,7 @@ class AgentRequestsScreen extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.inbox_outlined,
+                Icons.swap_horiz_outlined,
                 size: 64,
                 color: AppColors.textSecondary.withValues(alpha: 0.4),
               ),

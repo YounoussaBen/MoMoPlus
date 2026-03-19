@@ -1,5 +1,5 @@
 import 'package:go_router/go_router.dart';
-import '../../features/agent/presentation/active/agent_active_screen.dart';
+import '../../features/agent/presentation/transactions/agent_transactions_screen.dart';
 import '../../features/agent/presentation/home/agent_home_screen.dart';
 import '../../features/agent/presentation/more/agent_more_screen.dart';
 import '../../features/agent/presentation/requests/agent_requests_screen.dart';
@@ -12,7 +12,7 @@ import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/user/presentation/agents/user_agents_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
-import '../../features/user/presentation/loans/user_loans_screen.dart';
+import '../../features/user/presentation/requests/user_requests_screen.dart';
 import '../../features/user/presentation/more/user_more_screen.dart';
 import '../../features/user/presentation/shell/user_shell.dart';
 
@@ -110,8 +110,8 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/user/loans',
-                  builder: (context, state) => const UserLoansScreen(),
+                  path: '/user/requests',
+                  builder: (context, state) => const UserRequestsScreen(),
                 ),
               ],
             ),
@@ -150,8 +150,8 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/agent/active',
-                  builder: (context, state) => const AgentActiveScreen(),
+                  path: '/agent/transactions',
+                  builder: (context, state) => const AgentTransactionsScreen(),
                 ),
               ],
             ),
