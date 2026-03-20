@@ -5,10 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/repositories/auth_repository.dart';
+import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/domain/models/app_user.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
+  BackendApiService? _backendApiService;
 
   StreamSubscription<AuthState>? _authSubscription;
   Future<void>? _profileRefreshFuture;
@@ -21,6 +23,7 @@ class AuthViewModel extends ChangeNotifier {
   KycStatus? _resolvedKycStatus;
   String? _kycApprovalToken;
   bool _shouldShowApprovedKycScreen = false;
+  String? _selfieUrl;
 
   AuthViewModel(this._authRepository) {
     _isAuthenticated = _authRepository.currentSession != null;
@@ -43,6 +46,11 @@ class AuthViewModel extends ChangeNotifier {
       _resolvedKycStatus ?? _appUser?.kycStatus ?? KycStatus.none;
   bool get isKycApproved => kycStatus == KycStatus.approved;
   bool get shouldShowApprovedKycScreen => _shouldShowApprovedKycScreen;
+  String? get selfieUrl => _selfieUrl;
+
+  void setBackendApiService(BackendApiService service) {
+    _backendApiService = service;
+  }
 
   void _onAuthStateChange(AuthState state) {
     _isAuthenticated = state.session != null;
@@ -94,6 +102,7 @@ class AuthViewModel extends ChangeNotifier {
       final status = _parseKycStatus(kycData?['status'] as String?);
       _resolvedKycStatus = status ?? _appUser?.kycStatus;
       await _hydrateKycApprovalPresentation(kycData);
+      await _fetchSelfieUrl(kycData);
     } catch (_) {
       _resolvedKycStatus ??= _appUser?.kycStatus;
       _kycApprovalToken = null;
@@ -268,6 +277,19 @@ class AuthViewModel extends ChangeNotifier {
   String? get _kycPreferenceUserId => _appUser?.id ?? _currentUser?.id;
 
   String _seenKycApprovalKey(String userId) => 'seen_kyc_approval_$userId';
+
+  Future<void> _fetchSelfieUrl(Map<String, dynamic>? kycData) async {
+    final selfieId = kycData?['selfie_id'] as String?;
+    if (selfieId == null || _backendApiService == null) {
+      _selfieUrl = null;
+      return;
+    }
+    try {
+      _selfieUrl = await _backendApiService!.getFileAccessUrl(selfieId);
+    } catch (_) {
+      _selfieUrl = null;
+    }
+  }
 
   @override
   void dispose() {

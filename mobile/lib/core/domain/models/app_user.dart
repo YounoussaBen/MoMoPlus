@@ -12,6 +12,7 @@ class AppUser {
   final UserRole role;
   final AgentStatus agentStatus;
   final KycStatus kycStatus;
+  final String? selfieId;
 
   const AppUser({
     required this.id,
@@ -21,6 +22,7 @@ class AppUser {
     this.role = UserRole.user,
     this.agentStatus = AgentStatus.none,
     this.kycStatus = KycStatus.none,
+    this.selfieId,
   });
 
   String get fullName => '$firstName $lastName'.trim();

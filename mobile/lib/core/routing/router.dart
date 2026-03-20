@@ -10,7 +10,10 @@ import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/connection_error/presentation/connection_error_screen.dart';
 import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/support/presentation/support_screen.dart';
 import '../../features/user/presentation/agents/user_agents_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
 import '../../features/user/presentation/requests/user_requests_screen.dart';
@@ -102,6 +105,18 @@ class AppRouter {
           builder: (context, state) => const SignUpScreen(),
         ),
         GoRoute(path: '/kyc', builder: (context, state) => const KycScreen()),
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/settings',
+          builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: '/support',
+          builder: (context, state) => const SupportScreen(),
+        ),
 
         // ── User shell (5 tabs) ──
         StatefulShellRoute.indexedStack(

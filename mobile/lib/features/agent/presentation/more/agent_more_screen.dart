@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/data/repositories/auth_repository.dart';
 import '../../../../core/domain/models/app_user.dart';
 import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/widgets/profile_avatar.dart';
+import '../../../../core/ui/widgets/sign_out_sheet.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 
 class AgentMoreScreen extends StatelessWidget {
@@ -39,7 +42,7 @@ class AgentMoreScreen extends StatelessWidget {
                       icon: Icons.person_outline,
                       title: 'Profile',
                       subtitle: 'Personal information',
-                      onTap: () {},
+                      onTap: () => context.push('/profile'),
                     ),
                   ],
                 ),
@@ -79,14 +82,14 @@ class AgentMoreScreen extends StatelessWidget {
                       icon: Icons.settings_outlined,
                       title: 'Settings',
                       subtitle: 'App preferences',
-                      onTap: () {},
+                      onTap: () => context.push('/settings'),
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
                       icon: Icons.help_outline,
                       title: 'Support',
                       subtitle: 'Get help',
-                      onTap: () {},
+                      onTap: () => context.push('/support'),
                     ),
                   ],
                 ),
@@ -94,7 +97,12 @@ class AgentMoreScreen extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => context.read<AuthRepository>().signOut(),
+                    onPressed: () async {
+                      final confirmed = await showSignOutDialog(context);
+                      if (confirmed == true && context.mounted) {
+                        context.read<AuthRepository>().signOut();
+                      }
+                    },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.error,
                       side: const BorderSide(color: AppColors.error),
@@ -143,23 +151,17 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authVm = context.watch<AuthViewModel>();
     final displayName = appUser.fullName.isNotEmpty
         ? appUser.fullName
         : appUser.email.split('@').first;
 
     return Column(
       children: [
-        CircleAvatar(
+        ProfileAvatar(
+          imageUrl: authVm.selfieUrl,
+          fallbackLetter: displayName[0],
           radius: 36,
-          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-          child: Text(
-            displayName[0].toUpperCase(),
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w600,
-              color: AppColors.primary,
-            ),
-          ),
         ),
         const SizedBox(height: 12),
         Text(

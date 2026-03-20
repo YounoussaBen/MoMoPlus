@@ -36,7 +36,8 @@ class _MomoPlusAppState extends State<MomoPlusApp> {
       authService: authService,
       backendService: _backendService,
     );
-    _authViewModel = AuthViewModel(_authRepository);
+    _authViewModel = AuthViewModel(_authRepository)
+      ..setBackendApiService(_backendService);
     _router = AppRouter.create(_authViewModel);
   }
 
