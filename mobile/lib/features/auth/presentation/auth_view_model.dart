@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/repositories/auth_repository.dart';
@@ -12,6 +14,7 @@ class AuthViewModel extends ChangeNotifier {
   Future<void>? _profileRefreshFuture;
   bool _isAuthenticated = false;
   bool _isLoading = false;
+  bool _hasConnectionError = false;
   String? _errorMessage;
   User? _currentUser;
   AppUser? _appUser;
@@ -32,6 +35,7 @@ class AuthViewModel extends ChangeNotifier {
 
   bool get isAuthenticated => _isAuthenticated;
   bool get isLoading => _isLoading;
+  bool get hasConnectionError => _hasConnectionError;
   String? get errorMessage => _errorMessage;
   User? get currentUser => _currentUser;
   AppUser? get appUser => _appUser;
@@ -59,6 +63,15 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> _syncAndLoadProfile() async {
     try {
       await _authRepository.syncWithBackend();
+      _hasConnectionError = false;
+    } on SocketException {
+      _hasConnectionError = true;
+      notifyListeners();
+      return;
+    } on http.ClientException {
+      _hasConnectionError = true;
+      notifyListeners();
+      return;
     } catch (_) {}
 
     try {
@@ -66,6 +79,14 @@ class AuthViewModel extends ChangeNotifier {
       if (profileData != null) {
         _appUser = AppUser.fromBackendProfile(profileData);
       }
+    } on SocketException {
+      _hasConnectionError = true;
+      notifyListeners();
+      return;
+    } on http.ClientException {
+      _hasConnectionError = true;
+      notifyListeners();
+      return;
     } catch (_) {}
 
     try {
@@ -181,6 +202,14 @@ class AuthViewModel extends ChangeNotifier {
     await prefs.setString(_seenKycApprovalKey(userId), token);
     _shouldShowApprovedKycScreen = false;
     notifyListeners();
+  }
+
+  Future<void> retryConnection() async {
+    _setLoading(true);
+    _hasConnectionError = false;
+    notifyListeners();
+    await refreshProfile();
+    _setLoading(false);
   }
 
   void clearError() => _clearError();

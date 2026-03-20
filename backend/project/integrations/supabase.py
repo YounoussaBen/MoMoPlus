@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
@@ -9,6 +10,8 @@ from urllib.request import Request, urlopen
 import jwt
 from django.conf import settings
 from jwt.types import Options as JwtOptions
+
+logger = logging.getLogger(__name__)
 
 
 class SupabaseError(Exception):
@@ -99,6 +102,13 @@ class SupabaseAuthClient:
                 options=options,
             )
         except (jwt.PyJWTError, URLError, ValueError) as exc:
+            logger.error(
+                "JWKS verification failed: %s | JWKS_URL=%s | ISSUER=%s | AUDIENCE=%s",
+                exc,
+                settings.SUPABASE_JWKS_URL,
+                settings.SUPABASE_JWT_ISSUER,
+                settings.SUPABASE_JWT_AUDIENCE,
+            )
             raise SupabaseAuthenticationError("Supabase token verification failed.") from exc
 
     def _verify_via_auth_api(self, token: str) -> dict[str, Any]:

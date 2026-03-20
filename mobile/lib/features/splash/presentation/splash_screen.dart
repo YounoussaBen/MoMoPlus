@@ -44,6 +44,11 @@ class _SplashScreenState extends State<SplashScreen>
       await authVm.refreshProfile();
       if (!mounted) return;
 
+      if (authVm.hasConnectionError) {
+        context.go('/connection-error');
+        return;
+      }
+
       final isAgent = authVm.appUser?.isAgent == true;
       if (!authVm.isKycApproved || authVm.shouldShowApprovedKycScreen) {
         context.go('/kyc');

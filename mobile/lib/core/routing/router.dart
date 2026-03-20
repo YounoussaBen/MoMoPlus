@@ -7,6 +7,7 @@ import '../../features/agent/presentation/shell/agent_shell.dart';
 import '../../features/auth/presentation/auth_view_model.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
 import '../../features/auth/presentation/sign_up_screen.dart';
+import '../../features/connection_error/presentation/connection_error_screen.dart';
 import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
@@ -28,6 +29,18 @@ class AppRouter {
 
         // Always allow splash and onboarding.
         if (path == '/splash' || path == '/onboarding') return null;
+
+        final hasConnectionError = authViewModel.hasConnectionError;
+
+        // Connection error → show error screen (unless already there).
+        if (isAuthenticated && hasConnectionError) {
+          return path == '/connection-error' ? null : '/connection-error';
+        }
+
+        // Leaving connection error after recovery → continue to normal flow.
+        if (path == '/connection-error' && !hasConnectionError) {
+          return isAuthenticated ? null : '/auth/sign-in';
+        }
 
         final isAuthRoute = path.startsWith('/auth');
         final isKycRoute = path.startsWith('/kyc');
@@ -75,6 +88,10 @@ class AppRouter {
         GoRoute(
           path: '/onboarding',
           builder: (context, state) => const OnboardingScreen(),
+        ),
+        GoRoute(
+          path: '/connection-error',
+          builder: (context, state) => const ConnectionErrorScreen(),
         ),
         GoRoute(
           path: '/auth/sign-in',
