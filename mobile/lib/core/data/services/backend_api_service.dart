@@ -191,6 +191,80 @@ class BackendApiService {
     }
   }
 
+  // ── Wallets ──────────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getWallets() async {
+    if (_accessToken == null) return [];
+    final uri = Uri.parse('$_baseUrl/api/wallets/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> addWallet({
+    required String phoneNumber,
+    required String network,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/wallets/add/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'phone_number': phoneNumber, 'network': network}),
+    );
+    if (response.statusCode != 201) {
+      throw _buildApiException(response, 'Failed to add wallet.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> verifyWalletOtp({
+    required String walletId,
+    required String code,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/wallets/$walletId/verify/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'code': code}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'OTP verification failed.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> resendWalletOtp(String walletId) async {
+    if (_accessToken == null) return;
+    final uri = Uri.parse('$_baseUrl/api/wallets/$walletId/resend-otp/');
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to resend OTP.');
+    }
+  }
+
+  Future<Map<String, dynamic>> setDefaultWallet(String walletId) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/wallets/$walletId/set-default/');
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to set default wallet.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> deleteWallet(String walletId) async {
+    if (_accessToken == null) return;
+    final uri = Uri.parse('$_baseUrl/api/wallets/$walletId/');
+    final response = await http.delete(uri, headers: _headers);
+    if (response.statusCode != 204) {
+      throw _buildApiException(response, 'Failed to delete wallet.');
+    }
+  }
+
   Exception _buildApiException(http.Response response, String fallbackMessage) {
     try {
       final body = jsonDecode(response.body);

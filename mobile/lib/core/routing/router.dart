@@ -15,6 +15,9 @@ import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/support/presentation/support_screen.dart';
 import '../../features/user/presentation/agents/user_agents_screen.dart';
+import '../../features/wallet/presentation/add_wallet_screen.dart';
+import '../../features/wallet/presentation/verify_wallet_screen.dart';
+import '../../features/wallet/presentation/wallet_list_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
 import '../../features/user/presentation/requests/user_requests_screen.dart';
 import '../../features/user/presentation/more/user_more_screen.dart';
@@ -116,6 +119,25 @@ class AppRouter {
         GoRoute(
           path: '/support',
           builder: (context, state) => const SupportScreen(),
+        ),
+
+        GoRoute(
+          path: '/wallet',
+          builder: (context, state) => const WalletListScreen(),
+        ),
+        GoRoute(
+          path: '/wallet/add',
+          builder: (context, state) => const AddWalletScreen(),
+        ),
+        GoRoute(
+          path: '/wallet/verify',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, String>;
+            return VerifyWalletScreen(
+              walletId: extra['walletId']!,
+              phoneNumber: extra['phoneNumber']!,
+            );
+          },
         ),
 
         // ── User shell (5 tabs) ──

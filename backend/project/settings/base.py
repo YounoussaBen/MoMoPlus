@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "project.apps.api",
     "project.apps.files",
     "project.apps.kyc",
+    "project.apps.wallets",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

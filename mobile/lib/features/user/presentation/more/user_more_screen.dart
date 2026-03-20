@@ -57,7 +57,7 @@ class UserMoreScreen extends StatelessWidget {
                       icon: Icons.account_balance_wallet_outlined,
                       title: 'Wallet',
                       subtitle: 'Manage your wallet',
-                      onTap: () {},
+                      onTap: () => context.push('/wallet'),
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
