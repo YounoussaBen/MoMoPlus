@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import jwt
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework import exceptions
@@ -13,6 +15,8 @@ from project.integrations.supabase import (
 )
 
 from .services import sync_user_from_supabase_claims
+
+logger = logging.getLogger(__name__)
 
 
 class StaffJWTAuthentication(JWTAuthentication):
@@ -64,8 +68,10 @@ class HybridAuthentication(BaseAuthentication):
             claims = SupabaseAuthClient().verify_access_token(token)
             user = sync_user_from_supabase_claims(claims)
         except SupabaseConfigurationError as exc:
+            logger.error("Supabase config error: %s", exc)
             raise exceptions.AuthenticationFailed(str(exc)) from exc
         except (SupabaseAuthenticationError, ValueError) as exc:
+            logger.error("Supabase auth error: %s", exc)
             raise exceptions.AuthenticationFailed(str(exc)) from exc
 
         if not user.is_active:
