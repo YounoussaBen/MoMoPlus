@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from project.apps.accounts.models import AgentStatus, User, UserRole
 from project.apps.files.models import FileAsset
+from project.integrations.google_maps import RoutePreview, compute_driving_route_preview
 
 from .models import AgentProfile, AgentType, CertificationApplication, CertificationStatus
 
@@ -112,6 +113,22 @@ def toggle_availability(*, user: User) -> AgentProfile:
     profile.is_available = not profile.is_available
     profile.save(update_fields=["is_available", "updated_at"])
     return profile
+
+
+def get_route_preview(
+    *,
+    origin_latitude: float,
+    origin_longitude: float,
+    destination_latitude: float,
+    destination_longitude: float,
+) -> RoutePreview:
+    """Compute a driving route preview between the user and an agent."""
+    return compute_driving_route_preview(
+        origin_latitude=origin_latitude,
+        origin_longitude=origin_longitude,
+        destination_latitude=destination_latitude,
+        destination_longitude=destination_longitude,
+    )
 
 
 # ---------------------------------------------------------------------------

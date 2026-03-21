@@ -92,6 +92,19 @@ class NearbyQuerySerializer(serializers.Serializer):
     )
 
 
+class RoutePreviewRequestSerializer(serializers.Serializer):
+    origin_latitude = serializers.FloatField()
+    origin_longitude = serializers.FloatField()
+    destination_latitude = serializers.FloatField()
+    destination_longitude = serializers.FloatField()
+
+
+class RoutePreviewSerializer(serializers.Serializer):
+    distance_meters = serializers.IntegerField()
+    duration_seconds = serializers.IntegerField()
+    encoded_polyline = serializers.CharField()
+
+
 # ---------------------------------------------------------------------------
 # Certification
 # ---------------------------------------------------------------------------

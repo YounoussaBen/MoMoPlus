@@ -259,6 +259,8 @@ SUPABASE_JWT_ISSUER = config(
     "SUPABASE_JWT_ISSUER",
     default=f"{SUPABASE_URL.rstrip('/')}/auth/v1" if SUPABASE_URL else "",
 )
+GOOGLE_MAPS_SERVER_KEY = config("GOOGLE_MAPS_SERVER_KEY", default="")
+GOOGLE_MAPS_HTTP_TIMEOUT = config("GOOGLE_MAPS_HTTP_TIMEOUT", default=8, cast=int)
 SUPABASE_JWKS_URL = config(
     "SUPABASE_JWKS_URL",
     default=f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json" if SUPABASE_URL else "",

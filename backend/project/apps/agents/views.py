@@ -6,6 +6,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from project.apps.accounts.models import UserRole
+from project.integrations.google_maps import GoogleMapsConfigurationError, GoogleMapsRequestError
 
 from .models import AgentProfile
 from .serializers import (
@@ -14,6 +15,8 @@ from .serializers import (
     CertificationApplicationSerializer,
     NearbyAgentSerializer,
     NearbyQuerySerializer,
+    RoutePreviewRequestSerializer,
+    RoutePreviewSerializer,
     UpdateAgentProfileSerializer,
 )
 from .services import (
@@ -21,6 +24,7 @@ from .services import (
     get_agent_profile,
     get_certification_status,
     get_nearby_agents,
+    get_route_preview,
     toggle_availability,
     update_agent_profile,
 )
@@ -81,6 +85,34 @@ def agent_detail(request: Request, pk: str) -> Response:
 
     profile.distance_km = 0.0  # type: ignore[attr-defined]
     return Response(NearbyAgentSerializer(profile).data)
+
+
+@extend_schema(
+    tags=["Agents"],
+    request=RoutePreviewRequestSerializer,
+    responses={
+        status.HTTP_200_OK: RoutePreviewSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+        status.HTTP_502_BAD_GATEWAY: OpenApiResponse(description="Route provider failure"),
+        status.HTTP_503_SERVICE_UNAVAILABLE: OpenApiResponse(description="Route provider not configured"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def route_preview(request: Request) -> Response:
+    """Return a driving route preview from the user to an agent."""
+    serializer = RoutePreviewRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    try:
+        route = get_route_preview(**serializer.validated_data)
+    except GoogleMapsConfigurationError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+    except GoogleMapsRequestError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    return Response(RoutePreviewSerializer(route).data)
 
 
 @extend_schema(

@@ -340,6 +340,30 @@ class BackendApiService {
     return null;
   }
 
+  Future<Map<String, dynamic>> getAgentRoutePreview({
+    required double originLatitude,
+    required double originLongitude,
+    required double destinationLatitude,
+    required double destinationLongitude,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/agents/route-preview/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'origin_latitude': originLatitude,
+        'origin_longitude': originLongitude,
+        'destination_latitude': destinationLatitude,
+        'destination_longitude': destinationLongitude,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to load route preview.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>?> getCertificationStatus() async {
     if (_accessToken == null) return null;
     final uri = Uri.parse('$_baseUrl/api/agents/certification/');

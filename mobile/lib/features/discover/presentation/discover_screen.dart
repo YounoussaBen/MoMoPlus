@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 import 'agent_detail_sheet.dart';
 import 'discover_view_model.dart';
@@ -36,6 +40,10 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
       DraggableScrollableController();
   String? _selectedAgentId;
   String? _lastCameraSignature;
+  AgentRoutePreview? _activeRoute;
+  bool _isRouteLoading = false;
+  String? _routeErrorMessage;
+  MapType _mapType = MapType.normal;
 
   @override
   void dispose() {
@@ -134,11 +142,18 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
             onTap: (_) => _resetFocus(vm),
             markers: _buildMarkers(vm),
             circles: _buildCircles(vm),
+            polylines: _buildPolylines(),
             padding: EdgeInsets.only(top: safeTop + 88, bottom: bottomInset),
-            myLocationEnabled: false,
+            myLocationEnabled: true,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
+            buildingsEnabled: true,
+            trafficEnabled: true,
+            compassEnabled: true,
+            tiltGesturesEnabled: true,
+            rotateGesturesEnabled: true,
+            mapType: _mapType,
           ),
         ),
         Positioned(
@@ -150,12 +165,17 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
             children: [
               Expanded(
                 child: _MapInfoCard(
-                  title:
-                      '${vm.agents.length} agent${vm.agents.length == 1 ? '' : 's'} nearby',
-                  subtitle:
-                      'Searching within ${vm.radius.toStringAsFixed(0)} km of your location',
-                  isLoading: vm.isLoading,
+                  title: _mapPanelTitle(vm, selectedAgent),
+                  subtitle: _mapPanelSubtitle(vm, selectedAgent),
+                  isLoading: vm.isLoading || _isRouteLoading,
                 ),
+              ),
+              const SizedBox(width: 12),
+              _MapActionButton(
+                icon: _mapType == MapType.normal
+                    ? Icons.layers_outlined
+                    : Icons.map_outlined,
+                onTap: _toggleMapType,
               ),
               const SizedBox(width: 12),
               _MapActionButton(
@@ -167,9 +187,9 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
         ),
         DraggableScrollableSheet(
           controller: _sheetCtrl,
-          initialChildSize: 0.28,
+          initialChildSize: 0.30,
           minChildSize: 0.15,
-          maxChildSize: 0.82,
+          maxChildSize: 0.84,
           builder: (context, scrollController) {
             return Container(
               decoration: BoxDecoration(
@@ -252,8 +272,13 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
                     const SizedBox(height: 16),
                     _SelectedAgentCard(
                       agent: selectedAgent,
+                      routePreview: _activeRoute,
+                      isRouteLoading: _isRouteLoading,
+                      routeErrorMessage: _routeErrorMessage,
                       onClear: () => _resetFocus(vm),
                       onViewDetails: () => _showAgentDetail(selectedAgent),
+                      onStreetView: () => _openStreetView(selectedAgent),
+                      onOpenDirections: () => _openDirections(selectedAgent),
                     ),
                   ],
                   const SizedBox(height: 16),
@@ -347,6 +372,29 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     return null;
   }
 
+  String _mapPanelTitle(DiscoverViewModel vm, NearbyAgent? selectedAgent) {
+    if (selectedAgent == null) {
+      return '${vm.agents.length} agent${vm.agents.length == 1 ? '' : 's'} nearby';
+    }
+    return 'Route to ${selectedAgent.fullName}';
+  }
+
+  String _mapPanelSubtitle(DiscoverViewModel vm, NearbyAgent? selectedAgent) {
+    if (selectedAgent == null) {
+      return 'Searching within ${vm.radius.toStringAsFixed(0)} km of your location';
+    }
+    if (_isRouteLoading) {
+      return 'Fetching driving route and road geometry...';
+    }
+    if (_activeRoute != null) {
+      if (_activeRoute!.isApproximate) {
+        return '${_activeRoute!.summaryLabel} • fallback preview';
+      }
+      return '${_activeRoute!.summaryLabel} by road';
+    }
+    return '${selectedAgent.distanceLabel} away';
+  }
+
   void _scheduleCameraUpdate(DiscoverViewModel vm, NearbyAgent? selectedAgent) {
     if (!vm.hasLocation) return;
 
@@ -365,9 +413,9 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (selectedAgent != null) {
-        _focusOnAgent(vm, selectedAgent, expandSheet: false);
+        unawaited(_focusOnAgent(vm, selectedAgent, expandSheet: false));
       } else {
-        _fitMapToVisiblePoints(vm);
+        unawaited(_fitMapToVisiblePoints(vm));
       }
     });
   }
@@ -437,37 +485,122 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     }
   }
 
+  AgentRoutePreview _fallbackRoute(DiscoverViewModel vm, NearbyAgent agent) {
+    return AgentRoutePreview.directLine(
+      origin: LatLng(vm.userLat!, vm.userLon!),
+      destination: LatLng(agent.latitude, agent.longitude),
+      distanceMeters: (agent.distanceKm * 1000).round(),
+    );
+  }
+
+  Future<AgentRoutePreview> _loadRouteForAgent(
+    DiscoverViewModel vm,
+    NearbyAgent agent,
+  ) async {
+    if (_selectedAgentId == agent.id &&
+        _activeRoute != null &&
+        !_isRouteLoading) {
+      return _activeRoute!;
+    }
+
+    setState(() {
+      _isRouteLoading = true;
+      _routeErrorMessage = null;
+    });
+
+    try {
+      final route = await vm.loadRoutePreview(agent);
+      if (!mounted || _selectedAgentId != agent.id) return route;
+      setState(() => _activeRoute = route);
+      return route;
+    } catch (error) {
+      final fallbackRoute = _fallbackRoute(vm, agent);
+      if (!mounted || _selectedAgentId != agent.id) return fallbackRoute;
+      setState(() {
+        _activeRoute = fallbackRoute;
+        _routeErrorMessage = error.toString().replaceFirst('Exception: ', '');
+      });
+      return fallbackRoute;
+    } finally {
+      if (mounted && _selectedAgentId == agent.id) {
+        setState(() => _isRouteLoading = false);
+      }
+    }
+  }
+
+  Future<void> _focusMapForRoute(
+    DiscoverViewModel vm,
+    NearbyAgent agent,
+    AgentRoutePreview route,
+  ) async {
+    final routePoints = route.hasGeometry
+        ? route.points
+        : [LatLng(agent.latitude, agent.longitude)];
+
+    await _fitMapToVisiblePoints(vm, extraPoints: routePoints);
+
+    if (route.isApproximate || agent.distanceKm > 3.5 || !route.hasGeometry) {
+      return;
+    }
+
+    final controller = await _mapCtrl.future;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: route.focusPoint,
+          zoom: 16.2,
+          tilt: 58,
+          bearing: route.bearing,
+        ),
+      ),
+    );
+  }
+
   Future<void> _focusOnAgent(
     DiscoverViewModel vm,
     NearbyAgent agent, {
     bool expandSheet = true,
   }) async {
-    if (_selectedAgentId != agent.id) {
-      setState(() => _selectedAgentId = agent.id);
+    final isNewSelection = _selectedAgentId != agent.id;
+    if (isNewSelection) {
+      setState(() {
+        _selectedAgentId = agent.id;
+        _activeRoute = null;
+        _routeErrorMessage = null;
+      });
     }
     if (expandSheet && _sheetCtrl.isAttached) {
       unawaited(
         _sheetCtrl.animateTo(
-          0.42,
+          0.46,
           duration: const Duration(milliseconds: 260),
           curve: Curves.easeOutCubic,
         ),
       );
     }
+
     await _fitMapToVisiblePoints(
       vm,
       extraPoints: [LatLng(agent.latitude, agent.longitude)],
     );
+    final route = await _loadRouteForAgent(vm, agent);
+    if (!mounted || _selectedAgentId != agent.id) return;
+    await _focusMapForRoute(vm, agent, route);
   }
 
   Future<void> _resetFocus(DiscoverViewModel vm) async {
-    if (_selectedAgentId != null && mounted) {
-      setState(() => _selectedAgentId = null);
+    if (mounted) {
+      setState(() {
+        _selectedAgentId = null;
+        _activeRoute = null;
+        _isRouteLoading = false;
+        _routeErrorMessage = null;
+      });
     }
     if (_sheetCtrl.isAttached) {
       unawaited(
         _sheetCtrl.animateTo(
-          0.28,
+          0.30,
           duration: const Duration(milliseconds: 240),
           curve: Curves.easeOutCubic,
         ),
@@ -481,7 +614,7 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
       _showAgentDetail(agent);
       return;
     }
-    _focusOnAgent(vm, agent);
+    unawaited(_focusOnAgent(vm, agent));
   }
 
   Set<Marker> _buildMarkers(DiscoverViewModel vm) {
@@ -529,12 +662,84 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     };
   }
 
+  Set<Polyline> _buildPolylines() {
+    final route = _activeRoute;
+    if (route == null || !route.hasGeometry) return const {};
+
+    return {
+      Polyline(
+        polylineId: const PolylineId('route_shadow'),
+        points: route.points,
+        color: Colors.black.withValues(alpha: 0.12),
+        width: 10,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+      ),
+      Polyline(
+        polylineId: const PolylineId('route_main'),
+        points: route.points,
+        color: route.isApproximate
+            ? AppColors.textSecondary
+            : AppColors.primary,
+        width: 6,
+        startCap: Cap.roundCap,
+        endCap: Cap.roundCap,
+        jointType: JointType.round,
+        patterns: route.isApproximate
+            ? [PatternItem.dash(18), PatternItem.gap(12)]
+            : const [],
+      ),
+    };
+  }
+
+  Future<void> _openStreetView(NearbyAgent agent) async {
+    try {
+      await NativeMapLauncher.openStreetView(
+        latitude: agent.latitude,
+        longitude: agent.longitude,
+        title: agent.fullName,
+        bearing: _activeRoute?.bearing ?? 0,
+      );
+    } catch (error) {
+      _showMapActionError(error.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  Future<void> _openDirections(NearbyAgent agent) async {
+    try {
+      await NativeMapLauncher.openDirections(
+        latitude: agent.latitude,
+        longitude: agent.longitude,
+        label: agent.fullName,
+      );
+    } catch (error) {
+      _showMapActionError(error.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  void _showMapActionError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   void _showAgentDetail(NearbyAgent agent) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => AgentDetailSheet(agent: agent),
+      builder: (_) => AgentDetailSheet(
+        agent: agent,
+        routePreview: _selectedAgentId == agent.id ? _activeRoute : null,
+        isRouteLoading: _selectedAgentId == agent.id && _isRouteLoading,
+        routeErrorMessage: _selectedAgentId == agent.id
+            ? _routeErrorMessage
+            : null,
+        onStreetView: () => _openStreetView(agent),
+        onOpenDirections: () => _openDirections(agent),
+      ),
     );
   }
 
@@ -560,6 +765,12 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
         ),
       ),
     );
+  }
+
+  void _toggleMapType() {
+    setState(() {
+      _mapType = _mapType == MapType.normal ? MapType.hybrid : MapType.normal;
+    });
   }
 }
 
@@ -692,13 +903,23 @@ class _MapActionButton extends StatelessWidget {
 
 class _SelectedAgentCard extends StatelessWidget {
   final NearbyAgent agent;
+  final AgentRoutePreview? routePreview;
+  final bool isRouteLoading;
+  final String? routeErrorMessage;
   final VoidCallback onClear;
   final VoidCallback onViewDetails;
+  final VoidCallback onStreetView;
+  final VoidCallback onOpenDirections;
 
   const _SelectedAgentCard({
     required this.agent,
+    required this.routePreview,
+    required this.isRouteLoading,
+    required this.routeErrorMessage,
     required this.onClear,
     required this.onViewDetails,
+    required this.onStreetView,
+    required this.onOpenDirections,
   });
 
   @override
@@ -733,7 +954,7 @@ class _SelectedAgentCard extends StatelessWidget {
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
@@ -781,7 +1002,8 @@ class _SelectedAgentCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${agent.distanceLabel} away',
+                      routePreview?.summaryLabel ??
+                          '${agent.distanceLabel} away',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -799,9 +1021,88 @@ class _SelectedAgentCard extends StatelessWidget {
                     color: AppColors.primary.withValues(alpha: 0.25),
                   ),
                 ),
-                child: const Text('View'),
+                child: const Text('Details'),
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _RouteInfoChip(
+                icon: Icons.route_rounded,
+                label: isRouteLoading
+                    ? 'Loading route...'
+                    : routePreview?.summaryLabel ?? 'Direct distance',
+              ),
+              _RouteInfoChip(
+                icon: routePreview?.isApproximate == true
+                    ? Icons.near_me_outlined
+                    : Icons.directions_car_filled_outlined,
+                label: routePreview?.isApproximate == true
+                    ? 'Approximate path'
+                    : 'Road route',
+              ),
+              if (routeErrorMessage != null)
+                const _RouteInfoChip(
+                  icon: Icons.info_outline,
+                  label: 'Google route unavailable',
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onStreetView,
+                  icon: const Icon(Icons.streetview_outlined),
+                  label: const Text('Street View'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onOpenDirections,
+                  icon: const Icon(Icons.navigation_outlined),
+                  label: const Text('Directions'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _RouteInfoChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -845,7 +1146,6 @@ class _AgentCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Avatar
             Container(
               width: 44,
               height: 44,
@@ -871,7 +1171,6 @@ class _AgentCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

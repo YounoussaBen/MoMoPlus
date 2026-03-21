@@ -5,6 +5,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+dependencies {
+    implementation("androidx.concurrent:concurrent-futures:1.3.0")
+    implementation("com.google.android.gms:play-services-maps:19.2.0")
+}
+
 android {
     namespace = "com.example.momoplus"
     compileSdk = flutter.compileSdkVersion

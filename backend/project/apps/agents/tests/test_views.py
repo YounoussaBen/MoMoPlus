@@ -6,6 +6,7 @@ from rest_framework import status
 from project.apps.accounts.models import AgentStatus, UserRole
 from project.apps.agents.models import AgentProfile
 from project.apps.files.models import FileAsset
+from project.integrations.google_maps import GoogleMapsConfigurationError, GoogleMapsRequestError, RoutePreview
 
 
 @pytest.fixture
@@ -98,6 +99,87 @@ class TestAgentDetailView:
         response = regular_client.get("/api/agents/00000000-0000-0000-0000-000000000000/")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+class TestRoutePreviewView:
+    def test_returns_route_preview(self, regular_client, mocker):
+        mocker.patch(
+            "project.apps.agents.views.get_route_preview",
+            return_value=RoutePreview(
+                distance_meters=1820,
+                duration_seconds=420,
+                encoded_polyline="encoded",
+            ),
+        )
+
+        response = regular_client.post(
+            "/api/agents/route-preview/",
+            {
+                "origin_latitude": 5.6037,
+                "origin_longitude": -0.1870,
+                "destination_latitude": 5.6100,
+                "destination_longitude": -0.1800,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["distance_meters"] == 1820
+        assert response.data["duration_seconds"] == 420
+        assert response.data["encoded_polyline"] == "encoded"
+
+    def test_returns_503_when_maps_not_configured(self, regular_client, mocker):
+        mocker.patch(
+            "project.apps.agents.views.get_route_preview",
+            side_effect=GoogleMapsConfigurationError("GOOGLE_MAPS_SERVER_KEY must be configured."),
+        )
+
+        response = regular_client.post(
+            "/api/agents/route-preview/",
+            {
+                "origin_latitude": 5.6037,
+                "origin_longitude": -0.1870,
+                "destination_latitude": 5.6100,
+                "destination_longitude": -0.1800,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+    def test_returns_502_when_maps_provider_fails(self, regular_client, mocker):
+        mocker.patch(
+            "project.apps.agents.views.get_route_preview",
+            side_effect=GoogleMapsRequestError("Google Maps failed."),
+        )
+
+        response = regular_client.post(
+            "/api/agents/route-preview/",
+            {
+                "origin_latitude": 5.6037,
+                "origin_longitude": -0.1870,
+                "destination_latitude": 5.6100,
+                "destination_longitude": -0.1800,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_502_BAD_GATEWAY
+
+    def test_requires_authentication(self, api_client):
+        response = api_client.post(
+            "/api/agents/route-preview/",
+            {
+                "origin_latitude": 5.6037,
+                "origin_longitude": -0.1870,
+                "destination_latitude": 5.6100,
+                "destination_longitude": -0.1800,
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db

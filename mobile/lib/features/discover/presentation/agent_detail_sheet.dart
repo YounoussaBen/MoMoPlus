@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/ui/theme/app_theme.dart';
+import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 
 class AgentDetailSheet extends StatelessWidget {
   final NearbyAgent agent;
-  const AgentDetailSheet({super.key, required this.agent});
+  final AgentRoutePreview? routePreview;
+  final bool isRouteLoading;
+  final String? routeErrorMessage;
+  final VoidCallback onStreetView;
+  final VoidCallback onOpenDirections;
+
+  const AgentDetailSheet({
+    super.key,
+    required this.agent,
+    required this.routePreview,
+    required this.isRouteLoading,
+    required this.routeErrorMessage,
+    required this.onStreetView,
+    required this.onOpenDirections,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +33,6 @@ class AgentDetailSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             width: 36,
             height: 4,
@@ -27,7 +42,6 @@ class AgentDetailSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          // Avatar
           Container(
             width: 64,
             height: 64,
@@ -53,17 +67,18 @@ class AgentDetailSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // Name + badge
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                agent.fullName,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.3,
+              Flexible(
+                child: Text(
+                  agent.fullName,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
               if (agent.isCertified) ...[
@@ -81,7 +96,6 @@ class AgentDetailSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          // Stats row
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -92,18 +106,18 @@ class AgentDetailSheet extends StatelessWidget {
               children: [
                 _StatItem(
                   icon: Icons.location_on,
-                  value: agent.distanceLabel,
+                  value: routePreview?.distanceLabel ?? agent.distanceLabel,
                   label: 'Distance',
                 ),
                 _divider(),
                 _StatItem(
-                  icon: Icons.star,
-                  value: agent.rating > 0
-                      ? agent.rating.toStringAsFixed(1)
-                      : '—',
-                  label: agent.totalRatings > 0
-                      ? '${agent.totalRatings} review${agent.totalRatings == 1 ? '' : 's'}'
-                      : 'No reviews',
+                  icon: Icons.route_rounded,
+                  value: isRouteLoading
+                      ? 'Loading'
+                      : routePreview?.durationLabel ?? 'By road',
+                  label: routePreview?.isApproximate == true
+                      ? 'Approximate'
+                      : 'Route preview',
                 ),
                 _divider(),
                 _StatItem(
@@ -117,7 +131,65 @@ class AgentDetailSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // Min amount info
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Map Preview',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _RouteChip(
+                      icon: Icons.navigation_outlined,
+                      label: isRouteLoading
+                          ? 'Loading driving route...'
+                          : routePreview?.summaryLabel ?? 'Direct distance',
+                    ),
+                    _RouteChip(
+                      icon: routePreview?.isApproximate == true
+                          ? Icons.near_me_outlined
+                          : Icons.directions_car_filled_outlined,
+                      label: routePreview?.isApproximate == true
+                          ? 'Fallback preview'
+                          : 'Road-by-road route',
+                    ),
+                    _RouteChip(
+                      icon: Icons.pin_drop_outlined,
+                      label:
+                          '${agent.latitude.toStringAsFixed(5)}, ${agent.longitude.toStringAsFixed(5)}',
+                    ),
+                  ],
+                ),
+                if (routeErrorMessage != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    routeErrorMessage!,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           if (agent.minAmount > 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
@@ -129,17 +201,44 @@ class AgentDetailSheet extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Minimum transaction: GHS ${agent.minAmount.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                  Expanded(
+                    child: Text(
+                      'Minimum transaction: GHS ${agent.minAmount.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-          // Action button
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onStreetView();
+                  },
+                  icon: const Icon(Icons.streetview_outlined),
+                  label: const Text('Street View'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    onOpenDirections();
+                  },
+                  icon: const Icon(Icons.navigation_outlined),
+                  label: const Text('Directions'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -160,6 +259,39 @@ class AgentDetailSheet extends StatelessWidget {
       width: 1,
       height: 32,
       color: AppColors.textSecondary.withValues(alpha: 0.15),
+    );
+  }
+}
+
+class _RouteChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _RouteChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -188,6 +320,7 @@ class _StatItem extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
           Text(
@@ -196,6 +329,7 @@ class _StatItem extends StatelessWidget {
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

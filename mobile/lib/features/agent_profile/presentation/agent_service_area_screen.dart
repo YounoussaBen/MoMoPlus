@@ -1,11 +1,14 @@
 import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
 import 'agent_profile_view_model.dart';
@@ -38,13 +41,14 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
   bool _isProcessingAvailability = false;
   bool _isLocating = false;
   bool _didInitRadius = false;
+  MapType _mapType = MapType.normal;
 
   LatLng get _initialCenter {
-    final p = context.read<AgentProfileViewModel>().profile;
-    if (p != null && p.hasLocation) {
-      return LatLng(p.latitude!, p.longitude!);
+    final profile = context.read<AgentProfileViewModel>().profile;
+    if (profile != null && profile.hasLocation) {
+      return LatLng(profile.latitude!, profile.longitude!);
     }
-    return const LatLng(5.6037, -0.1870); // Accra default
+    return const LatLng(5.6037, -0.1870);
   }
 
   @override
@@ -78,15 +82,40 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
     return vm.profile?.serviceRadiusKm ?? 5;
   }
 
+  String _availabilitySubtitle() {
+    if (_availabilityValue == true) return 'Visible to users nearby';
+    return 'Hidden from nearby users';
+  }
+
+  String _coordinateLabel() {
+    final location = _selectedLocation;
+    if (location == null) return 'No pin selected';
+    return '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}';
+  }
+
+  Future<void> _centerOnLocation(LatLng location, {double bearing = 12}) async {
+    final controller = await _mapCtrl.future;
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(
+          target: location,
+          zoom: 16.2,
+          tilt: 54,
+          bearing: bearing,
+        ),
+      ),
+    );
+  }
+
   Future<void> _useCurrentLocation() async {
     setState(() => _isLocating = true);
     try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         if (mounted) {
           showTopInAppNotification(
             context,
@@ -98,17 +127,15 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
         return;
       }
 
-      final pos = await Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
       );
-      final loc = LatLng(pos.latitude, pos.longitude);
-      setState(() => _selectedLocation = loc);
-
-      final controller = await _mapCtrl.future;
-      controller.animateCamera(CameraUpdate.newLatLng(loc));
-    } catch (e) {
+      final location = LatLng(position.latitude, position.longitude);
+      setState(() => _selectedLocation = location);
+      await _centerOnLocation(location, bearing: 0);
+    } catch (_) {
       if (mounted) {
         showTopInAppNotification(
           context,
@@ -119,6 +146,35 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
       }
     } finally {
       if (mounted) setState(() => _isLocating = false);
+    }
+  }
+
+  Future<void> _openStreetView() async {
+    final location = _selectedLocation;
+    if (location == null) {
+      showTopInAppNotification(
+        context,
+        title: 'Pick a Location',
+        message: 'Select a point on the map before opening Street View.',
+        type: AppNotificationType.info,
+      );
+      return;
+    }
+
+    try {
+      await NativeMapLauncher.openStreetView(
+        latitude: location.latitude,
+        longitude: location.longitude,
+        title: 'Service Area',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      showTopInAppNotification(
+        context,
+        title: 'Street View Unavailable',
+        message: error.toString().replaceFirst('Exception: ', ''),
+        type: AppNotificationType.info,
+      );
     }
   }
 
@@ -160,11 +216,6 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
         type: AppNotificationType.error,
       );
     }
-  }
-
-  String _availabilitySubtitle() {
-    if (_availabilityValue == true) return 'Visible to users nearby';
-    return 'Hidden from nearby users';
   }
 
   Future<void> _handleAvailabilityChanged(bool nextValue) async {
@@ -253,7 +304,8 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
   Widget build(BuildContext context) {
     final vm = context.watch<AgentProfileViewModel>();
     _initFromProfile(vm);
-    final radius = _serviceRadiusKm(vm) * 1000;
+    final radiusKm = _serviceRadiusKm(vm);
+    final radiusMeters = radiusKm * 1000;
     final isAvailable = _availabilityValue ?? vm.profile?.isAvailable ?? false;
 
     return Scaffold(
@@ -327,17 +379,13 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                const Text(
-                                  'Available',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
+                            const Text(
+                              'Available',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             AnimatedSwitcher(
@@ -362,14 +410,15 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                     ],
                   ),
                 ),
-                // Map
                 Expanded(
                   child: Stack(
                     children: [
                       GoogleMap(
                         initialCameraPosition: CameraPosition(
                           target: _initialCenter,
-                          zoom: 14,
+                          zoom: 14.5,
+                          tilt: 42,
+                          bearing: 10,
                         ),
                         onMapCreated: (controller) {
                           if (!_mapCtrl.isCompleted) {
@@ -378,12 +427,16 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                         },
                         onTap: (latLng) {
                           setState(() => _selectedLocation = latLng);
+                          unawaited(_centerOnLocation(latLng));
                         },
                         markers: _selectedLocation != null
                             ? {
                                 Marker(
-                                  markerId: const MarkerId('agent'),
+                                  markerId: const MarkerId('agent_service'),
                                   position: _selectedLocation!,
+                                  infoWindow: const InfoWindow(
+                                    title: 'Service location',
+                                  ),
                                   icon: BitmapDescriptor.defaultMarkerWithHue(
                                     BitmapDescriptor.hueGreen,
                                   ),
@@ -393,9 +446,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                         circles: _selectedLocation != null
                             ? {
                                 Circle(
-                                  circleId: const CircleId('radius'),
+                                  circleId: const CircleId('service_radius'),
                                   center: _selectedLocation!,
-                                  radius: radius,
+                                  radius: radiusMeters,
                                   fillColor: AppColors.primary.withValues(
                                     alpha: 0.08,
                                   ),
@@ -410,53 +463,103 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                         myLocationButtonEnabled: false,
                         zoomControlsEnabled: false,
                         mapToolbarEnabled: false,
+                        buildingsEnabled: true,
+                        trafficEnabled: true,
+                        compassEnabled: true,
+                        tiltGesturesEnabled: true,
+                        rotateGesturesEnabled: true,
+                        mapType: _mapType,
                       ),
-                      // Use current location button
                       Positioned(
-                        bottom: 100,
+                        top: 16,
+                        left: 16,
+                        right: 88,
+                        child: _MapOverlayCard(
+                          title: _selectedLocation != null
+                              ? 'Service point pinned'
+                              : 'Set your service point',
+                          subtitle: _selectedLocation != null
+                              ? 'Coverage radius ${radiusKm.toStringAsFixed(1)} km • ${_coordinateLabel()}'
+                              : 'Tap the map to pin your working location.',
+                        ),
+                      ),
+                      Positioned(
                         right: 16,
-                        child: Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: _isLocating ? null : _useCurrentLocation,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: _isLocating
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.primary,
-                                      ),
-                                    )
-                                  : const Icon(
-                                      Icons.my_location,
-                                      color: AppColors.primary,
-                                    ),
+                        bottom: 110,
+                        child: Column(
+                          children: [
+                            _FloatingMapButton(
+                              icon: _mapType == MapType.normal
+                                  ? Icons.layers_outlined
+                                  : Icons.map_outlined,
+                              onTap: () {
+                                setState(() {
+                                  _mapType = _mapType == MapType.normal
+                                      ? MapType.hybrid
+                                      : MapType.normal;
+                                });
+                              },
                             ),
-                          ),
+                            const SizedBox(height: 10),
+                            _FloatingMapButton(
+                              icon: Icons.streetview_outlined,
+                              onTap: _openStreetView,
+                            ),
+                            const SizedBox(height: 10),
+                            _FloatingMapButton(
+                              icon: Icons.my_location,
+                              isLoading: _isLocating,
+                              onTap: _isLocating ? null : _useCurrentLocation,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                // Bottom bar
                 Container(
                   color: Colors.white,
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        _selectedLocation != null
-                            ? 'Tap the map or use current location'
-                            : 'Tap on the map to set your location',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ServiceStatTile(
+                              label: 'Radius',
+                              value: '${radiusKm.toStringAsFixed(1)} km',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ServiceStatTile(
+                              label: 'Coordinates',
+                              value: _selectedLocation != null
+                                  ? _coordinateLabel()
+                                  : 'Add a map pin',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _ServiceStatTile(
+                              label: 'Visibility',
+                              value: isAvailable ? 'Visible' : 'Hidden',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _selectedLocation != null
+                              ? 'Tap the map, use current location, or open Street View to confirm the spot.'
+                              : 'Tap on the map to set your service location.',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -478,7 +581,10 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                           decimal: true,
                         ),
                         onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(hintText: '5'),
+                        decoration: const InputDecoration(
+                          hintText: '5',
+                          prefixIcon: Icon(Icons.radar_outlined),
+                        ),
                       ),
                       if (vm.errorMessage != null) ...[
                         const SizedBox(height: 12),
@@ -515,6 +621,133 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _MapOverlayCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _MapOverlayCard({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FloatingMapButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  const _FloatingMapButton({
+    required this.icon,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: SizedBox(
+          width: 52,
+          height: 52,
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : Icon(icon, color: AppColors.primary, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServiceStatTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ServiceStatTile({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

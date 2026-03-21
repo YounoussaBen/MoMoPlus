@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/data/services/backend_api_service.dart';
+import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 
 class DiscoverViewModel extends ChangeNotifier {
@@ -14,6 +16,7 @@ class DiscoverViewModel extends ChangeNotifier {
   double _radius = 10.0;
   String _sortBy = 'distance';
   bool _isLocating = false;
+  final Map<String, AgentRoutePreview> _routeCache = {};
 
   DiscoverViewModel(this._api);
 
@@ -50,6 +53,7 @@ class DiscoverViewModel extends ChangeNotifier {
       );
       _userLat = pos.latitude;
       _userLon = pos.longitude;
+      _routeCache.clear();
       _isLocating = false;
       notifyListeners();
       await loadAgents();
@@ -95,5 +99,36 @@ class DiscoverViewModel extends ChangeNotifier {
     _radius = r;
     notifyListeners();
     loadAgents();
+  }
+
+  Future<AgentRoutePreview> loadRoutePreview(NearbyAgent agent) async {
+    if (!hasLocation) {
+      throw Exception('Your location is unavailable.');
+    }
+
+    final cacheKey = [
+      agent.id,
+      _userLat!.toStringAsFixed(5),
+      _userLon!.toStringAsFixed(5),
+    ].join(':');
+    final cached = _routeCache[cacheKey];
+    if (cached != null) return cached;
+
+    final data = await _api.getAgentRoutePreview(
+      originLatitude: _userLat!,
+      originLongitude: _userLon!,
+      destinationLatitude: agent.latitude,
+      destinationLongitude: agent.longitude,
+    );
+    final route = AgentRoutePreview.fromJson(data);
+    final normalizedRoute = route.hasGeometry
+        ? route
+        : AgentRoutePreview.directLine(
+            origin: LatLng(_userLat!, _userLon!),
+            destination: LatLng(agent.latitude, agent.longitude),
+            distanceMeters: (agent.distanceKm * 1000).round(),
+          );
+    _routeCache[cacheKey] = normalizedRoute;
+    return normalizedRoute;
   }
 }
