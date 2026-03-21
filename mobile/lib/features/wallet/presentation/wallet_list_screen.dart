@@ -27,9 +27,9 @@ class _WalletListBody extends StatelessWidget {
     String path, {
     Object? extra,
   }) async {
-    await context.push(path, extra: extra);
-    if (context.mounted) {
-      context.read<WalletViewModel>().loadWallets();
+    final shouldReload = await context.push<bool>(path, extra: extra);
+    if (context.mounted && shouldReload == true) {
+      await context.read<WalletViewModel>().loadWallets();
     }
   }
 
@@ -244,7 +244,11 @@ class _WalletTile extends StatelessWidget {
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.pop(ctx);
-                vm.setDefault(wallet.id);
+                Future<void>.microtask(() {
+                  if (context.mounted) {
+                    _showSetDefaultDialog(context, vm);
+                  }
+                });
               },
               child: const Text('Set as Default'),
             ),
@@ -267,7 +271,11 @@ class _WalletTile extends StatelessWidget {
             isDestructiveAction: true,
             onPressed: () {
               Navigator.pop(ctx);
-              _confirmDelete(context, vm);
+              Future<void>.microtask(() {
+                if (context.mounted) {
+                  _confirmDelete(context, vm);
+                }
+              });
             },
             child: const Text('Delete'),
           ),
@@ -280,26 +288,39 @@ class _WalletTile extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WalletViewModel vm) {
-    showCupertinoDialog(
+  Future<void> _showSetDefaultDialog(BuildContext context, WalletViewModel vm) {
+    return showCupertinoDialog<void>(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
-        title: const Text('Delete Wallet'),
-        content: Text('Remove ${wallet.phoneNumber} from your wallets?'),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(ctx);
-              vm.deleteWallet(wallet.id);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
+      builder: (_) => _WalletActionDialog(
+        title: 'Set Default Wallet',
+        message: 'Use ${wallet.phoneNumber} as your default wallet?',
+        confirmLabel: 'Set Default',
+        onConfirm: () async {
+          final ok = await vm.setDefault(wallet.id);
+          return ok
+              ? null
+              : (vm.errorMessage ??
+                    'We could not update your default wallet right now.');
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WalletViewModel vm) {
+    return showCupertinoDialog<void>(
+      context: context,
+      builder: (_) => _WalletActionDialog(
+        title: 'Delete Wallet',
+        message: 'Remove ${wallet.phoneNumber} from your wallets?',
+        confirmLabel: 'Delete',
+        isDestructive: true,
+        onConfirm: () async {
+          final ok = await vm.deleteWallet(wallet.id);
+          return ok
+              ? null
+              : (vm.errorMessage ??
+                    'We could not delete this wallet right now.');
+        },
       ),
     );
   }
@@ -310,4 +331,93 @@ class _WalletTile extends StatelessWidget {
     'airteltigo' => const Color(0xFF0066B3),
     _ => AppColors.primary,
   };
+}
+
+class _WalletActionDialog extends StatefulWidget {
+  final String title;
+  final String message;
+  final String confirmLabel;
+  final bool isDestructive;
+  final Future<String?> Function() onConfirm;
+
+  const _WalletActionDialog({
+    required this.title,
+    required this.message,
+    required this.confirmLabel,
+    required this.onConfirm,
+    this.isDestructive = false,
+  });
+
+  @override
+  State<_WalletActionDialog> createState() => _WalletActionDialogState();
+}
+
+class _WalletActionDialogState extends State<_WalletActionDialog> {
+  bool _isSubmitting = false;
+  String? _errorText;
+
+  Future<void> _handleConfirm() async {
+    if (_isSubmitting) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _errorText = null;
+    });
+
+    final error = await widget.onConfirm();
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = false;
+      _errorText = error;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoAlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(widget.message),
+          if (_errorText != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _errorText!,
+              style: const TextStyle(
+                fontSize: 13,
+                color: CupertinoColors.systemRed,
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        CupertinoDialogAction(
+          isDestructiveAction: widget.isDestructive,
+          onPressed: _isSubmitting ? null : _handleConfirm,
+          child: _isSubmitting
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CupertinoActivityIndicator(),
+                    const SizedBox(width: 8),
+                    Text(widget.confirmLabel),
+                  ],
+                )
+              : Text(widget.confirmLabel),
+        ),
+      ],
+    );
+  }
 }

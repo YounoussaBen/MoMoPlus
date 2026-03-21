@@ -148,6 +148,10 @@ def approve_agent(request: Request, user_id: str) -> Response:
     user.agent_status = AgentStatus.APPROVED
     user.save(update_fields=["role", "agent_status", "updated_at"])
 
+    from project.apps.agents.models import AgentProfile, AgentType
+
+    AgentProfile.objects.get_or_create(user=user, defaults={"agent_type": AgentType.CERTIFIED})
+
     return Response(StaffUserDetailSerializer(user).data, status=status.HTTP_200_OK)
 
 

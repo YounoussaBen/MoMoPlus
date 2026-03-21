@@ -17,8 +17,10 @@ class WalletViewModel extends ChangeNotifier {
   bool _isVerifying = false;
   bool _isResending = false;
 
-  WalletViewModel(this._api) {
-    loadWallets();
+  WalletViewModel(this._api, {bool loadOnInit = true}) {
+    if (loadOnInit) {
+      loadWallets();
+    }
   }
 
   List<Wallet> get wallets => _wallets;
@@ -75,9 +77,11 @@ class WalletViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      await _api.verifyWalletOtp(walletId: _pendingWallet!.id, code: code);
-      _pendingWallet = null;
-      await loadWallets();
+      final data = await _api.verifyWalletOtp(
+        walletId: _pendingWallet!.id,
+        code: code,
+      );
+      _pendingWallet = Wallet.fromJson(data);
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -103,25 +107,29 @@ class WalletViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> setDefault(String walletId) async {
+  Future<bool> setDefault(String walletId) async {
     _errorMessage = null;
     try {
       await _api.setDefaultWallet(walletId);
       await loadWallets();
+      return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
+      return false;
     }
   }
 
-  Future<void> deleteWallet(String walletId) async {
+  Future<bool> deleteWallet(String walletId) async {
     _errorMessage = null;
     try {
       await _api.deleteWallet(walletId);
       await loadWallets();
+      return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
+      return false;
     }
   }
 
@@ -132,6 +140,23 @@ class WalletViewModel extends ChangeNotifier {
 
   void clearPendingWallet() {
     _pendingWallet = null;
+    notifyListeners();
+  }
+
+  void setPendingWallet({
+    required String walletId,
+    required String phoneNumber,
+    String network = 'mtn',
+  }) {
+    _pendingWallet = Wallet(
+      id: walletId,
+      phoneNumber: phoneNumber,
+      network: network,
+      isVerified: false,
+      isDefault: false,
+      createdAt: DateTime.now(),
+    );
+    _errorMessage = null;
     notifyListeners();
   }
 }

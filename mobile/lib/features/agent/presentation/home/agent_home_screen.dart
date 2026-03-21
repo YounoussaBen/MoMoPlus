@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/data/services/backend_api_service.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/app_logo.dart';
+import '../../../../core/ui/widgets/top_in_app_notification.dart';
+import '../../../agent_profile/presentation/agent_profile_view_model.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 
 class AgentHomeScreen extends StatelessWidget {
@@ -95,27 +99,143 @@ class AgentHomeScreen extends StatelessWidget {
   }
 }
 
-class _AvailabilityToggle extends StatefulWidget {
-  @override
-  State<_AvailabilityToggle> createState() => _AvailabilityToggleState();
-}
-
-class _AvailabilityToggleState extends State<_AvailabilityToggle> {
-  bool _isAvailable = true;
+class _AvailabilityToggle extends StatelessWidget {
+  const _AvailabilityToggle();
 
   @override
   Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (ctx) => AgentProfileViewModel(ctx.read<BackendApiService>()),
+      child: const _AvailabilityToggleChip(),
+    );
+  }
+}
+
+class _AvailabilityToggleChip extends StatefulWidget {
+  const _AvailabilityToggleChip();
+
+  @override
+  State<_AvailabilityToggleChip> createState() =>
+      _AvailabilityToggleChipState();
+}
+
+class _AvailabilityToggleChipState extends State<_AvailabilityToggleChip> {
+  bool? _availabilityValue;
+  bool _isProcessingAvailability = false;
+  bool _didInitAvailability = false;
+
+  void _initFromProfile(AgentProfileViewModel vm) {
+    final profile = vm.profile;
+    if (_didInitAvailability || profile == null) return;
+    _didInitAvailability = true;
+    _availabilityValue = profile.isAvailable;
+  }
+
+  Future<void> _handleTap() async {
+    final vm = context.read<AgentProfileViewModel>();
+    final currentValue = _availabilityValue ?? vm.profile?.isAvailable;
+    if (currentValue == null) return;
+
+    final nextValue = !currentValue;
+    final shouldStartProcessing = !_isProcessingAvailability;
+
+    setState(() {
+      _availabilityValue = nextValue;
+    });
+
+    if (!shouldStartProcessing) return;
+    await _syncAvailability();
+  }
+
+  Future<void> _syncAvailability() async {
+    final vm = context.read<AgentProfileViewModel>();
+    _isProcessingAvailability = true;
+    try {
+      while (mounted) {
+        final serverValue = vm.profile?.isAvailable ?? false;
+        final desiredValue = _availabilityValue ?? serverValue;
+
+        if (serverValue == desiredValue) break;
+
+        if (desiredValue && !vm.hasVerifiedWallet) {
+          await vm.refreshWalletEligibility();
+          if (!mounted) return;
+
+          if (!vm.hasVerifiedWallet) {
+            final revertedValue = vm.profile?.isAvailable ?? false;
+            setState(() {
+              _availabilityValue = revertedValue;
+            });
+            showTopInAppNotification(
+              context,
+              title: 'Wallet Required',
+              message: vm.hasAnyWallet
+                  ? 'Verify at least one mobile money wallet before making yourself available to users.'
+                  : 'Add and verify a mobile money wallet before making yourself available to users.',
+              type: AppNotificationType.info,
+            );
+            continue;
+          }
+        }
+
+        final ok = await vm.toggleAvailability();
+        if (!mounted) return;
+
+        final updatedServerValue = vm.profile?.isAvailable ?? serverValue;
+        if (!ok) {
+          setState(() {
+            _availabilityValue = updatedServerValue;
+          });
+          showTopInAppNotification(
+            context,
+            title: 'Availability Not Updated',
+            message:
+                vm.errorMessage ??
+                'We could not update your availability right now.',
+            type: AppNotificationType.error,
+          );
+          break;
+        }
+
+        setState(() {
+          _availabilityValue = updatedServerValue;
+        });
+      }
+    } finally {
+      _isProcessingAvailability = false;
+      if (mounted) {
+        setState(() {
+          _availabilityValue =
+              _availabilityValue ?? vm.profile?.isAvailable ?? false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<AgentProfileViewModel>();
+    _initFromProfile(vm);
+    final currentValue = _availabilityValue ?? vm.profile?.isAvailable;
+    if (currentValue == null) {
+      return const SizedBox(width: 90, height: 36);
+    }
+
+    final isAvailable = currentValue;
+
     return GestureDetector(
-      onTap: () => setState(() => _isAvailable = !_isAvailable),
-      child: Container(
+      onTap: _handleTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: _isAvailable
+          color: isAvailable
               ? AppColors.primary.withValues(alpha: 0.12)
               : AppColors.textSecondary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: _isAvailable
+            color: isAvailable
                 ? AppColors.primary.withValues(alpha: 0.4)
                 : AppColors.textSecondary.withValues(alpha: 0.3),
           ),
@@ -128,18 +248,18 @@ class _AvailabilityToggleState extends State<_AvailabilityToggle> {
               height: 8,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _isAvailable
+                color: isAvailable
                     ? AppColors.primary
                     : AppColors.textSecondary,
               ),
             ),
             const SizedBox(width: 6),
             Text(
-              _isAvailable ? 'Available' : 'Offline',
+              isAvailable ? 'Available' : 'Offline',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: _isAvailable
+                color: isAvailable
                     ? AppColors.primary
                     : AppColors.textSecondary,
               ),
@@ -160,7 +280,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionTile(
             icon: Icons.account_balance_wallet_rounded,
             label: 'Add Wallet',
-            onTap: () {},
+            onTap: () => context.push('/wallet'),
           ),
         ),
         const SizedBox(width: 16),
@@ -168,7 +288,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionTile(
             icon: Icons.tune_rounded,
             label: 'Set Limits',
-            onTap: () {},
+            onTap: () => context.push('/agent/limits'),
           ),
         ),
         const SizedBox(width: 16),
@@ -176,7 +296,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionTile(
             icon: Icons.location_on_rounded,
             label: 'My Location',
-            onTap: () {},
+            onTap: () => context.push('/agent/service-area'),
           ),
         ),
       ],

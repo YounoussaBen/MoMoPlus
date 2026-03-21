@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/app_logo.dart';
@@ -130,7 +131,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionTile(
             icon: Icons.account_balance_wallet_rounded,
             label: 'Add Wallet',
-            onTap: () {},
+            onTap: () => context.push('/wallet'),
           ),
         ),
         const SizedBox(width: 16),
@@ -138,7 +139,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionTile(
             icon: Icons.add_rounded,
             label: 'Make Request',
-            onTap: () {},
+            onTap: () => context.go('/user/requests'),
           ),
         ),
         const SizedBox(width: 16),
@@ -146,7 +147,7 @@ class _QuickActions extends StatelessWidget {
           child: _ActionTile(
             icon: Icons.person_search_rounded,
             label: 'Find Agent',
-            onTap: () {},
+            onTap: () => context.go('/user/agents'),
           ),
         ),
       ],

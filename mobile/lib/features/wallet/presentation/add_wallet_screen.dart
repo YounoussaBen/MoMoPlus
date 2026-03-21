@@ -64,10 +64,14 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       );
       if (mounted) {
         final walletId = data['id'] as String;
-        context.pushReplacement(
+        final verified = await context.push<bool>(
           '/wallet/verify',
           extra: {'walletId': walletId, 'phoneNumber': _fullNumber},
         );
+        if (!mounted) return;
+        if (verified == true) {
+          context.pop(true);
+        }
       }
     } catch (e) {
       setState(() {

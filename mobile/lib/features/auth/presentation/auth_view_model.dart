@@ -172,13 +172,15 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> signOut() async {
+  Future<bool> signOut() async {
     _setLoading(true);
     try {
       await _authRepository.signOut();
       _clearError();
+      return true;
     } catch (_) {
       _setError('Sign out failed. Please try again.');
+      return false;
     } finally {
       _setLoading(false);
     }

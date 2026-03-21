@@ -14,7 +14,10 @@ import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/support/presentation/support_screen.dart';
-import '../../features/user/presentation/agents/user_agents_screen.dart';
+import '../../features/agent_profile/presentation/agent_limits_screen.dart';
+import '../../features/agent_profile/presentation/agent_service_area_screen.dart';
+import '../../features/agent_profile/presentation/certification_screen.dart';
+import '../../features/discover/presentation/discover_screen.dart';
 import '../../features/wallet/presentation/add_wallet_screen.dart';
 import '../../features/wallet/presentation/verify_wallet_screen.dart';
 import '../../features/wallet/presentation/wallet_list_screen.dart';
@@ -157,7 +160,7 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/user/agents',
-                  builder: (context, state) => const UserAgentsScreen(),
+                  builder: (context, state) => const DiscoverScreen(),
                 ),
               ],
             ),
@@ -178,6 +181,20 @@ class AppRouter {
               ],
             ),
           ],
+        ),
+
+        // ── Agent settings ──
+        GoRoute(
+          path: '/agent/limits',
+          builder: (context, state) => const AgentLimitsScreen(),
+        ),
+        GoRoute(
+          path: '/agent/service-area',
+          builder: (context, state) => const AgentServiceAreaScreen(),
+        ),
+        GoRoute(
+          path: '/agent/certification',
+          builder: (context, state) => const CertificationScreen(),
         ),
 
         // ── Agent shell (5 tabs) ──

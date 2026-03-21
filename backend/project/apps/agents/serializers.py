@@ -1,0 +1,159 @@
+from rest_framework import serializers
+
+from .models import AgentProfile, CertificationApplication
+
+
+class AgentProfileSerializer(serializers.ModelSerializer):
+    """Full profile for the agent's own view."""
+
+    full_name = serializers.SerializerMethodField()
+    email = serializers.CharField(source="user.email", read_only=True)
+
+    class Meta:
+        model = AgentProfile
+        fields = [
+            "id",
+            "full_name",
+            "email",
+            "latitude",
+            "longitude",
+            "is_available",
+            "max_amount",
+            "min_amount",
+            "service_radius_km",
+            "bio",
+            "rating",
+            "total_ratings",
+            "agent_type",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "full_name",
+            "email",
+            "rating",
+            "total_ratings",
+            "agent_type",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+
+class UpdateAgentProfileSerializer(serializers.Serializer):
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False)
+    is_available = serializers.BooleanField(required=False)
+    max_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    min_amount = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    service_radius_km = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+    bio = serializers.CharField(required=False, allow_blank=True)
+
+
+class NearbyAgentSerializer(serializers.ModelSerializer):
+    """Public-facing serializer for discovery results."""
+
+    full_name = serializers.SerializerMethodField()
+    distance_km = serializers.FloatField(read_only=True)
+
+    class Meta:
+        model = AgentProfile
+        fields = [
+            "id",
+            "full_name",
+            "latitude",
+            "longitude",
+            "is_available",
+            "max_amount",
+            "min_amount",
+            "rating",
+            "total_ratings",
+            "agent_type",
+            "distance_km",
+        ]
+
+    def get_full_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+
+class NearbyQuerySerializer(serializers.Serializer):
+    lat = serializers.FloatField()
+    lon = serializers.FloatField()
+    radius = serializers.FloatField(default=10.0, required=False)
+    min_amount = serializers.FloatField(required=False)
+    max_amount = serializers.FloatField(required=False)
+    sort_by = serializers.ChoiceField(
+        choices=["distance", "rating"],
+        default="distance",
+        required=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Certification
+# ---------------------------------------------------------------------------
+
+
+class CertificationApplicationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CertificationApplication
+        fields = [
+            "id",
+            "agent_id_number",
+            "network",
+            "agent_id_photo",
+            "business_location_photo",
+            "business_registration_number",
+            "status",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "status",
+            "rejection_reason",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ApplyCertificationSerializer(serializers.Serializer):
+    agent_id_number = serializers.CharField(max_length=50)
+    network = serializers.CharField(max_length=20, default="mtn")
+    agent_id_photo_id = serializers.UUIDField()
+    business_location_photo_id = serializers.UUIDField()
+    business_registration_number = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
+
+
+class CertificationRejectSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class StaffCertificationListSerializer(serializers.ModelSerializer):
+    agent_email = serializers.CharField(source="agent_profile.user.email", read_only=True)
+    agent_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CertificationApplication
+        fields = [
+            "id",
+            "agent_email",
+            "agent_name",
+            "agent_id_number",
+            "network",
+            "agent_id_photo",
+            "business_location_photo",
+            "business_registration_number",
+            "status",
+            "rejection_reason",
+            "reviewed_at",
+            "created_at",
+        ]
+
+    def get_agent_name(self, obj):
+        u = obj.agent_profile.user
+        return f"{u.first_name} {u.last_name}".strip()

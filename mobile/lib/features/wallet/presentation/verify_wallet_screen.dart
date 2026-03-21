@@ -2,26 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../auth/presentation/auth_view_model.dart';
 import 'wallet_view_model.dart';
 
-class VerifyWalletScreen extends StatefulWidget {
+class VerifyWalletScreen extends StatelessWidget {
+  final String walletId;
+  final String phoneNumber;
+
   const VerifyWalletScreen({
     super.key,
-    required String walletId,
-    required String phoneNumber,
+    required this.walletId,
+    required this.phoneNumber,
   });
 
   @override
-  State<VerifyWalletScreen> createState() => _VerifyWalletScreenState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (ctx) =>
+          WalletViewModel(ctx.read<BackendApiService>(), loadOnInit: false)
+            ..setPendingWallet(walletId: walletId, phoneNumber: phoneNumber),
+      child: const _VerifyWalletScreenBody(),
+    );
+  }
 }
 
-class _VerifyWalletScreenState extends State<VerifyWalletScreen> {
+class _VerifyWalletScreenBody extends StatefulWidget {
+  const _VerifyWalletScreenBody();
+
+  @override
+  State<_VerifyWalletScreenBody> createState() =>
+      _VerifyWalletScreenBodyState();
+}
+
+class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
   final List<TextEditingController> _controllers = List.generate(
     6,
     (_) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  bool _isRedirectingToWallets = false;
 
   @override
   void dispose() {
@@ -61,6 +82,17 @@ class _VerifyWalletScreenState extends State<VerifyWalletScreen> {
     final wallet = vm.pendingWallet;
 
     if (wallet == null) {
+      if (_isRedirectingToWallets) {
+        return const Scaffold(
+          backgroundColor: AppColors.surface,
+          body: Center(
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 2,
+            ),
+          ),
+        );
+      }
       return Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppBar(backgroundColor: AppColors.background),
@@ -194,12 +226,22 @@ class _VerifyWalletScreenState extends State<VerifyWalletScreen> {
           ElevatedButton(
             onPressed: _isComplete && !vm.isVerifying
                 ? () async {
+                    setState(() => _isRedirectingToWallets = true);
                     vm.clearError();
                     final success = await vm.verifyOtp(_code);
-                    if (success && context.mounted) {
-                      context.pop();
-                      if (context.canPop()) context.pop();
+                    if (!context.mounted) return;
+                    if (success) {
+                      if (context.canPop()) {
+                        context.pop(true);
+                        return;
+                      }
+                      final appUser = context.read<AuthViewModel>().appUser;
+                      context.go(
+                        appUser?.isAgent == true ? '/agent/home' : '/user/home',
+                      );
+                      return;
                     }
+                    setState(() => _isRedirectingToWallets = false);
                   }
                 : null,
             child: vm.isVerifying

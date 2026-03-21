@@ -32,4 +32,22 @@ class Wallet {
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
+
+  Wallet copyWith({
+    String? id,
+    String? phoneNumber,
+    String? network,
+    bool? isVerified,
+    bool? isDefault,
+    DateTime? createdAt,
+  }) {
+    return Wallet(
+      id: id ?? this.id,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      network: network ?? this.network,
+      isVerified: isVerified ?? this.isVerified,
+      isDefault: isDefault ?? this.isDefault,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 }

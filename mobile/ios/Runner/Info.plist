@@ -8,6 +8,8 @@
 	<string>MoMo Plus needs access to your photo library to upload identity documents.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>MoMo Plus may save photos to your library.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MoMo Plus uses your location to find nearby agents.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

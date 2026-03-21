@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/data/repositories/auth_repository.dart';
 import '../../../../core/domain/models/app_user.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/profile_avatar.dart';
@@ -61,15 +60,22 @@ class AgentMoreScreen extends StatelessWidget {
                     _MoreTile(
                       icon: Icons.tune_outlined,
                       title: 'Limits',
-                      subtitle: 'Max amount and service area',
-                      onTap: () {},
+                      subtitle: 'Min amount and max amount',
+                      onTap: () => context.push('/agent/limits'),
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
                       icon: Icons.location_on_outlined,
                       title: 'Service Area',
                       subtitle: 'Manage your location',
-                      onTap: () {},
+                      onTap: () => context.push('/agent/service-area'),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    _MoreTile(
+                      icon: Icons.verified_outlined,
+                      title: 'Certification',
+                      subtitle: 'Become a certified agent',
+                      onTap: () => context.push('/agent/certification'),
                     ),
                   ],
                 ),
@@ -98,10 +104,10 @@ class AgentMoreScreen extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () async {
-                      final confirmed = await showSignOutDialog(context);
-                      if (confirmed == true && context.mounted) {
-                        context.read<AuthRepository>().signOut();
-                      }
+                      await showSignOutDialog(
+                        context,
+                        onConfirm: authVm.signOut,
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.error,

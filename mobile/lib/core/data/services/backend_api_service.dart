@@ -265,6 +265,116 @@ class BackendApiService {
     }
   }
 
+  // ── Agents ──────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>?> getAgentProfile() async {
+    if (_accessToken == null) return null;
+    final uri = Uri.parse('$_baseUrl/api/agents/profile/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> updateAgentProfile(
+    Map<String, dynamic> fields,
+  ) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/agents/profile/update/');
+    final response = await http.put(
+      uri,
+      headers: _headers,
+      body: jsonEncode(fields),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to update agent profile.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> toggleAvailability() async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/agents/profile/toggle-availability/');
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to toggle availability.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getNearbyAgents({
+    required double lat,
+    required double lon,
+    double radius = 10.0,
+    double? minAmount,
+    double? maxAmount,
+    String sortBy = 'distance',
+  }) async {
+    if (_accessToken == null) return [];
+    final params = <String, String>{
+      'lat': lat.toString(),
+      'lon': lon.toString(),
+      'radius': radius.toString(),
+      'sort_by': sortBy,
+    };
+    if (minAmount != null) params['min_amount'] = minAmount.toString();
+    if (maxAmount != null) params['max_amount'] = maxAmount.toString();
+    final uri = Uri.parse(
+      '$_baseUrl/api/agents/nearby/',
+    ).replace(queryParameters: params);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> getAgentDetail(String agentId) async {
+    if (_accessToken == null) return null;
+    final uri = Uri.parse('$_baseUrl/api/agents/$agentId/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getCertificationStatus() async {
+    if (_accessToken == null) return null;
+    final uri = Uri.parse('$_baseUrl/api/agents/certification/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> applyCertification({
+    required String agentIdNumber,
+    required String agentIdPhotoId,
+    required String businessLocationPhotoId,
+    String businessRegistrationNumber = '',
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/agents/certification/apply/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'agent_id_number': agentIdNumber,
+        'network': 'mtn',
+        'agent_id_photo_id': agentIdPhotoId,
+        'business_location_photo_id': businessLocationPhotoId,
+        'business_registration_number': businessRegistrationNumber,
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw _buildApiException(response, 'Failed to submit certification.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Exception _buildApiException(http.Response response, String fallbackMessage) {
     try {
       final body = jsonDecode(response.body);

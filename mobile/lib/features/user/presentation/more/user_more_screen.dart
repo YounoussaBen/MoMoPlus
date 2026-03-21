@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/data/repositories/auth_repository.dart';
 import '../../../../core/domain/models/app_user.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/profile_avatar.dart';
@@ -64,7 +63,7 @@ class UserMoreScreen extends StatelessWidget {
                       icon: Icons.swap_horiz_outlined,
                       title: 'Requests',
                       subtitle: 'View all your requests',
-                      onTap: () {},
+                      onTap: () => context.go('/user/requests'),
                     ),
                   ],
                 ),
@@ -93,10 +92,10 @@ class UserMoreScreen extends StatelessWidget {
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () async {
-                      final confirmed = await showSignOutDialog(context);
-                      if (confirmed == true && context.mounted) {
-                        context.read<AuthRepository>().signOut();
-                      }
+                      await showSignOutDialog(
+                        context,
+                        onConfirm: authVm.signOut,
+                      );
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.error,

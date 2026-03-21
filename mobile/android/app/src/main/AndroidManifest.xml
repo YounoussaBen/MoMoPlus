@@ -3,6 +3,8 @@
     <!-- Gallery access: READ_MEDIA_IMAGES for API 33+, READ_EXTERNAL_STORAGE for older -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="MoMo Plus"
         android:name="${applicationName}"
@@ -31,6 +33,9 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAlRQCxWd2eZMQFDY5pFB42wFaiyndBwEM"/>
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
