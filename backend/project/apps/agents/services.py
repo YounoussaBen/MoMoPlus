@@ -94,6 +94,21 @@ def update_agent_profile(*, user: User, **fields) -> AgentProfile:
     if effective_max is not None and effective_min is not None and effective_min > effective_max:
         raise ValueError("Minimum amount cannot exceed maximum amount.")
 
+    # Once limits are set (both > 0), they cannot be cleared back to 0 or null.
+    limits_already_set = (
+        profile.min_amount is not None
+        and profile.min_amount > 0
+        and profile.max_amount is not None
+        and profile.max_amount > 0
+    )
+    if limits_already_set:
+        new_min = fields.get("min_amount")
+        new_max = fields.get("max_amount")
+        if new_min is not None and new_min <= 0:
+            raise ValueError("Minimum amount cannot be set to zero once configured.")
+        if new_max is not None and new_max <= 0:
+            raise ValueError("Maximum amount cannot be set to zero once configured.")
+
     update_fields: list[str] = []
     for field, value in fields.items():
         if value is not None:
@@ -110,7 +125,13 @@ def update_agent_profile(*, user: User, **fields) -> AgentProfile:
 def toggle_availability(*, user: User) -> AgentProfile:
     """Toggle agent availability on/off."""
     profile = get_agent_profile(user=user)
-    profile.is_available = not profile.is_available
+    going_online = not profile.is_available
+
+    if going_online:
+        if not profile.min_amount or profile.min_amount <= 0 or not profile.max_amount or profile.max_amount <= 0:
+            raise ValueError("Set your minimum and maximum transaction limits before going online.")
+
+    profile.is_available = going_online
     profile.save(update_fields=["is_available", "updated_at"])
     return profile
 

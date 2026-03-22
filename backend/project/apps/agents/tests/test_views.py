@@ -37,7 +37,7 @@ def agent_client(auth_client_factory, agent_claims):
     user.save(update_fields=["role", "agent_status"])
     AgentProfile.objects.get_or_create(
         user=user,
-        defaults={"latitude": 5.6037, "longitude": -0.1870, "max_amount": 500, "is_available": True},
+        defaults={"latitude": 5.6037, "longitude": -0.1870, "max_amount": 500, "min_amount": 10, "is_available": True},
     )
     return client
 

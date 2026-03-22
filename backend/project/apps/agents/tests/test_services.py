@@ -219,7 +219,7 @@ class TestUpdateAgentProfile:
 @pytest.mark.django_db
 class TestToggleAvailability:
     def test_toggles_off_to_on(self, user):
-        AgentProfile.objects.create(user=user, is_available=False)
+        AgentProfile.objects.create(user=user, is_available=False, min_amount=10, max_amount=500)
 
         profile = toggle_availability(user=user)
 
@@ -231,6 +231,12 @@ class TestToggleAvailability:
         profile = toggle_availability(user=user)
 
         assert profile.is_available is False
+
+    def test_rejects_going_online_without_limits(self, user):
+        AgentProfile.objects.create(user=user, is_available=False)
+
+        with pytest.raises(ValueError, match="transaction limits"):
+            toggle_availability(user=user)
 
 
 # ---------------------------------------------------------------------------

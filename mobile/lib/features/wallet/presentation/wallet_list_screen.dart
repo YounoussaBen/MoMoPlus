@@ -233,6 +233,8 @@ class _WalletTile extends StatelessWidget {
 
   void _showActions(BuildContext context) {
     final vm = context.read<WalletViewModel>();
+    final isLastVerified =
+        wallet.isVerified && vm.wallets.where((w) => w.isVerified).length == 1;
 
     showCupertinoModalPopup(
       context: context,
@@ -267,18 +269,19 @@ class _WalletTile extends StatelessWidget {
               },
               child: const Text('Verify'),
             ),
-          CupertinoActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () {
-              Navigator.pop(ctx);
-              Future<void>.microtask(() {
-                if (context.mounted) {
-                  _confirmDelete(context, vm);
-                }
-              });
-            },
-            child: const Text('Delete'),
-          ),
+          if (!isLastVerified)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.pop(ctx);
+                Future<void>.microtask(() {
+                  if (context.mounted) {
+                    _confirmDelete(context, vm);
+                  }
+                });
+              },
+              child: const Text('Delete'),
+            ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.pop(ctx),

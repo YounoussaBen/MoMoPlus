@@ -178,6 +178,21 @@ class _AvailabilityToggleChipState extends State<_AvailabilityToggleChip> {
           }
         }
 
+        if (desiredValue && !vm.hasLimitsSet) {
+          final revertedValue = vm.profile?.isAvailable ?? false;
+          setState(() {
+            _availabilityValue = revertedValue;
+          });
+          showTopInAppNotification(
+            context,
+            title: 'Limits Required',
+            message:
+                'Set your minimum and maximum transaction limits before making yourself available to users.',
+            type: AppNotificationType.info,
+          );
+          continue;
+        }
+
         final ok = await vm.toggleAvailability();
         if (!mounted) return;
 

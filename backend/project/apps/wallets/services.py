@@ -115,6 +115,13 @@ def delete_wallet(*, user: User, wallet: Wallet) -> None:
     if wallet.user_id != user.pk:
         raise ValueError("Wallet does not belong to this user.")
 
+    if wallet.is_verified:
+        verified_count = Wallet.objects.filter(user=user, is_verified=True).count()
+        if verified_count <= 1:
+            raise ValueError(
+                "You must have at least one verified wallet. Add another wallet before deleting this one."
+            )
+
     was_default = wallet.is_default
     wallet.delete()
 

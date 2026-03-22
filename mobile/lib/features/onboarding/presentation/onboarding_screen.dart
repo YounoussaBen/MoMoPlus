@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const Spacer(),
               Text(
-                'Emergency funds,\ninstantly.',
+                'Emergency MoMo,\ninstantly.',
                 style: TextStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w700,

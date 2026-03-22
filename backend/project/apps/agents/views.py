@@ -181,7 +181,11 @@ def toggle_availability_view(request: Request) -> Response:
     if forbidden:
         return forbidden
 
-    profile = toggle_availability(user=request.user)
+    try:
+        profile = toggle_availability(user=request.user)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
     return Response(AgentProfileSerializer(profile).data)
 
 

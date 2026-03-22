@@ -47,15 +47,34 @@ class _LimitsBodyState extends State<_LimitsBody> {
 
   Future<void> _save() async {
     final vm = context.read<AgentProfileViewModel>();
-    final fields = <String, dynamic>{};
 
     final min = double.tryParse(_minCtrl.text);
     final max = double.tryParse(_maxCtrl.text);
 
-    if (min != null) fields['min_amount'] = min.toStringAsFixed(2);
-    if (max != null) fields['max_amount'] = max.toStringAsFixed(2);
+    if (min == null || max == null) {
+      showTopInAppNotification(
+        context,
+        title: 'Missing Fields',
+        message: 'Please enter both a minimum and maximum amount.',
+        type: AppNotificationType.error,
+      );
+      return;
+    }
 
-    if (fields.isEmpty) return;
+    if (min <= 0 || max <= 0) {
+      showTopInAppNotification(
+        context,
+        title: 'Invalid Amounts',
+        message: 'Both minimum and maximum amounts must be greater than zero.',
+        type: AppNotificationType.error,
+      );
+      return;
+    }
+
+    final fields = <String, dynamic>{
+      'min_amount': min.toStringAsFixed(2),
+      'max_amount': max.toStringAsFixed(2),
+    };
 
     final ok = await vm.updateProfile(fields);
     if (ok && mounted) {

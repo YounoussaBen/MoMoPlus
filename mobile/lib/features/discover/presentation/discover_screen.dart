@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,121 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
   bool _isRouteLoading = false;
   String? _routeErrorMessage;
   MapType _mapType = MapType.normal;
+
+  // Cached custom marker icons.
+  BitmapDescriptor? _certifiedMarker;
+  BitmapDescriptor? _selfEnrolledMarker;
+  BitmapDescriptor? _selectedMarker;
+  bool _markersInitialised = false;
+
+  Future<void> _initMarkerIcons() async {
+    if (_markersInitialised) return;
+    _markersInitialised = true;
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final results = await Future.wait([
+      _paintMarkerIcon(
+        color: AppColors.primary,
+        badgeIcon: Icons.verified,
+        dpr: dpr,
+      ),
+      _paintMarkerIcon(color: const Color(0xFFFF9800), dpr: dpr),
+      _paintMarkerIcon(color: const Color(0xFFE53935), dpr: dpr),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _certifiedMarker = results[0];
+      _selfEnrolledMarker = results[1];
+      _selectedMarker = results[2];
+    });
+  }
+
+  static Future<BitmapDescriptor> _paintMarkerIcon({
+    required Color color,
+    IconData? badgeIcon,
+    required double dpr,
+  }) async {
+    const double width = 48;
+    const double height = 56;
+    final double scale = dpr.clamp(1.0, 3.0);
+    final int w = (width * scale).toInt();
+    final int h = (height * scale).toInt();
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+    );
+
+    // Pin body (rounded rect with pointed bottom).
+    final pinPaint = Paint()..color = color;
+    final pinWidth = w * 0.75;
+    final pinHeight = h * 0.68;
+    final pinLeft = (w - pinWidth) / 2;
+    final pinRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(pinLeft, 0, pinWidth, pinHeight),
+      Radius.circular(pinWidth * 0.3),
+    );
+    canvas.drawRRect(pinRect, pinPaint);
+
+    // Pin pointer triangle.
+    final pointerPath = Path()
+      ..moveTo(w / 2 - pinWidth * 0.18, pinHeight - 1)
+      ..lineTo(w / 2, h.toDouble())
+      ..lineTo(w / 2 + pinWidth * 0.18, pinHeight - 1)
+      ..close();
+    canvas.drawPath(pointerPath, pinPaint);
+
+    // White circle inside pin.
+    final circlePaint = Paint()..color = Colors.white;
+    final circleRadius = pinWidth * 0.28;
+    final circleCenter = Offset(w / 2, pinHeight * 0.46);
+    canvas.drawCircle(circleCenter, circleRadius, circlePaint);
+
+    // Badge for certified agents.
+    if (badgeIcon != null) {
+      final badgeRadius = w * 0.22;
+      final badgeCenter = Offset(w - badgeRadius - 1, badgeRadius + 1);
+      canvas.drawCircle(
+        badgeCenter,
+        badgeRadius,
+        Paint()..color = Colors.white,
+      );
+      canvas.drawCircle(
+        badgeCenter,
+        badgeRadius - 1.5 * scale,
+        Paint()..color = const Color(0xFF1976D2),
+      );
+
+      // Draw checkmark inside badge.
+      final checkPaint = Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.0 * scale
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke;
+      final checkSize = badgeRadius * 0.55;
+      final checkPath = Path()
+        ..moveTo(badgeCenter.dx - checkSize * 0.55, badgeCenter.dy)
+        ..lineTo(
+          badgeCenter.dx - checkSize * 0.1,
+          badgeCenter.dy + checkSize * 0.45,
+        )
+        ..lineTo(
+          badgeCenter.dx + checkSize * 0.55,
+          badgeCenter.dy - checkSize * 0.35,
+        );
+      canvas.drawPath(checkPath, checkPaint);
+    }
+
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(w, h);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.bytes(
+      bytes!.buffer.asUint8List(),
+      width: width,
+      height: height,
+    );
+  }
 
   @override
   void dispose() {
@@ -618,6 +734,8 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
   }
 
   Set<Marker> _buildMarkers(DiscoverViewModel vm) {
+    _initMarkerIcons();
+
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('current_user'),
@@ -629,18 +747,31 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     };
 
     for (final agent in vm.agents) {
+      final isSelected = _selectedAgentId == agent.id;
+      BitmapDescriptor icon;
+      if (isSelected && _selectedMarker != null) {
+        icon = _selectedMarker!;
+      } else if (agent.isCertified && _certifiedMarker != null) {
+        icon = _certifiedMarker!;
+      } else if (_selfEnrolledMarker != null) {
+        icon = _selfEnrolledMarker!;
+      } else {
+        // Fallback while custom icons are loading.
+        icon = BitmapDescriptor.defaultMarkerWithHue(
+          isSelected
+              ? BitmapDescriptor.hueRed
+              : agent.isCertified
+              ? BitmapDescriptor.hueGreen
+              : BitmapDescriptor.hueOrange,
+        );
+      }
+
       markers.add(
         Marker(
           markerId: MarkerId(agent.id),
           position: LatLng(agent.latitude, agent.longitude),
-          zIndexInt: _selectedAgentId == agent.id ? 3 : 1,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            _selectedAgentId == agent.id
-                ? BitmapDescriptor.hueRed
-                : agent.isCertified
-                ? BitmapDescriptor.hueGreen
-                : BitmapDescriptor.hueOrange,
-          ),
+          zIndexInt: isSelected ? 3 : 1,
+          icon: icon,
           onTap: () => _handleAgentTap(vm, agent),
         ),
       );
