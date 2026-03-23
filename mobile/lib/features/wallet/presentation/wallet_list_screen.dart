@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/network_logo.dart';
 import '../domain/wallet.dart';
 import 'wallet_view_model.dart';
 
@@ -154,24 +155,7 @@ class _WalletTile extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       onTap: () => _showActions(context),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: _networkColor(wallet.network).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Center(
-          child: Text(
-            wallet.networkLabel[0],
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: _networkColor(wallet.network),
-            ),
-          ),
-        ),
-      ),
+      leading: NetworkLogo(network: wallet.network, size: 36),
       title: Text(
         wallet.phoneNumber,
         style: const TextStyle(
@@ -264,6 +248,7 @@ class _WalletTile extends StatelessWidget {
                   extra: {
                     'walletId': wallet.id,
                     'phoneNumber': wallet.phoneNumber,
+                    'network': wallet.network,
                   },
                 );
               },
@@ -327,13 +312,6 @@ class _WalletTile extends StatelessWidget {
       ),
     );
   }
-
-  Color _networkColor(String network) => switch (network) {
-    'mtn' => const Color(0xFFFFCC00),
-    'vodafone' => const Color(0xFFE60000),
-    'airteltigo' => const Color(0xFF0066B3),
-    _ => AppColors.primary,
-  };
 }
 
 class _WalletActionDialog extends StatefulWidget {

@@ -139,6 +139,7 @@ class AppRouter {
             return VerifyWalletScreen(
               walletId: extra['walletId']!,
               phoneNumber: extra['phoneNumber']!,
+              network: extra['network'] ?? 'mtn',
             );
           },
         ),

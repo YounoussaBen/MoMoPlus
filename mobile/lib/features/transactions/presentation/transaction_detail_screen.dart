@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/network_logo.dart';
 import '../../auth/presentation/auth_view_model.dart';
 import '../domain/physical_transaction.dart';
 import 'meeting_point_picker.dart';
@@ -255,13 +256,20 @@ class _AmountCard extends StatelessWidget {
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              txn.networkLabel,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                NetworkLogo(network: txn.network, size: 18),
+                const SizedBox(width: 6),
+                Text(
+                  txn.networkLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

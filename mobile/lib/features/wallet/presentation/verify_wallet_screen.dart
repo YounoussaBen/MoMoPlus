@@ -4,17 +4,20 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/network_logo.dart';
 import '../../auth/presentation/auth_view_model.dart';
 import 'wallet_view_model.dart';
 
 class VerifyWalletScreen extends StatelessWidget {
   final String walletId;
   final String phoneNumber;
+  final String network;
 
   const VerifyWalletScreen({
     super.key,
     required this.walletId,
     required this.phoneNumber,
+    required this.network,
   });
 
   @override
@@ -22,7 +25,11 @@ class VerifyWalletScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (ctx) =>
           WalletViewModel(ctx.read<BackendApiService>(), loadOnInit: false)
-            ..setPendingWallet(walletId: walletId, phoneNumber: phoneNumber),
+            ..setPendingWallet(
+              walletId: walletId,
+              phoneNumber: phoneNumber,
+              network: network,
+            ),
       child: const _VerifyWalletScreenBody(),
     );
   }
@@ -143,6 +150,22 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
               color: AppColors.textSecondary,
               height: 1.4,
             ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              NetworkLogo(network: wallet.network, size: 20),
+              const SizedBox(width: 6),
+              Text(
+                wallet.networkLabel,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 32),
           Row(

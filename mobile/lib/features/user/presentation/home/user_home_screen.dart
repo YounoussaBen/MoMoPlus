@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/app_logo.dart';
+import '../../../../core/ui/widgets/network_logo.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 import '../../../transactions/domain/physical_transaction.dart';
 import '../../../transactions/presentation/transaction_view_model.dart';
@@ -461,12 +462,25 @@ class _TransactionCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    '${txn.statusLabel} · ${txn.networkLabel}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${txn.statusLabel} · ',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      NetworkLogo(network: txn.network, size: 14),
+                      const SizedBox(width: 3),
+                      Text(
+                        txn.networkLabel,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

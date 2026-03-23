@@ -17,7 +17,7 @@ class Wallet {
 
   String get networkLabel => switch (network) {
     'mtn' => 'MTN',
-    'vodafone' => 'Vodafone',
+    'vodafone' => 'Telecel',
     'airteltigo' => 'AirtelTigo',
     _ => network,
   };

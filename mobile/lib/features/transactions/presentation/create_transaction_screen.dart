@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/network_logo.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
 import '../../wallet/domain/wallet.dart';
 import 'transaction_view_model.dart';
@@ -432,11 +433,7 @@ class _WalletOption extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.account_balance_wallet,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
-              size: 20,
-            ),
+            NetworkLogo(network: wallet.network, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

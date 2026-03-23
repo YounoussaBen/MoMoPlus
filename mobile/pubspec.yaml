@@ -81,6 +81,7 @@ flutter:
     - assets/logo.png
     - assets/logo-white.png
     - assets/icons/
+    - assets/images/
     - assets/animations/
     - .env
 
