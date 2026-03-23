@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from project.apps.files.services import FileAssetAccessError, build_access_url
+
 from .models import AgentProfile, CertificationApplication
 
 
@@ -58,6 +60,7 @@ class NearbyAgentSerializer(serializers.ModelSerializer):
 
     full_name = serializers.SerializerMethodField()
     distance_km = serializers.FloatField(read_only=True)
+    selfie_url = serializers.SerializerMethodField()
 
     class Meta:
         model = AgentProfile
@@ -73,10 +76,24 @@ class NearbyAgentSerializer(serializers.ModelSerializer):
             "total_ratings",
             "agent_type",
             "distance_km",
+            "selfie_url",
         ]
 
     def get_full_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_selfie_url(self, obj):
+        kyc = getattr(obj.user, "kyc_submission", None)
+        if kyc is None or kyc.selfie is None:
+            return None
+        request = self.context.get("request")
+        if request is None:
+            return None
+        try:
+            result = build_access_url(asset=kyc.selfie, request=request)
+            return result.get("url")
+        except FileAssetAccessError:
+            return None
 
 
 class NearbyQuerySerializer(serializers.Serializer):

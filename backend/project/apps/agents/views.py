@@ -63,7 +63,7 @@ def nearby_agents(request: Request) -> Response:
         sort_by=d.get("sort_by", "distance"),
     )
 
-    return Response(NearbyAgentSerializer(agents, many=True).data)
+    return Response(NearbyAgentSerializer(agents, many=True, context={"request": request}).data)
 
 
 @extend_schema(
@@ -79,12 +79,12 @@ def nearby_agents(request: Request) -> Response:
 def agent_detail(request: Request, pk: str) -> Response:
     """Get public details for a specific agent."""
     try:
-        profile = AgentProfile.objects.select_related("user").get(pk=pk)
+        profile = AgentProfile.objects.select_related("user__kyc_submission__selfie").get(pk=pk)
     except AgentProfile.DoesNotExist:
         return Response({"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND)
 
     profile.distance_km = 0.0  # type: ignore[attr-defined]
-    return Response(NearbyAgentSerializer(profile).data)
+    return Response(NearbyAgentSerializer(profile, context={"request": request}).data)
 
 
 @extend_schema(

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "project.apps.kyc",
     "project.apps.wallets",
     "project.apps.agents",
+    "project.apps.transactions",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

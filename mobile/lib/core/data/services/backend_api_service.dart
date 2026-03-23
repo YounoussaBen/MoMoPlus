@@ -399,6 +399,139 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  // ── Physical Transactions ───────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> createPhysicalTransaction({
+    required String agentId,
+    required String transactionType,
+    required String amount,
+    required String network,
+    required String walletId,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/transactions/physical/create/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'agent_id': agentId,
+        'transaction_type': transactionType,
+        'amount': amount,
+        'network': network,
+        'wallet_id': walletId,
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw _buildApiException(response, 'Failed to create transaction.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getPhysicalTransactions({String? status}) async {
+    if (_accessToken == null) return [];
+    final params = <String, String>{};
+    if (status != null) params['status'] = status;
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/',
+    ).replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> getPhysicalTransactionDetail(
+    String transactionId,
+  ) async {
+    if (_accessToken == null) return null;
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/$transactionId/',
+    );
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> acceptPhysicalTransaction(
+    String transactionId, {
+    required String meetingLatitude,
+    required String meetingLongitude,
+    String meetingDescription = '',
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/$transactionId/accept/',
+    );
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'meeting_latitude': meetingLatitude,
+        'meeting_longitude': meetingLongitude,
+        'meeting_description': meetingDescription,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to accept transaction.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> rejectPhysicalTransaction(
+    String transactionId, {
+    String reason = '',
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/$transactionId/reject/',
+    );
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'reason': reason}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to reject transaction.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> confirmPhysicalTransaction(
+    String transactionId,
+  ) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/$transactionId/confirm/',
+    );
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to confirm transaction.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> cancelPhysicalTransaction(
+    String transactionId, {
+    String reason = '',
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/$transactionId/cancel/',
+    );
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'reason': reason}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to cancel transaction.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Exception _buildApiException(http.Response response, String fallbackMessage) {
     try {
       final body = jsonDecode(response.body);

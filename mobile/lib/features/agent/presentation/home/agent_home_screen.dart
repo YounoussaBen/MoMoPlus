@@ -8,13 +8,47 @@ import '../../../../core/ui/widgets/app_logo.dart';
 import '../../../../core/ui/widgets/top_in_app_notification.dart';
 import '../../../agent_profile/presentation/agent_profile_view_model.dart';
 import '../../../auth/presentation/auth_view_model.dart';
+import '../../../transactions/domain/physical_transaction.dart';
+import '../../../transactions/presentation/transaction_view_model.dart';
 
-class AgentHomeScreen extends StatelessWidget {
+const int _homePreviewLimit = 5;
+
+class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen({super.key});
+
+  @override
+  State<AgentHomeScreen> createState() => _AgentHomeScreenState();
+}
+
+class _AgentHomeScreenState extends State<AgentHomeScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TransactionViewModel>().loadTransactions();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<TransactionViewModel>().loadTransactions();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final appUser = context.watch<AuthViewModel>().appUser;
+    final txnVm = context.watch<TransactionViewModel>();
 
     if (appUser == null) {
       return const Scaffold(
@@ -55,39 +89,59 @@ class AgentHomeScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100),
-        children: [
-          const SizedBox(height: 24),
-          Row(
+      body: Builder(
+        builder: (context) {
+          final activeTransactions = txnVm.transactions
+              .where((t) => t.isActive)
+              .toList();
+          final historyTransactions = txnVm.transactions
+              .where((t) => !t.isActive)
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100),
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hello, $displayName',
-                      style: Theme.of(context).textTheme.displayLarge,
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hello, $displayName',
+                          style: Theme.of(context).textTheme.displayLarge,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Welcome back to MoMo Plus',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Welcome back to MoMo Plus',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
+                  ),
+                  _AvailabilityToggle(),
+                ],
               ),
-              _AvailabilityToggle(),
+              const SizedBox(height: 28),
+              _QuickActions(),
+              const SizedBox(height: 28),
+              _PendingRequests(
+                transactions: activeTransactions
+                    .take(_homePreviewLimit)
+                    .toList(),
+                totalCount: activeTransactions.length,
+              ),
+              const SizedBox(height: 28),
+              _RecentTransactions(
+                transactions: historyTransactions
+                    .take(_homePreviewLimit)
+                    .toList(),
+              ),
+              const SizedBox(height: 24),
             ],
-          ),
-          const SizedBox(height: 28),
-          _QuickActions(),
-          const SizedBox(height: 28),
-          _PendingRequests(),
-          const SizedBox(height: 28),
-          _RecentTransactions(),
-          const SizedBox(height: 24),
-        ],
+          );
+        },
       ),
     );
   }
@@ -368,6 +422,14 @@ class _ActionTile extends StatelessWidget {
 }
 
 class _PendingRequests extends StatelessWidget {
+  final List<PhysicalTransaction> transactions;
+  final int totalCount;
+
+  const _PendingRequests({
+    required this.transactions,
+    required this.totalCount,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -375,16 +437,16 @@ class _PendingRequests extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Pending Requests',
-              style: TextStyle(
+            Text(
+              'Pending Requests${totalCount > 0 ? ' ($totalCount)' : ''}',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: () => context.go('/agent/transactions?tab=active'),
               child: const Text(
                 'View All',
                 style: TextStyle(
@@ -397,39 +459,51 @@ class _PendingRequests extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.swap_horiz_outlined,
-                  size: 40,
-                  color: AppColors.textSecondary.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'No pending requests',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+        if (transactions.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.swap_horiz_outlined,
+                    size: 40,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  const Text(
+                    'No pending requests',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...transactions.map(
+            (txn) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TransactionCard(txn: txn),
             ),
           ),
-        ),
       ],
     );
   }
 }
 
 class _RecentTransactions extends StatelessWidget {
+  final List<PhysicalTransaction> transactions;
+
+  const _RecentTransactions({required this.transactions});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -446,7 +520,7 @@ class _RecentTransactions extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: () => context.go('/agent/transactions?tab=history'),
               child: const Text(
                 'View All',
                 style: TextStyle(
@@ -459,34 +533,121 @@ class _RecentTransactions extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 40,
-                  color: AppColors.textSecondary.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'No transactions yet',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+        if (transactions.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 40,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  const Text(
+                    'No transactions yet',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...transactions.map(
+            (txn) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TransactionCard(txn: txn),
             ),
           ),
-        ),
       ],
+    );
+  }
+}
+
+class _TransactionCard extends StatelessWidget {
+  final PhysicalTransaction txn;
+  const _TransactionCard({required this.txn});
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusColor, statusIcon) = switch (txn.status) {
+      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
+      'accepted' => (AppColors.primary, Icons.handshake_outlined),
+      'completed' => (AppColors.primary, Icons.check_circle_outlined),
+      'cancelled' => (AppColors.error, Icons.cancel_outlined),
+      'rejected' => (AppColors.error, Icons.block_outlined),
+      _ => (AppColors.textSecondary, Icons.info_outline),
+    };
+
+    return GestureDetector(
+      onTap: () => context.push('/transactions/${txn.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(statusIcon, size: 22, color: statusColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${txn.typeLabel} · ${txn.userName}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${txn.statusLabel} · ${txn.networkLabel}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'GHS ${txn.amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/data/services/backend_api_service.dart';
+import '../../transactions/domain/physical_transaction.dart';
 import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 
@@ -9,6 +10,7 @@ class DiscoverViewModel extends ChangeNotifier {
   final BackendApiService _api;
 
   List<NearbyAgent> _agents = [];
+  List<PhysicalTransaction> _activeTransactions = [];
   bool _isLoading = false;
   String? _errorMessage;
   double? _userLat;
@@ -29,6 +31,14 @@ class DiscoverViewModel extends ChangeNotifier {
   String get sortBy => _sortBy;
   bool get isLocating => _isLocating;
   bool get hasLocation => _userLat != null && _userLon != null;
+
+  /// Returns the active transaction with a given agent, if any.
+  PhysicalTransaction? activeTransactionWith(String agentId) {
+    for (final txn in _activeTransactions) {
+      if (txn.agentId == agentId && txn.isActive) return txn;
+    }
+    return null;
+  }
 
   Future<void> locateAndLoad() async {
     _isLocating = true;
@@ -70,14 +80,21 @@ class DiscoverViewModel extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      final data = await _api.getNearbyAgents(
-        lat: _userLat!,
-        lon: _userLon!,
-        radius: _radius,
-        sortBy: _sortBy,
-      );
-      _agents = data
+      final results = await Future.wait([
+        _api.getNearbyAgents(
+          lat: _userLat!,
+          lon: _userLon!,
+          radius: _radius,
+          sortBy: _sortBy,
+        ),
+        _api.getPhysicalTransactions(),
+      ]);
+      _agents = results[0]
           .map((j) => NearbyAgent.fromJson(j as Map<String, dynamic>))
+          .toList();
+      _activeTransactions = results[1]
+          .map((j) => PhysicalTransaction.fromJson(j as Map<String, dynamic>))
+          .where((t) => t.isActive)
           .toList();
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');

@@ -10,6 +10,7 @@ class NearbyAgent {
   final int totalRatings;
   final String agentType;
   final double distanceKm;
+  final String? selfieUrl;
 
   const NearbyAgent({
     required this.id,
@@ -23,6 +24,7 @@ class NearbyAgent {
     required this.totalRatings,
     required this.agentType,
     required this.distanceKm,
+    this.selfieUrl,
   });
 
   bool get isCertified => agentType == 'certified';
@@ -47,6 +49,7 @@ class NearbyAgent {
       totalRatings: json['total_ratings'] as int? ?? 0,
       agentType: json['agent_type'] as String? ?? 'self_enrolled',
       distanceKm: _toDouble(json['distance_km']) ?? 0,
+      selfieUrl: json['selfie_url'] as String?,
     );
   }
 

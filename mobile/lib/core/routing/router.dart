@@ -1,8 +1,6 @@
 import 'package:go_router/go_router.dart';
-import '../../features/agent/presentation/transactions/agent_transactions_screen.dart';
 import '../../features/agent/presentation/home/agent_home_screen.dart';
 import '../../features/agent/presentation/more/agent_more_screen.dart';
-import '../../features/agent/presentation/requests/agent_requests_screen.dart';
 import '../../features/agent/presentation/shell/agent_shell.dart';
 import '../../features/auth/presentation/auth_view_model.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
@@ -22,9 +20,11 @@ import '../../features/wallet/presentation/add_wallet_screen.dart';
 import '../../features/wallet/presentation/verify_wallet_screen.dart';
 import '../../features/wallet/presentation/wallet_list_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
-import '../../features/user/presentation/requests/user_requests_screen.dart';
 import '../../features/user/presentation/more/user_more_screen.dart';
 import '../../features/user/presentation/shell/user_shell.dart';
+import '../../features/transactions/presentation/create_transaction_screen.dart';
+import '../../features/transactions/presentation/transaction_detail_screen.dart';
+import '../../features/transactions/presentation/transaction_list_screen.dart';
 
 class AppRouter {
   static GoRouter create(AuthViewModel authViewModel) {
@@ -143,7 +143,28 @@ class AppRouter {
           },
         ),
 
-        // ── User shell (5 tabs) ──
+        // ── Transactions (shared by both roles) ──
+        GoRoute(
+          path: '/transactions/create',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>;
+            return CreateTransactionScreen(
+              agentId: extra['agentId'] as String,
+              agentName: extra['agentName'] as String,
+              agentSelfieUrl: extra['agentSelfieUrl'] as String?,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/transactions/:id',
+          builder: (context, state) {
+            return TransactionDetailScreen(
+              transactionId: state.pathParameters['id']!,
+            );
+          },
+        ),
+
+        // ── User shell (4 tabs) ──
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) =>
               UserShell(navigationShell: navigationShell),
@@ -168,7 +189,11 @@ class AppRouter {
               routes: [
                 GoRoute(
                   path: '/user/requests',
-                  builder: (context, state) => const UserRequestsScreen(),
+                  builder: (context, state) => TransactionListScreen(
+                    isAgent: false,
+                    initialTabIndex:
+                        state.uri.queryParameters['tab'] == 'history' ? 1 : 0,
+                  ),
                 ),
               ],
             ),
@@ -197,7 +222,12 @@ class AppRouter {
           builder: (context, state) => const CertificationScreen(),
         ),
 
-        // ── Agent shell (5 tabs) ──
+        GoRoute(
+          path: '/agent/requests',
+          redirect: (context, state) => '/agent/transactions?tab=active',
+        ),
+
+        // ── Agent shell (3 tabs) ──
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) =>
               AgentShell(navigationShell: navigationShell),
@@ -213,16 +243,12 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/agent/requests',
-                  builder: (context, state) => const AgentRequestsScreen(),
-                ),
-              ],
-            ),
-            StatefulShellBranch(
-              routes: [
-                GoRoute(
                   path: '/agent/transactions',
-                  builder: (context, state) => const AgentTransactionsScreen(),
+                  builder: (context, state) => TransactionListScreen(
+                    isAgent: true,
+                    initialTabIndex:
+                        state.uri.queryParameters['tab'] == 'history' ? 1 : 0,
+                  ),
                 ),
               ],
             ),

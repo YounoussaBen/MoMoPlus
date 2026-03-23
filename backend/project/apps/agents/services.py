@@ -52,7 +52,7 @@ def get_nearby_agents(
         longitude__lte=Decimal(str(lon + delta_lon)),
         user__role=UserRole.AGENT,
         user__agent_status=AgentStatus.APPROVED,
-    ).select_related("user")
+    ).select_related("user__kyc_submission__selfie")
 
     if min_amount is not None:
         qs = qs.filter(max_amount__gte=Decimal(str(min_amount)))

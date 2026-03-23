@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/widgets/profile_avatar.dart';
 import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 import 'agent_detail_sheet.dart';
@@ -857,10 +858,12 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
   }
 
   void _showAgentDetail(NearbyAgent agent) {
+    final vm = context.read<DiscoverViewModel>();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (_) => AgentDetailSheet(
         agent: agent,
         routePreview: _selectedAgentId == agent.id ? _activeRoute : null,
@@ -870,6 +873,7 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
             : null,
         onStreetView: () => _openStreetView(agent),
         onOpenDirections: () => _openDirections(agent),
+        activeTransaction: vm.activeTransactionWith(agent.id),
       ),
     );
   }
@@ -1082,25 +1086,12 @@ class _SelectedAgentCard extends StatelessWidget {
           ),
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    agent.fullName.isNotEmpty
-                        ? agent.fullName[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
+              ProfileAvatar(
+                imageUrl: agent.selfieUrl,
+                fallbackLetter: agent.fullName.isNotEmpty
+                    ? agent.fullName[0]
+                    : '?',
+                radius: 24,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1277,29 +1268,12 @@ class _AgentCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: agent.isCertified
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : AppColors.textSecondary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  agent.fullName.isNotEmpty
-                      ? agent.fullName[0].toUpperCase()
-                      : '?',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: agent.isCertified
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                  ),
-                ),
-              ),
+            ProfileAvatar(
+              imageUrl: agent.selfieUrl,
+              fallbackLetter: agent.fullName.isNotEmpty
+                  ? agent.fullName[0]
+                  : '?',
+              radius: 22,
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -5,13 +5,47 @@ import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/widgets/app_logo.dart';
 import '../../../auth/presentation/auth_view_model.dart';
+import '../../../transactions/domain/physical_transaction.dart';
+import '../../../transactions/presentation/transaction_view_model.dart';
 
-class UserHomeScreen extends StatelessWidget {
+const int _homePreviewLimit = 5;
+
+class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
+
+  @override
+  State<UserHomeScreen> createState() => _UserHomeScreenState();
+}
+
+class _UserHomeScreenState extends State<UserHomeScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<TransactionViewModel>().loadTransactions();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      context.read<TransactionViewModel>().loadTransactions();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final appUser = context.watch<AuthViewModel>().appUser;
+    final txnVm = context.watch<TransactionViewModel>();
 
     if (appUser == null) {
       return const Scaffold(
@@ -52,27 +86,49 @@ class UserHomeScreen extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100),
-        children: [
-          const SizedBox(height: 24),
-          Text(
-            'Hello, $displayName',
-            style: Theme.of(context).textTheme.displayLarge,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Welcome back to MoMo Plus',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 24),
-          _StatusCard(),
-          const SizedBox(height: 28),
-          _QuickActions(),
-          const SizedBox(height: 28),
-          _RecentRequests(),
-          const SizedBox(height: 24),
-        ],
+      body: Builder(
+        builder: (context) {
+          final activeTransactions = txnVm.transactions
+              .where((t) => t.isActive)
+              .toList();
+          final historyTransactions = txnVm.transactions
+              .where((t) => !t.isActive)
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100),
+            children: [
+              const SizedBox(height: 24),
+              Text(
+                'Hello, $displayName',
+                style: Theme.of(context).textTheme.displayLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Welcome back to MoMo Plus',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+              _StatusCard(activeCount: activeTransactions.length),
+              const SizedBox(height: 28),
+              _QuickActions(),
+              const SizedBox(height: 28),
+              _PendingRequests(
+                transactions: activeTransactions
+                    .take(_homePreviewLimit)
+                    .toList(),
+                totalCount: activeTransactions.length,
+              ),
+              const SizedBox(height: 28),
+              _RecentTransactions(
+                transactions: historyTransactions
+                    .take(_homePreviewLimit)
+                    .toList(),
+              ),
+              const SizedBox(height: 24),
+            ],
+          );
+        },
       ),
     );
   }
@@ -85,6 +141,9 @@ class UserHomeScreen extends StatelessWidget {
 }
 
 class _StatusCard extends StatelessWidget {
+  final int activeCount;
+  const _StatusCard({required this.activeCount});
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -101,8 +160,10 @@ class _StatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'No active requests',
-            style: TextStyle(
+            activeCount > 0
+                ? '$activeCount active request${activeCount == 1 ? '' : 's'}'
+                : 'No active requests',
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
               color: Colors.white,
@@ -110,7 +171,9 @@ class _StatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Make a request to get started',
+            activeCount > 0
+                ? 'Tap below to view your active requests'
+                : 'Make a request to get started',
             style: TextStyle(
               fontSize: 14,
               color: Colors.white.withValues(alpha: 0.8),
@@ -125,32 +188,27 @@ class _StatusCard extends StatelessWidget {
 class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ActionTile(
-            icon: Icons.account_balance_wallet_rounded,
-            label: 'Add Wallet',
-            onTap: () => context.push('/wallet'),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ActionTile(
+              icon: Icons.account_balance_wallet_rounded,
+              label: 'Add Wallet',
+              onTap: () => context.push('/wallet'),
+            ),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _ActionTile(
-            icon: Icons.add_rounded,
-            label: 'Make Request',
-            onTap: () => context.go('/user/requests'),
+          const SizedBox(width: 14),
+          Expanded(
+            child: _ActionTile(
+              icon: Icons.person_search_rounded,
+              label: 'Find Agent',
+              onTap: () => context.go('/user/agents'),
+            ),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _ActionTile(
-            icon: Icons.person_search_rounded,
-            label: 'Find Agent',
-            onTap: () => context.go('/user/agents'),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -203,7 +261,15 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-class _RecentRequests extends StatelessWidget {
+class _PendingRequests extends StatelessWidget {
+  final List<PhysicalTransaction> transactions;
+  final int totalCount;
+
+  const _PendingRequests({
+    required this.transactions,
+    required this.totalCount,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -211,16 +277,16 @@ class _RecentRequests extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Recent Requests',
-              style: TextStyle(
+            Text(
+              'Pending Requests${totalCount > 0 ? ' ($totalCount)' : ''}',
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
             GestureDetector(
-              onTap: () {},
+              onTap: () => context.go('/user/requests?tab=active'),
               child: const Text(
                 'View All',
                 style: TextStyle(
@@ -233,34 +299,195 @@ class _RecentRequests extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 32),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.swap_horiz_outlined,
-                  size: 40,
-                  color: AppColors.textSecondary.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'No requests yet',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+        if (transactions.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.swap_horiz_outlined,
+                    size: 40,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  const Text(
+                    'No pending requests',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...transactions.map(
+            (txn) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TransactionCard(txn: txn),
             ),
           ),
-        ),
       ],
+    );
+  }
+}
+
+class _RecentTransactions extends StatelessWidget {
+  final List<PhysicalTransaction> transactions;
+
+  const _RecentTransactions({required this.transactions});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Transactions',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => context.go('/user/requests?tab=history'),
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (transactions.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 40,
+                    color: AppColors.textSecondary.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'No recent transactions',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...transactions.map(
+            (txn) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TransactionCard(txn: txn),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _TransactionCard extends StatelessWidget {
+  final PhysicalTransaction txn;
+  const _TransactionCard({required this.txn});
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusColor, statusIcon) = switch (txn.status) {
+      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
+      'accepted' => (AppColors.primary, Icons.handshake_outlined),
+      'completed' => (AppColors.primary, Icons.check_circle_outlined),
+      'cancelled' => (AppColors.error, Icons.cancel_outlined),
+      'rejected' => (AppColors.error, Icons.block_outlined),
+      _ => (AppColors.textSecondary, Icons.info_outline),
+    };
+
+    return GestureDetector(
+      onTap: () => context.push('/transactions/${txn.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(statusIcon, size: 22, color: statusColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${txn.typeLabel} · ${txn.agentName}',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${txn.statusLabel} · ${txn.networkLabel}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              'GHS ${txn.amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

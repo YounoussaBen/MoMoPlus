@@ -9,6 +9,7 @@ import 'core/data/services/supabase_auth_service.dart';
 import 'core/routing/router.dart';
 import 'core/ui/theme/app_theme.dart';
 import 'features/auth/presentation/auth_view_model.dart';
+import 'features/transactions/presentation/transaction_view_model.dart';
 
 class MomoPlusApp extends StatefulWidget {
   const MomoPlusApp({super.key});
@@ -56,6 +57,9 @@ class _MomoPlusAppState extends State<MomoPlusApp> {
         Provider<FileUploadService>.value(value: _fileUploadService),
         Provider<AuthRepository>.value(value: _authRepository),
         ChangeNotifierProvider<AuthViewModel>.value(value: _authViewModel),
+        ChangeNotifierProvider<TransactionViewModel>(
+          create: (_) => TransactionViewModel(_backendService),
+        ),
       ],
       child: MaterialApp.router(
         title: 'MoMo Plus',
