@@ -83,9 +83,7 @@ export function Header({
               className="flex h-11 items-center gap-2 px-3 md:h-12 md:gap-3 md:px-4"
             >
               <div className="hidden text-right md:block">
-                <p className="text-foreground max-w-[120px] truncate text-sm font-medium">
-                  {userName}
-                </p>
+                <p className="text-foreground max-w-30 truncate text-sm font-medium">{userName}</p>
                 <p className="text-muted-foreground truncate text-xs">{userEmail}</p>
               </div>
 
@@ -105,7 +103,7 @@ export function Header({
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                 <div className="absolute top-full right-0 z-50 mt-3 w-56">
-                  <div className="bg-card absolute -top-[9px] right-5 h-4 w-4 rotate-45" />
+                  <div className="bg-card absolute -top-2.25 right-5 h-4 w-4 rotate-45" />
                   <div className="bg-card border-border overflow-hidden rounded-xl border">
                     <div className="border-border border-b px-4 py-3">
                       <p className="text-foreground truncate text-sm font-semibold">{userName}</p>

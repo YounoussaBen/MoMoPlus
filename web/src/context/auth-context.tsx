@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { StaffUser, LoginResponse } from "@/lib/types";
 
@@ -16,24 +16,22 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<StaffUser | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
+  const [user, setUser] = useState<StaffUser | null>(() => {
+    if (typeof window === "undefined") return null;
     const stored = localStorage.getItem("staff_user");
     const token = localStorage.getItem("access_token");
     if (stored && token) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setUser(JSON.parse(stored));
+        return JSON.parse(stored);
       } catch {
         localStorage.removeItem("staff_user");
         localStorage.removeItem("access_token");
       }
     }
-    setLoading(false);
-  }, []);
+    return null;
+  });
+  const loading = false;
+  const router = useRouter();
 
   const login = useCallback(
     async (email: string, password: string) => {
