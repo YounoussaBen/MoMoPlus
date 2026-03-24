@@ -2,7 +2,7 @@
 
 from .base import *
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "10.0.2.2"]
+ALLOWED_HOSTS = list(dict.fromkeys([*ALLOWED_HOSTS, "10.0.2.2"]))
 
 INSTALLED_APPS += ["debug_toolbar"]
 
