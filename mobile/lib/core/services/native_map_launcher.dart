@@ -10,7 +10,7 @@ class NativeMapLauncher {
     required String title,
     double bearing = 0,
   }) async {
-    _ensureAndroid('Street View');
+    _ensureMobile('Street View');
     await _channel.invokeMethod<void>('openStreetView', {
       'latitude': latitude,
       'longitude': longitude,
@@ -24,7 +24,7 @@ class NativeMapLauncher {
     required double longitude,
     required String label,
   }) async {
-    _ensureAndroid('Google Maps directions');
+    _ensureMobile('Google Maps directions');
     await _channel.invokeMethod<void>('openDirections', {
       'latitude': latitude,
       'longitude': longitude,
@@ -32,9 +32,10 @@ class NativeMapLauncher {
     });
   }
 
-  static void _ensureAndroid(String featureName) {
-    if (defaultTargetPlatform != TargetPlatform.android) {
-      throw Exception('$featureName is only available on Android for now.');
+  static void _ensureMobile(String featureName) {
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      throw Exception('$featureName is only available on mobile devices.');
     }
   }
 }
