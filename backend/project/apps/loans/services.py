@@ -5,6 +5,7 @@ import uuid
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -17,12 +18,17 @@ from .models import Loan, LoanPayment, LoanStatus, PaymentStatus, PaymentType
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_INTEREST_RATE = Decimal("10.00")  # 10%
+DEFAULT_INTEREST_RATE = Decimal("10.00")
+DEFAULT_PAYSTACK_CHARGE_PERCENT = Decimal("1.95")
+DEFAULT_PAYSTACK_CHARGE_FIXED = Decimal("0.00")
+DEFAULT_PAYSTACK_TRANSFER_FEE = Decimal("1.00")
 PENALTY_RATE = Decimal("2.00")  # 2% per penalty cycle
 PENALTY_INTERVAL_HOURS = 12
 DEFAULT_DEADLINE_HOURS = 24
 SATURDAY_DEADLINE_HOURS = 48
 DEFAULT_DAYS = 7
+MONEY_QUANTUM = Decimal("0.01")
+HUNDRED = Decimal("100")
 
 
 def _generate_reference(prefix: str = "MP") -> str:
@@ -32,6 +38,98 @@ def _generate_reference(prefix: str = "MP") -> str:
 def _pesewas(amount: Decimal) -> int:
     """Convert GHS decimal to pesewas integer."""
     return int((amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def _money(amount: Decimal, *, rounding: str = ROUND_HALF_UP) -> Decimal:
+    return amount.quantize(MONEY_QUANTUM, rounding=rounding)
+
+
+def _setting_decimal(name: str, default: str) -> Decimal:
+    return Decimal(str(getattr(settings, name, default)))
+
+
+def _interest_rate() -> Decimal:
+    return _setting_decimal("LOAN_DEFAULT_INTEREST_RATE", str(DEFAULT_INTEREST_RATE))
+
+
+def _agent_interest_rate() -> Decimal:
+    return _setting_decimal("LOAN_AGENT_INTEREST_RATE", "5.00")
+
+
+def _charge_fee_rate() -> Decimal:
+    return DEFAULT_PAYSTACK_CHARGE_PERCENT
+
+
+def _charge_fixed_fee() -> Decimal:
+    return _money(DEFAULT_PAYSTACK_CHARGE_FIXED)
+
+
+def _transfer_fee() -> Decimal:
+    return _money(DEFAULT_PAYSTACK_TRANSFER_FEE)
+
+
+def _percentage_of(amount: Decimal, rate: Decimal) -> Decimal:
+    return _money(amount * rate / HUNDRED)
+
+
+def _charge_fee_for(amount: Decimal) -> Decimal:
+    percentage_fee = _percentage_of(amount, _charge_fee_rate())
+    return _money(percentage_fee + _charge_fixed_fee())
+
+
+def _loan_pricing(amount: Decimal) -> dict[str, Decimal]:
+    interest_rate = _interest_rate()
+    total_interest = _percentage_of(amount, interest_rate)
+    agent_interest_amount = _percentage_of(amount, _agent_interest_rate())
+    if agent_interest_amount > total_interest:
+        raise ValueError("Loan pricing configuration is invalid.")
+    platform_interest_amount = _money(total_interest - agent_interest_amount)
+    total_repayment = amount + agent_interest_amount + platform_interest_amount
+    agent_receivable_balance = amount + agent_interest_amount
+    return {
+        "interest_rate": interest_rate,
+        "origination_fee": Decimal("0.00"),
+        "agent_interest_amount": agent_interest_amount,
+        "platform_interest_amount": platform_interest_amount,
+        "total_repayment": _money(total_repayment),
+        "agent_receivable_balance": _money(agent_receivable_balance),
+    }
+
+
+def _transfer_fee_for(transfer_amount: Decimal) -> Decimal:
+    return _transfer_fee() if transfer_amount > 0 else Decimal("0.00")
+
+
+def _required_transfer_balance(transfer_amount: Decimal) -> Decimal:
+    return _money(transfer_amount + _transfer_fee_for(transfer_amount))
+
+
+def _disbursement_transfer_amount(charge_amount: Decimal) -> Decimal:
+    net_amount = _money(charge_amount - _charge_fee_for(charge_amount) - _transfer_fee())
+    if net_amount <= 0:
+        raise ValueError("Loan amount is too small after Paystack fees.")
+    return net_amount
+
+
+def _balance_from_subunit(value: object) -> Decimal:
+    return _money(Decimal(str(value)) / HUNDRED)
+
+
+def _get_available_balance(currency: str = "GHS") -> Decimal | None:
+    balances = paystack.get_balances()
+    for entry in balances:
+        if str(entry.get("currency", "")).upper() != currency.upper():
+            continue
+        if "available_balance" in entry:
+            return _balance_from_subunit(entry["available_balance"])
+        if "balance" in entry:
+            return _balance_from_subunit(entry["balance"])
+    return None
+
+
+def _repayment_breakdown(*, loan: Loan) -> tuple[Decimal, Decimal]:
+    agent_receivable_balance = loan.agent_receivable_balance or loan.outstanding_balance
+    return _money(agent_receivable_balance), _money(loan.outstanding_balance - agent_receivable_balance)
 
 
 def _merge_paystack_response(existing: dict | None, *, stage: str, data: dict) -> dict:
@@ -128,16 +226,19 @@ def request_loan(
     ).exists():
         raise ValueError("You already have an active loan with this agent.")
 
-    interest = (amount * DEFAULT_INTEREST_RATE / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    total = amount + interest
+    pricing = _loan_pricing(amount)
 
     return Loan.objects.create(
         borrower=borrower,
         agent=agent,
         amount=amount,
-        interest_rate=DEFAULT_INTEREST_RATE,
-        total_repayment=total,
-        outstanding_balance=total,
+        interest_rate=pricing["interest_rate"],
+        origination_fee=pricing["origination_fee"],
+        agent_interest_amount=pricing["agent_interest_amount"],
+        platform_interest_amount=pricing["platform_interest_amount"],
+        total_repayment=pricing["total_repayment"],
+        outstanding_balance=pricing["total_repayment"],
+        agent_receivable_balance=pricing["agent_receivable_balance"],
         borrower_wallet=wallet,
         network=network,
         status=LoanStatus.PENDING,
@@ -242,6 +343,9 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
 
     provider = paystack.NETWORK_TO_PROVIDER.get(agent_wallet.network, "mtn")
     reference = _generate_reference("DISB")
+    charge_amount = _money(loan.amount)
+    transfer_amount = _disbursement_transfer_amount(charge_amount)
+    platform_amount = Decimal("0.00")
 
     # Create payment record and update loan status atomically
     with transaction.atomic():
@@ -249,6 +353,9 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
             loan=loan,
             payment_type=PaymentType.DISBURSEMENT,
             amount=loan.amount,
+            charge_amount=charge_amount,
+            transfer_amount=transfer_amount,
+            platform_amount=platform_amount,
             reference=reference,
             payer_phone=agent_wallet.phone_number,
             payer_network=agent_wallet.network,
@@ -262,7 +369,7 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
     try:
         resp = paystack.charge_mobile_money(
             email=agent_user.email,
-            amount_pesewas=_pesewas(loan.amount),
+            amount_pesewas=_pesewas(payment.charge_amount),
             phone=agent_wallet.phone_number,
             provider=provider,
             reference=reference,
@@ -270,6 +377,10 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
                 "loan_id": str(loan.pk),
                 "payment_type": "disbursement",
                 "borrower_id": str(loan.borrower_id),
+                "principal_amount": str(payment.amount),
+                "charge_amount": str(payment.charge_amount),
+                "transfer_amount": str(payment.transfer_amount),
+                "platform_amount": str(payment.platform_amount),
             },
         )
         payment.paystack_reference = resp.get("reference", "")
@@ -297,7 +408,10 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
     if not loan.agent_wallet:
         raise ValueError("Agent wallet not configured for this loan.")
 
-    repay_amount = amount or loan.outstanding_balance
+    if amount is not None and _money(amount) != loan.outstanding_balance:
+        raise ValueError("Partial repayment is not supported. The borrower must repay the full outstanding balance.")
+
+    repay_amount = _money(loan.outstanding_balance)
     if repay_amount <= 0:
         raise ValueError("Nothing to repay.")
     if repay_amount > loan.outstanding_balance:
@@ -310,12 +424,17 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
 
     provider = paystack.NETWORK_TO_PROVIDER.get(borrower_wallet.network, "mtn")
     reference = _generate_reference("REPAY")
+    transfer_amount, platform_amount = _repayment_breakdown(loan=loan)
+    charge_amount = repay_amount
 
     with transaction.atomic():
         payment = LoanPayment.objects.create(
             loan=loan,
             payment_type=PaymentType.REPAYMENT,
             amount=repay_amount,
+            charge_amount=charge_amount,
+            transfer_amount=transfer_amount,
+            platform_amount=platform_amount,
             reference=reference,
             payer_phone=borrower_wallet.phone_number,
             payer_network=borrower_wallet.network,
@@ -328,7 +447,7 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
     try:
         resp = paystack.charge_mobile_money(
             email=loan.borrower.email,
-            amount_pesewas=_pesewas(repay_amount),
+            amount_pesewas=_pesewas(payment.charge_amount),
             phone=borrower_wallet.phone_number,
             provider=provider,
             reference=reference,
@@ -336,6 +455,10 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
                 "loan_id": str(loan.pk),
                 "payment_type": "repayment",
                 "agent_id": str(loan.agent_id),
+                "repayment_amount": str(payment.amount),
+                "charge_amount": str(payment.charge_amount),
+                "transfer_amount": str(payment.transfer_amount),
+                "platform_amount": str(payment.platform_amount),
             },
         )
         payment.paystack_reference = resp.get("reference", "")
@@ -395,10 +518,36 @@ def handle_charge_success(*, reference: str, paystack_data: dict) -> None:
             logger.error("Payment %s cannot continue: recipient wallet has no transfer recipient code.", reference)
             return
 
+        try:
+            available_balance = _get_available_balance()
+        except paystack.PaystackError as exc:
+            logger.warning("Unable to fetch Paystack balance before transfer for %s: %s", reference, exc)
+            available_balance = None
+
+        required_balance = _required_transfer_balance(payment.transfer_amount)
+        if available_balance is not None and available_balance < required_balance:
+            error_payload = {
+                "error": (
+                    f"Paystack balance is too low for transfer. "
+                    f"Need GHS {required_balance}, available GHS {available_balance}."
+                )
+            }
+            payment.status = PaymentStatus.FAILED
+            payment.paystack_response = _merge_paystack_response(
+                payment.paystack_response,
+                stage="transfer_error",
+                data=error_payload,
+            )
+            payment.save(update_fields=["status", "paystack_response", "updated_at"])
+            loan.status = failure_status
+            loan.save(update_fields=["status", "updated_at"])
+            logger.error("Transfer for payment %s blocked by insufficient Paystack balance.", reference)
+            return
+
         transfer_reference = _generate_reference("TRF")
         try:
             transfer_resp = paystack.initiate_transfer(
-                amount_pesewas=_pesewas(payment.amount),
+                amount_pesewas=_pesewas(payment.transfer_amount),
                 recipient_code=recipient_code,
                 reference=transfer_reference,
                 reason=reason,
@@ -467,9 +616,13 @@ def _handle_disbursement_success(loan: Loan) -> None:
 
 def _handle_repayment_success(loan: Loan, payment: LoanPayment) -> None:
     """Reduce outstanding balance and close loan if fully repaid."""
-    loan.outstanding_balance -= payment.amount
+    loan.outstanding_balance = _money(loan.outstanding_balance - payment.amount)
+    loan.agent_receivable_balance = _money(loan.agent_receivable_balance - payment.transfer_amount)
+    if loan.agent_receivable_balance < 0:
+        loan.agent_receivable_balance = Decimal("0.00")
     if loan.outstanding_balance <= 0:
         loan.outstanding_balance = Decimal("0.00")
+        loan.agent_receivable_balance = Decimal("0.00")
         loan.status = LoanStatus.COMPLETED
         loan.completed_at = timezone.now()
         logger.info("Loan %s fully repaid and closed.", loan.pk)
@@ -477,7 +630,9 @@ def _handle_repayment_success(loan: Loan, payment: LoanPayment) -> None:
         loan.status = LoanStatus.ACTIVE
         logger.info("Loan %s partial repayment, remaining: %s", loan.pk, loan.outstanding_balance)
 
-    loan.save(update_fields=["outstanding_balance", "status", "completed_at", "updated_at"])
+    loan.save(
+        update_fields=["outstanding_balance", "agent_receivable_balance", "status", "completed_at", "updated_at"]
+    )
 
 
 @transaction.atomic
@@ -555,12 +710,14 @@ def apply_penalties() -> int:
         penalty = (loan.amount * PENALTY_RATE / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         loan.penalty_amount += penalty
         loan.outstanding_balance += penalty
+        loan.agent_receivable_balance += penalty
         loan.total_repayment += penalty
         loan.last_penalty_at = now
         loan.save(
             update_fields=[
                 "penalty_amount",
                 "outstanding_balance",
+                "agent_receivable_balance",
                 "total_repayment",
                 "last_penalty_at",
                 "updated_at",

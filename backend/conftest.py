@@ -159,6 +159,17 @@ def mock_paystack_network_calls(monkeypatch):
                 },
             }
 
+        if path == "/balance":
+            return {
+                "status": True,
+                "data": [
+                    {
+                        "currency": "GHS",
+                        "balance": 50_000_00,
+                    }
+                ],
+            }
+
         return {"status": True, "data": {}}
 
     monkeypatch.setattr(paystack, "_post", _mock_post)

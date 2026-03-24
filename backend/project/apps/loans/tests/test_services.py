@@ -23,6 +23,15 @@ from project.apps.loans.services import (
 )
 from project.apps.wallets.models import Wallet
 
+EXPECTED_ORIGINATION_FEE = Decimal("0.00")
+EXPECTED_AGENT_INTEREST = Decimal("5.00")
+EXPECTED_PLATFORM_INTEREST = Decimal("5.00")
+EXPECTED_AGENT_RECEIVABLE = Decimal("105.00")
+EXPECTED_DISBURSEMENT_CHARGE = Decimal("100.00")
+EXPECTED_DISBURSEMENT_TRANSFER = Decimal("97.05")
+EXPECTED_FULL_REPAYMENT_LEDGER = Decimal("110.00")
+EXPECTED_FULL_REPAYMENT_CHARGE = Decimal("110.00")
+
 
 @pytest.fixture
 def borrower():
@@ -87,8 +96,12 @@ def pending_loan(borrower, agent_profile, borrower_wallet):
         agent=agent_profile,
         amount=Decimal("100.00"),
         interest_rate=Decimal("10.00"),
-        total_repayment=Decimal("110.00"),
-        outstanding_balance=Decimal("110.00"),
+        origination_fee=EXPECTED_ORIGINATION_FEE,
+        agent_interest_amount=EXPECTED_AGENT_INTEREST,
+        platform_interest_amount=EXPECTED_PLATFORM_INTEREST,
+        total_repayment=EXPECTED_FULL_REPAYMENT_LEDGER,
+        outstanding_balance=EXPECTED_FULL_REPAYMENT_LEDGER,
+        agent_receivable_balance=EXPECTED_AGENT_RECEIVABLE,
         borrower_wallet=borrower_wallet,
         network="mtn",
         status=LoanStatus.PENDING,
@@ -107,8 +120,11 @@ class TestRequestLoan:
         )
         assert loan.status == LoanStatus.PENDING
         assert loan.amount == Decimal("100.00")
-        assert loan.total_repayment == Decimal("110.00")
-        assert loan.outstanding_balance == Decimal("110.00")
+        assert loan.total_repayment == EXPECTED_FULL_REPAYMENT_LEDGER
+        assert loan.outstanding_balance == EXPECTED_FULL_REPAYMENT_LEDGER
+        assert loan.origination_fee == EXPECTED_ORIGINATION_FEE
+        assert loan.platform_interest_amount == EXPECTED_PLATFORM_INTEREST
+        assert loan.agent_receivable_balance == EXPECTED_AGENT_RECEIVABLE
 
     def test_amount_below_min(self, borrower, agent_profile, borrower_wallet):
         with pytest.raises(ValueError, match="Minimum loan amount"):
@@ -206,11 +222,16 @@ class TestDisbursement:
         payment = initiate_disbursement(loan=pending_loan)
         assert payment.payment_type == PaymentType.DISBURSEMENT
         assert payment.status == PaymentStatus.PENDING
+        assert payment.amount == Decimal("100.00")
+        assert payment.charge_amount == EXPECTED_DISBURSEMENT_CHARGE
+        assert payment.transfer_amount == EXPECTED_DISBURSEMENT_TRANSFER
+        assert payment.platform_amount == Decimal("0.00")
         assert payment.recipient_code == "RCP_test_borrower"
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.DISBURSING
         _, kwargs = mock_charge.call_args
         assert kwargs["reference"] == payment.reference
+        assert kwargs["amount_pesewas"] == 10000
         assert "subaccount_code" not in kwargs
 
     @patch("project.apps.loans.services.paystack.charge_mobile_money")
@@ -246,13 +267,31 @@ class TestRepayment:
 
         payment = initiate_repayment(loan=pending_loan)
         assert payment.payment_type == PaymentType.REPAYMENT
-        assert payment.amount == Decimal("110.00")
+        assert payment.amount == EXPECTED_FULL_REPAYMENT_LEDGER
+        assert payment.charge_amount == EXPECTED_FULL_REPAYMENT_CHARGE
+        assert payment.transfer_amount == EXPECTED_AGENT_RECEIVABLE
+        assert payment.platform_amount == EXPECTED_PLATFORM_INTEREST
         assert payment.recipient_code == "RCP_test_agent"
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.REPAYING
         _, kwargs = mock_charge.call_args
         assert kwargs["reference"] == payment.reference
+        assert kwargs["amount_pesewas"] == 11000
         assert "subaccount_code" not in kwargs
+
+    @patch("project.apps.loans.services.paystack.charge_mobile_money")
+    def test_partial_repayment_is_rejected(self, mock_charge, pending_loan, agent_wallet):
+        from django.utils import timezone
+
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.ACTIVE
+        pending_loan.disbursed_at = timezone.now()
+        pending_loan.save()
+
+        with pytest.raises(ValueError, match="Partial repayment is not supported"):
+            initiate_repayment(loan=pending_loan, amount=Decimal("55.00"))
+
+        mock_charge.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -271,6 +310,9 @@ class TestWebhookHandlers:
             loan=pending_loan,
             payment_type=PaymentType.DISBURSEMENT,
             amount=pending_loan.amount,
+            charge_amount=EXPECTED_DISBURSEMENT_CHARGE,
+            transfer_amount=EXPECTED_DISBURSEMENT_TRANSFER,
+            platform_amount=Decimal("0.00"),
             reference="DISB_webhook_test",
             payer_phone="0559876543",
             payer_network="mtn",
@@ -286,6 +328,38 @@ class TestWebhookHandlers:
         assert pending_loan.status == LoanStatus.DISBURSING
         assert pending_loan.disbursed_at is None
         mock_transfer.assert_called_once()
+        _, kwargs = mock_transfer.call_args
+        assert kwargs["amount_pesewas"] == 9705
+
+    @patch("project.apps.loans.services._get_available_balance")
+    @patch("project.apps.loans.services.paystack.initiate_transfer")
+    def test_charge_success_disbursement_blocks_low_balance(
+        self, mock_transfer, mock_balance, pending_loan, agent_wallet
+    ):
+        mock_balance.return_value = Decimal("98.00")
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.DISBURSING
+        pending_loan.save()
+
+        payment = LoanPayment.objects.create(
+            loan=pending_loan,
+            payment_type=PaymentType.DISBURSEMENT,
+            amount=pending_loan.amount,
+            charge_amount=EXPECTED_DISBURSEMENT_CHARGE,
+            transfer_amount=EXPECTED_DISBURSEMENT_TRANSFER,
+            platform_amount=Decimal("0.00"),
+            reference="DISB_balance_test",
+            payer_phone="0559876543",
+            payer_network="mtn",
+        )
+
+        handle_charge_success(reference="DISB_balance_test", paystack_data={"status": "success"})
+
+        payment.refresh_from_db()
+        assert payment.status == PaymentStatus.FAILED
+        pending_loan.refresh_from_db()
+        assert pending_loan.status == LoanStatus.FAILED
+        mock_transfer.assert_not_called()
 
     def test_transfer_success_disbursement(self, pending_loan, agent_wallet):
         pending_loan.agent_wallet = agent_wallet
@@ -296,6 +370,9 @@ class TestWebhookHandlers:
             loan=pending_loan,
             payment_type=PaymentType.DISBURSEMENT,
             amount=pending_loan.amount,
+            charge_amount=EXPECTED_DISBURSEMENT_CHARGE,
+            transfer_amount=EXPECTED_DISBURSEMENT_TRANSFER,
+            platform_amount=Decimal("0.00"),
             reference="DISB_webhook_test",
             paystack_reference="TRF_webhook_test",
             payer_phone="0559876543",
@@ -328,7 +405,10 @@ class TestWebhookHandlers:
         payment = LoanPayment.objects.create(
             loan=pending_loan,
             payment_type=PaymentType.REPAYMENT,
-            amount=pending_loan.outstanding_balance,
+            amount=EXPECTED_FULL_REPAYMENT_LEDGER,
+            charge_amount=EXPECTED_FULL_REPAYMENT_CHARGE,
+            transfer_amount=EXPECTED_AGENT_RECEIVABLE,
+            platform_amount=EXPECTED_PLATFORM_INTEREST,
             reference="REPAY_webhook_test",
             payer_phone="0551234567",
             payer_network="mtn",
@@ -342,8 +422,11 @@ class TestWebhookHandlers:
 
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.REPAYING
-        assert pending_loan.outstanding_balance == Decimal("110.00")
+        assert pending_loan.outstanding_balance == EXPECTED_FULL_REPAYMENT_LEDGER
+        assert pending_loan.agent_receivable_balance == EXPECTED_AGENT_RECEIVABLE
         mock_transfer.assert_called_once()
+        _, kwargs = mock_transfer.call_args
+        assert kwargs["amount_pesewas"] == 10500
 
     def test_transfer_success_repayment_full(self, pending_loan, agent_wallet):
         from django.utils import timezone
@@ -356,7 +439,10 @@ class TestWebhookHandlers:
         payment = LoanPayment.objects.create(
             loan=pending_loan,
             payment_type=PaymentType.REPAYMENT,
-            amount=pending_loan.outstanding_balance,
+            amount=EXPECTED_FULL_REPAYMENT_LEDGER,
+            charge_amount=EXPECTED_FULL_REPAYMENT_CHARGE,
+            transfer_amount=EXPECTED_AGENT_RECEIVABLE,
+            platform_amount=EXPECTED_PLATFORM_INTEREST,
             reference="REPAY_webhook_test",
             paystack_reference="TRF_repay_webhook_test",
             payer_phone="0551234567",
@@ -371,6 +457,7 @@ class TestWebhookHandlers:
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.COMPLETED
         assert pending_loan.outstanding_balance == Decimal("0.00")
+        assert pending_loan.agent_receivable_balance == Decimal("0.00")
 
     def test_charge_failed(self, pending_loan, agent_wallet):
         pending_loan.agent_wallet = agent_wallet
@@ -381,6 +468,9 @@ class TestWebhookHandlers:
             loan=pending_loan,
             payment_type=PaymentType.DISBURSEMENT,
             amount=pending_loan.amount,
+            charge_amount=EXPECTED_DISBURSEMENT_CHARGE,
+            transfer_amount=EXPECTED_DISBURSEMENT_TRANSFER,
+            platform_amount=Decimal("0.00"),
             reference="DISB_fail_test",
             payer_phone="0559876543",
             payer_network="mtn",
@@ -400,6 +490,9 @@ class TestWebhookHandlers:
             loan=pending_loan,
             payment_type=PaymentType.DISBURSEMENT,
             amount=pending_loan.amount,
+            charge_amount=EXPECTED_DISBURSEMENT_CHARGE,
+            transfer_amount=EXPECTED_DISBURSEMENT_TRANSFER,
+            platform_amount=Decimal("0.00"),
             reference="DISB_fail_test",
             paystack_reference="TRF_fail_test",
             payer_phone="0559876543",
@@ -422,7 +515,10 @@ class TestWebhookHandlers:
         LoanPayment.objects.create(
             loan=pending_loan,
             payment_type=PaymentType.REPAYMENT,
-            amount=pending_loan.outstanding_balance,
+            amount=EXPECTED_FULL_REPAYMENT_LEDGER,
+            charge_amount=EXPECTED_FULL_REPAYMENT_CHARGE,
+            transfer_amount=EXPECTED_AGENT_RECEIVABLE,
+            platform_amount=EXPECTED_PLATFORM_INTEREST,
             reference="REPAY_fail_test",
             paystack_reference="TRF_repay_fail_test",
             payer_phone="0551234567",
@@ -454,6 +550,7 @@ class TestPenalties:
         pending_loan.refresh_from_db()
         assert pending_loan.penalty_amount == Decimal("2.00")  # 2% of 100
         assert pending_loan.outstanding_balance == Decimal("112.00")
+        assert pending_loan.agent_receivable_balance == Decimal("107.00")
 
     def test_flag_defaulted(self, pending_loan, agent_wallet):
         from datetime import timedelta

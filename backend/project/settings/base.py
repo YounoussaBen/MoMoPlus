@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -269,6 +270,8 @@ GOOGLE_MAPS_SERVER_KEY = config("GOOGLE_MAPS_SERVER_KEY", default="")
 
 PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_PUBLIC_KEY = config("PAYSTACK_PUBLIC_KEY", default="")
+LOAN_DEFAULT_INTEREST_RATE = Decimal(config("LOAN_DEFAULT_INTEREST_RATE", default="10.00"))
+LOAN_AGENT_INTEREST_RATE = Decimal(config("LOAN_AGENT_INTEREST_RATE", default="5.00"))
 GOOGLE_MAPS_HTTP_TIMEOUT = config("GOOGLE_MAPS_HTTP_TIMEOUT", default=8, cast=int)
 SUPABASE_JWKS_URL = config(
     "SUPABASE_JWKS_URL",

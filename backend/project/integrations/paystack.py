@@ -188,6 +188,13 @@ def charge_mobile_money(
 # ── Transaction Verification ─────────────────────────────────────────────────
 
 
+def get_balances() -> list[dict[str, Any]]:
+    """Return all Paystack balances."""
+    body = _get("/balance")
+    data = body.get("data", [])
+    return data if isinstance(data, list) else []
+
+
 def verify_transaction(reference: str) -> dict[str, Any]:
     """Verify a transaction by reference."""
     body = _get(f"/transaction/verify/{reference}")

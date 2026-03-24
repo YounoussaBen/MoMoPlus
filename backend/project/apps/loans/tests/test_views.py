@@ -163,6 +163,8 @@ class TestLoanRequestEndpoint:
         data = resp.json()
         assert data["status"] == "pending"
         assert data["amount"] == "100.00"
+        assert data["origination_fee"] == "0.00"
+        assert data["platform_interest_amount"] == "5.00"
         assert data["total_repayment"] == "110.00"
 
     def test_request_loan_invalid_amount(self, borrower_client, agent_client):
@@ -218,8 +220,12 @@ class TestLoanListEndpoint:
             agent=agent_profile,
             amount=Decimal("50.00"),
             interest_rate=Decimal("10.00"),
+            origination_fee=Decimal("0.00"),
+            agent_interest_amount=Decimal("2.50"),
+            platform_interest_amount=Decimal("2.50"),
             total_repayment=Decimal("55.00"),
             outstanding_balance=Decimal("55.00"),
+            agent_receivable_balance=Decimal("52.50"),
             borrower_wallet=b_wallet,
             network="mtn",
             status=LoanStatus.PENDING,
@@ -262,8 +268,12 @@ class TestLoanAcceptEndpoint:
             agent=agent_profile,
             amount=Decimal("100.00"),
             interest_rate=Decimal("10.00"),
+            origination_fee=Decimal("0.00"),
+            agent_interest_amount=Decimal("5.00"),
+            platform_interest_amount=Decimal("5.00"),
             total_repayment=Decimal("110.00"),
             outstanding_balance=Decimal("110.00"),
+            agent_receivable_balance=Decimal("105.00"),
             borrower_wallet=b_wallet,
             network="mtn",
             status=LoanStatus.PENDING,
@@ -300,8 +310,12 @@ class TestLoanRejectEndpoint:
             agent=agent_profile,
             amount=Decimal("100.00"),
             interest_rate=Decimal("10.00"),
+            origination_fee=Decimal("0.00"),
+            agent_interest_amount=Decimal("5.00"),
+            platform_interest_amount=Decimal("5.00"),
             total_repayment=Decimal("110.00"),
             outstanding_balance=Decimal("110.00"),
+            agent_receivable_balance=Decimal("105.00"),
             borrower_wallet=b_wallet,
             network="mtn",
             status=LoanStatus.PENDING,

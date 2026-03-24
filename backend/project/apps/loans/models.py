@@ -55,8 +55,12 @@ class Loan(BaseModel):
         decimal_places=2,
         help_text="amount + interest, computed at approval time",
     )
+    origination_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    agent_interest_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    platform_interest_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     penalty_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     outstanding_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    agent_receivable_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     status = models.CharField(
         max_length=15,
@@ -120,8 +124,11 @@ class LoanPayment(BaseModel):
         on_delete=models.CASCADE,
         related_name="payments",
     )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount applied to the loan ledger")
+    charge_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    transfer_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    platform_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     payment_type = models.CharField(max_length=15, choices=PaymentType.choices)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
         max_length=10,
         choices=PaymentStatus.choices,
