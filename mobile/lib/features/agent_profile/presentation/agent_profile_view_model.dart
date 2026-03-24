@@ -3,6 +3,24 @@ import '../../../core/data/services/backend_api_service.dart';
 import '../domain/agent_profile.dart';
 import '../domain/certification.dart';
 
+enum AvailabilityGuardFailure {
+  walletRequired,
+  limitsRequired,
+  profileUnavailable,
+}
+
+class AvailabilityGuardResult {
+  final AvailabilityGuardFailure failure;
+  final String title;
+  final String message;
+
+  const AvailabilityGuardResult({
+    required this.failure,
+    required this.title,
+    required this.message,
+  });
+}
+
 class AgentProfileViewModel extends ChangeNotifier {
   final BackendApiService _api;
 
@@ -97,6 +115,47 @@ class AgentProfileViewModel extends ChangeNotifier {
     } finally {
       if (notify) notifyListeners();
     }
+  }
+
+  Future<AvailabilityGuardResult?> validateAvailabilityChange(
+    bool desiredValue,
+  ) async {
+    if (!desiredValue) return null;
+
+    if (_profile == null) {
+      await load();
+      if (_profile == null) {
+        return const AvailabilityGuardResult(
+          failure: AvailabilityGuardFailure.profileUnavailable,
+          title: 'Profile Unavailable',
+          message:
+              'We could not load your agent profile right now. Try again in a moment.',
+        );
+      }
+    }
+
+    await refreshWalletEligibility(notify: false);
+
+    if (!hasVerifiedWallet) {
+      return AvailabilityGuardResult(
+        failure: AvailabilityGuardFailure.walletRequired,
+        title: 'Wallet Required',
+        message: hasAnyWallet
+            ? 'Verify at least one mobile money wallet before making yourself available to users.'
+            : 'Add and verify a mobile money wallet before making yourself available to users.',
+      );
+    }
+
+    if (!hasLimitsSet) {
+      return const AvailabilityGuardResult(
+        failure: AvailabilityGuardFailure.limitsRequired,
+        title: 'Limits Required',
+        message:
+            'Set your minimum and maximum transaction limits before making yourself available to users.',
+      );
+    }
+
+    return null;
   }
 
   Future<bool> applyCertification({

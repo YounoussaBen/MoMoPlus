@@ -103,8 +103,8 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
   }
 
   String _availabilitySubtitle() {
-    if (_availabilityValue == true) return 'Visible to users nearby';
-    return 'Hidden from nearby users';
+    if (_availabilityValue == true) return 'Visible';
+    return 'Hidden';
   }
 
   String _coordinateLabel() {
@@ -261,6 +261,19 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
     final currentValue = _availabilityValue ?? vm.profile?.isAvailable ?? false;
 
     if (currentValue == nextValue && !_isSyncingAvailability) return;
+    if (_isProcessingAvailability) return;
+
+    final guard = await vm.validateAvailabilityChange(nextValue);
+    if (!mounted) return;
+    if (guard != null) {
+      showTopInAppNotification(
+        context,
+        title: guard.title,
+        message: guard.message,
+        type: AppNotificationType.info,
+      );
+      return;
+    }
 
     final shouldStartProcessing = !_isProcessingAvailability;
     setState(() {
@@ -282,25 +295,20 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
 
         if (serverValue == desiredValue) break;
 
-        if (desiredValue && !vm.hasVerifiedWallet) {
-          await vm.refreshWalletEligibility();
-          if (!mounted) return;
-
-          if (!vm.hasVerifiedWallet) {
-            final revertedValue = vm.profile?.isAvailable ?? false;
-            setState(() {
-              _availabilityValue = revertedValue;
-            });
-            showTopInAppNotification(
-              context,
-              title: 'Wallet Required',
-              message: vm.hasAnyWallet
-                  ? 'Verify at least one mobile money wallet before making yourself available to users.'
-                  : 'Add and verify a mobile money wallet before making yourself available to users.',
-              type: AppNotificationType.info,
-            );
-            continue;
-          }
+        final guard = await vm.validateAvailabilityChange(desiredValue);
+        if (!mounted) return;
+        if (guard != null) {
+          final revertedValue = vm.profile?.isAvailable ?? false;
+          setState(() {
+            _availabilityValue = revertedValue;
+          });
+          showTopInAppNotification(
+            context,
+            title: guard.title,
+            message: guard.message,
+            type: AppNotificationType.info,
+          );
+          continue;
         }
 
         final ok = await vm.toggleAvailability();

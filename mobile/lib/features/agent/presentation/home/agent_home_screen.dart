@@ -186,9 +186,22 @@ class _AvailabilityToggleChipState extends State<_AvailabilityToggleChip> {
   Future<void> _handleTap() async {
     final vm = context.read<AgentProfileViewModel>();
     final currentValue = _availabilityValue ?? vm.profile?.isAvailable;
-    if (currentValue == null) return;
+    if (currentValue == null || _isProcessingAvailability) return;
 
     final nextValue = !currentValue;
+
+    final guard = await vm.validateAvailabilityChange(nextValue);
+    if (!mounted) return;
+    if (guard != null) {
+      showTopInAppNotification(
+        context,
+        title: guard.title,
+        message: guard.message,
+        type: AppNotificationType.info,
+      );
+      return;
+    }
+
     final shouldStartProcessing = !_isProcessingAvailability;
 
     setState(() {
@@ -209,37 +222,17 @@ class _AvailabilityToggleChipState extends State<_AvailabilityToggleChip> {
 
         if (serverValue == desiredValue) break;
 
-        if (desiredValue && !vm.hasVerifiedWallet) {
-          await vm.refreshWalletEligibility();
-          if (!mounted) return;
-
-          if (!vm.hasVerifiedWallet) {
-            final revertedValue = vm.profile?.isAvailable ?? false;
-            setState(() {
-              _availabilityValue = revertedValue;
-            });
-            showTopInAppNotification(
-              context,
-              title: 'Wallet Required',
-              message: vm.hasAnyWallet
-                  ? 'Verify at least one mobile money wallet before making yourself available to users.'
-                  : 'Add and verify a mobile money wallet before making yourself available to users.',
-              type: AppNotificationType.info,
-            );
-            continue;
-          }
-        }
-
-        if (desiredValue && !vm.hasLimitsSet) {
+        final guard = await vm.validateAvailabilityChange(desiredValue);
+        if (!mounted) return;
+        if (guard != null) {
           final revertedValue = vm.profile?.isAvailable ?? false;
           setState(() {
             _availabilityValue = revertedValue;
           });
           showTopInAppNotification(
             context,
-            title: 'Limits Required',
-            message:
-                'Set your minimum and maximum transaction limits before making yourself available to users.',
+            title: guard.title,
+            message: guard.message,
             type: AppNotificationType.info,
           );
           continue;
