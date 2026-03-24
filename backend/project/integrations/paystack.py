@@ -45,6 +45,17 @@ def _get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     return body
 
 
+def _put(path: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    url = f"{BASE_URL}{path}"
+    resp = httpx.put(url, json=data or {}, headers=_headers(), timeout=TIMEOUT)
+    body = resp.json()
+    if not body.get("status"):
+        msg = body.get("message", "Paystack request failed")
+        logger.error("Paystack PUT %s failed: %s", path, msg)
+        raise PaystackError(msg, response=body)
+    return body
+
+
 class PaystackError(Exception):
     def __init__(self, message: str, response: dict | None = None):
         super().__init__(message)
@@ -107,6 +118,12 @@ def create_subaccount(
         payload["primary_contact_phone"] = primary_contact_phone
 
     body = _post("/subaccount", payload)
+    return body["data"]
+
+
+def deactivate_subaccount(subaccount_code: str) -> dict[str, Any]:
+    """Deactivate a subaccount so it no longer receives settlements."""
+    body = _put(f"/subaccount/{subaccount_code}", {"active": False})
     return body["data"]
 
 

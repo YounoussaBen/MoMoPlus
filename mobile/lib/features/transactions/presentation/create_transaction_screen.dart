@@ -234,7 +234,7 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              onPressed: () => context.push('/wallet/add'),
+                              onPressed: () => _handleAddWallet(vm),
                               icon: const Icon(Icons.add),
                               label: const Text('Add Wallet'),
                             ),
@@ -337,6 +337,16 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
       if (!mounted) return;
       context.replace('/transactions/${txn.id}');
     }
+  }
+
+  Future<void> _handleAddWallet(TransactionViewModel vm) async {
+    final shouldReload = await context.push<bool>('/wallet/add');
+    if (!mounted || shouldReload != true) return;
+
+    setState(() {
+      _selectedWallet = null;
+    });
+    await vm.loadWallets();
   }
 }
 

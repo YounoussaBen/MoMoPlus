@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/app_button.dart';
 import '../../../core/ui/widgets/network_logo.dart';
+import '../../../core/ui/widgets/profile_avatar.dart';
 import '../../wallet/domain/wallet.dart';
 import '../../wallet/presentation/wallet_view_model.dart';
 import 'loan_view_model.dart';
@@ -59,6 +60,13 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
         .where((w) => w.isVerified)
         .toList();
 
+    if (_selectedWallet == null && verifiedWallets.isNotEmpty) {
+      _selectedWallet = verifiedWallets.firstWhere(
+        (w) => w.isDefault,
+        orElse: () => verifiedWallets.first,
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -82,37 +90,27 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.divider),
             ),
             child: Row(
               children: [
-                CircleAvatar(
+                ProfileAvatar(
+                  imageUrl: widget.agentSelfieUrl,
+                  fallbackLetter: widget.agentName.isNotEmpty
+                      ? widget.agentName[0]
+                      : '?',
                   radius: 24,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  child: const Icon(Icons.person, color: AppColors.primary),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.agentName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Agent',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    widget.agentName,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -175,16 +173,54 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          if (verifiedWallets.isEmpty)
+          if (walletVm.isLoading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 2,
+                ),
+              ),
+            )
+          else if (verifiedWallets.isEmpty)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.divider),
               ),
-              child: const Text(
-                'No verified wallet found. Please add and verify a wallet first.',
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: AppColors.error.withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'No verified wallets. Add and verify a wallet first.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _handleAddWallet,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Wallet'),
+                    ),
+                  ),
+                ],
               ),
             )
           else
@@ -331,5 +367,15 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
     if (loan != null && mounted) {
       context.go('/loans/${loan.id}');
     }
+  }
+
+  Future<void> _handleAddWallet() async {
+    final shouldReload = await context.push<bool>('/wallet/add');
+    if (!mounted || shouldReload != true) return;
+
+    setState(() {
+      _selectedWallet = null;
+    });
+    await context.read<WalletViewModel>().loadWallets();
   }
 }

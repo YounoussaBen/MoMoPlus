@@ -1,3 +1,6 @@
+from unittest.mock import patch
+from uuid import uuid4
+
 import pytest
 from rest_framework import status
 
@@ -60,6 +63,31 @@ class TestWalletCreateView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    def test_rejects_phone_number_added_on_another_account(self, authenticated_client, auth_client_factory):
+        authenticated_client.post(
+            "/api/wallets/add/",
+            {"phone_number": "0241234567", "network": "mtn"},
+            format="json",
+        )
+
+        other_client = auth_client_factory(
+            {
+                "sub": str(uuid4()),
+                "email": "other@example.com",
+                "user_metadata": {
+                    "first_name": "Other",
+                    "last_name": "User",
+                },
+            }
+        )
+        response = other_client.post(
+            "/api/wallets/add/",
+            {"phone_number": "0241234567", "network": "mtn"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     def test_rejects_invalid_network(self, authenticated_client):
         response = authenticated_client.post(
             "/api/wallets/add/",
@@ -114,6 +142,31 @@ class TestWalletVerifyView:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_returns_400_when_paystack_setup_fails(self, authenticated_client):
+        from project.integrations.paystack import PaystackError
+
+        create_resp = authenticated_client.post(
+            "/api/wallets/add/",
+            {"phone_number": "0241234567", "network": "mtn"},
+            format="json",
+        )
+        wallet_id = create_resp.data["id"]
+        otp = WalletOtp.objects.get(wallet_id=wallet_id)
+
+        with patch("project.apps.wallets.services.paystack.create_subaccount") as mock_subaccount:
+            mock_subaccount.side_effect = PaystackError("Account details are invalid")
+
+            response = authenticated_client.post(
+                f"/api/wallets/{wallet_id}/verify/",
+                {"code": otp.code},
+                format="json",
+            )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "Wallet verification failed" in response.data["detail"]
+        wallet = Wallet.objects.get(pk=wallet_id)
+        assert wallet.is_verified is False
 
 
 @pytest.mark.django_db

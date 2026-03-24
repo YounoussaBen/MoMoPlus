@@ -148,6 +148,17 @@ def mock_paystack_network_calls(monkeypatch):
                 ],
             }
 
+        if path == "/bank/resolve":
+            account_number = str((params or {}).get("account_number", "0000000000"))
+            bank_code = str((params or {}).get("bank_code", "MTN"))
+            return {
+                "status": True,
+                "data": {
+                    "account_number": account_number,
+                    "account_name": f"Test {bank_code} Wallet",
+                },
+            }
+
         if path.startswith("/transaction/verify/"):
             reference = path.rsplit("/", maxsplit=1)[-1]
             return {
@@ -160,5 +171,19 @@ def mock_paystack_network_calls(monkeypatch):
 
         return {"status": True, "data": {}}
 
+    def _mock_put(path: str, data: dict | None = None) -> dict:
+        if path.startswith("/subaccount/"):
+            subaccount_code = path.rsplit("/", maxsplit=1)[-1]
+            return {
+                "status": True,
+                "data": {
+                    "subaccount_code": subaccount_code,
+                    "active": bool((data or {}).get("active", False)),
+                },
+            }
+
+        return {"status": True, "data": {}}
+
     monkeypatch.setattr(paystack, "_post", _mock_post)
     monkeypatch.setattr(paystack, "_get", _mock_get)
+    monkeypatch.setattr(paystack, "_put", _mock_put)

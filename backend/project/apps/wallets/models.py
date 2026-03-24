@@ -26,7 +26,7 @@ class Wallet(BaseModel):
 
     class Meta(BaseModel.Meta):
         constraints = [
-            models.UniqueConstraint(fields=["user", "phone_number"], name="unique_user_phone"),
+            models.UniqueConstraint(fields=["phone_number"], name="unique_wallet_phone_number"),
         ]
         indexes = [
             models.Index(fields=["user", "is_default"]),

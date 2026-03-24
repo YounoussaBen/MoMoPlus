@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from project.apps.wallets.models import Wallet, WalletOtp
@@ -36,12 +37,11 @@ class TestAddWallet:
         with pytest.raises(ValueError, match="already added"):
             add_wallet(user=user, phone_number="0241234567", network="vodafone")
 
-    def test_different_users_can_add_same_number(self, user, user_factory):
+    def test_rejects_phone_number_already_added_to_another_account(self, user, user_factory):
         other_user = user_factory(email="other@example.com", username="other")
         add_wallet(user=user, phone_number="0241234567", network="mtn")
-        wallet2 = add_wallet(user=other_user, phone_number="0241234567", network="mtn")
-
-        assert wallet2.user == other_user
+        with pytest.raises(ValueError, match="already linked to another account"):
+            add_wallet(user=other_user, phone_number="0241234567", network="mtn")
 
 
 @pytest.mark.django_db
@@ -122,6 +122,25 @@ class TestVerifyOtp:
         assert result.paystack_subaccount_code == "SUB_test_wallet"
         assert result.paystack_recipient_code == "RCP_test_wallet"
 
+    def test_does_not_verify_wallet_when_paystack_setup_fails(self, user):
+        from project.integrations.paystack import PaystackError
+
+        wallet = add_wallet(user=user, phone_number="0241234567", network="mtn")
+        otp = WalletOtp.objects.get(wallet=wallet)
+
+        with patch("project.apps.wallets.services.paystack.create_subaccount") as mock_subaccount:
+            mock_subaccount.side_effect = PaystackError("Account details are invalid")
+
+            with pytest.raises(ValueError, match="Wallet verification failed: Account details are invalid"):
+                verify_otp(wallet=wallet, code=otp.code)
+
+        wallet.refresh_from_db()
+        otp.refresh_from_db()
+        assert wallet.is_verified is False
+        assert wallet.paystack_subaccount_code == ""
+        assert wallet.paystack_recipient_code == ""
+        assert otp.used is False
+
 
 @pytest.mark.django_db
 class TestResendOtp:
@@ -199,6 +218,24 @@ class TestDeleteWallet:
 
         wallet2.refresh_from_db()
         assert wallet2.is_default is True
+
+    @override_settings(PAYSTACK_SECRET_KEY="test-secret")
+    @patch("project.apps.wallets.services.paystack.deactivate_subaccount")
+    def test_deactivates_paystack_subaccount_before_delete(self, mock_deactivate, user):
+        wallet1 = add_wallet(user=user, phone_number="0241234567", network="mtn")
+        otp1 = WalletOtp.objects.get(wallet=wallet1)
+        verify_otp(wallet=wallet1, code=otp1.code)
+        wallet1.paystack_subaccount_code = "SUB_wallet_1"
+        wallet1.save(update_fields=["paystack_subaccount_code", "updated_at"])
+
+        wallet2 = add_wallet(user=user, phone_number="0551234567", network="vodafone")
+        otp2 = WalletOtp.objects.get(wallet=wallet2)
+        verify_otp(wallet=wallet2, code=otp2.code)
+
+        delete_wallet(user=user, wallet=wallet1)
+
+        mock_deactivate.assert_called_once_with("SUB_wallet_1")
+        assert not Wallet.objects.filter(pk=wallet1.pk).exists()
 
     def test_rejects_other_users_wallet(self, user, user_factory):
         other_user = user_factory(email="other@example.com", username="other")

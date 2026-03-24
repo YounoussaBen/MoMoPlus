@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/network_logo.dart';
+import 'wallet_view_model.dart';
 
 class _WalletNetworkOption {
   final String value;
@@ -175,6 +176,8 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
         );
         if (!mounted) return;
         if (verified == true) {
+          await context.read<WalletViewModel>().loadWallets();
+          if (!mounted) return;
           context.pop(true);
         }
       }
