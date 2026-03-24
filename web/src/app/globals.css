@@ -1,11 +1,29 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ecf3fb;
-  --foreground: #0f172a;
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-border: rgba(15, 23, 42, 0.08);
-  --muted: #475569;
+@theme {
+  --color-background: #ffffff;
+  --color-foreground: #111111;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #111111;
+
+  --color-primary: #2d6a2d;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f0f7eb;
+  --color-secondary-foreground: #111111;
+
+  --color-muted: #f0f7eb;
+  --color-muted-foreground: #6e6e73;
+
+  --color-accent: #f0f7eb;
+  --color-accent-foreground: #111111;
+
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #e8f0e3;
+  --color-ring: #2d6a2d;
 }
 
 * {
@@ -19,12 +37,15 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at top left, rgba(45, 212, 191, 0.22), transparent 28%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 24%),
-    linear-gradient(180deg, #f8fbff 0%, var(--background) 100%);
-  color: var(--foreground);
-  font-family: "Instrument Sans", "Avenir Next", "Segoe UI", sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family:
+    "SF Pro Display",
+    "SF Pro Text",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
 }
 
 a {
@@ -33,5 +54,5 @@ a {
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.18);
+  background: rgba(109, 201, 64, 0.18);
 }

@@ -1,0 +1,48 @@
+"use client";
+
+import { AuthGuard } from "@/components/auth-guard";
+import { DashboardShell } from "@/components/dashboard/shell";
+import { useAuth } from "@/context/auth-context";
+import {
+  LayoutDashboard,
+  Users,
+  UserCog,
+  FileCheck,
+  Landmark,
+  ArrowLeftRight,
+  MapPin,
+  Settings,
+} from "lucide-react";
+
+const navItems = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", exact: true },
+  { icon: Users, label: "User Management", href: "/dashboard/users" },
+  { icon: UserCog, label: "Agent Management", href: "/dashboard/agents" },
+  { icon: FileCheck, label: "KYC Reviews", href: "/dashboard/kyc" },
+  { icon: Landmark, label: "Loan Monitoring", href: "/dashboard/loans" },
+  { icon: ArrowLeftRight, label: "Transactions", href: "/dashboard/transactions" },
+  { icon: MapPin, label: "Physical Transactions", href: "/dashboard/physical" },
+];
+
+const bottomNavItems = [{ icon: Settings, label: "Settings", href: "/dashboard/settings" }];
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuth();
+
+  return (
+    <AuthGuard>
+      <DashboardShell
+        userName={user ? `${user.first_name} ${user.last_name}`.trim() || user.email : ""}
+        userEmail={user?.email ?? ""}
+        headerSubtitle="Staff Admin Dashboard"
+        navItems={navItems}
+        bottomNavItems={bottomNavItems}
+        logoSrc="/logo.png"
+        onLogout={logout}
+        headerFlat
+      >
+        {children}
+      </DashboardShell>
+    </AuthGuard>
+  );
+}
