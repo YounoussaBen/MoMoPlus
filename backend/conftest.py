@@ -94,16 +94,6 @@ def mock_paystack_network_calls(monkeypatch):
     def _mock_post(path: str, data: dict | None = None) -> dict:
         payload = data or {}
 
-        if path == "/subaccount":
-            account_number = str(payload.get("account_number", "0000000000"))
-            return {
-                "status": True,
-                "data": {
-                    "subaccount_code": f"SUB_{account_number}",
-                    "business_name": payload.get("business_name", "Test Business"),
-                },
-            }
-
         if path == "/transferrecipient":
             account_number = str(payload.get("account_number", "0000000000"))
             return {
@@ -171,19 +161,5 @@ def mock_paystack_network_calls(monkeypatch):
 
         return {"status": True, "data": {}}
 
-    def _mock_put(path: str, data: dict | None = None) -> dict:
-        if path.startswith("/subaccount/"):
-            subaccount_code = path.rsplit("/", maxsplit=1)[-1]
-            return {
-                "status": True,
-                "data": {
-                    "subaccount_code": subaccount_code,
-                    "active": bool((data or {}).get("active", False)),
-                },
-            }
-
-        return {"status": True, "data": {}}
-
     monkeypatch.setattr(paystack, "_post", _mock_post)
     monkeypatch.setattr(paystack, "_get", _mock_get)
-    monkeypatch.setattr(paystack, "_put", _mock_put)

@@ -15,7 +15,12 @@ from django.views.decorators.http import require_POST
 
 from project.integrations.paystack import verify_webhook_signature
 
-from .services import handle_charge_failed, handle_charge_success
+from .services import (
+    handle_charge_failed,
+    handle_charge_success,
+    handle_transfer_failed,
+    handle_transfer_success,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +50,12 @@ def paystack_webhook(request: HttpRequest) -> HttpResponse:
 
     if event == "charge.success":
         handle_charge_success(reference=reference, paystack_data=data)
-    elif event in ("charge.failed", "transfer.failed"):
+    elif event == "charge.failed":
         handle_charge_failed(reference=reference, paystack_data=data)
     elif event == "transfer.success":
-        handle_charge_success(reference=reference, paystack_data=data)
+        handle_transfer_success(reference=reference, paystack_data=data)
+    elif event == "transfer.failed":
+        handle_transfer_failed(reference=reference, paystack_data=data)
     else:
         logger.info("Unhandled Paystack event: %s", event)
 

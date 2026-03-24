@@ -31,3 +31,5 @@ def _build_test_database_config(database_url: str) -> DBConfig:
 # Keep the default test database local so pytest does not create/drop databases
 # against the shared Supabase pooler defined in the development environment.
 DATABASES = {"default": _build_test_database_config(config("TEST_DATABASE_URL", default=_default_test_database_url()))}
+
+PAYSTACK_SECRET_KEY = "sk_test_mocked"

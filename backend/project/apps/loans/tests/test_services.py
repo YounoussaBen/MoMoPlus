@@ -14,6 +14,8 @@ from project.apps.loans.services import (
     flag_defaulted_loans,
     handle_charge_failed,
     handle_charge_success,
+    handle_transfer_failed,
+    handle_transfer_success,
     initiate_disbursement,
     initiate_repayment,
     reject_loan,
@@ -62,7 +64,6 @@ def borrower_wallet(borrower):
         network="mtn",
         is_verified=True,
         is_default=True,
-        paystack_subaccount_code="SUB_test_borrower",
         paystack_recipient_code="RCP_test_borrower",
     )
 
@@ -75,7 +76,6 @@ def agent_wallet(agent_user):
         network="mtn",
         is_verified=True,
         is_default=True,
-        paystack_subaccount_code="SUB_test_agent",
         paystack_recipient_code="RCP_test_agent",
     )
 
@@ -131,8 +131,6 @@ class TestRequestLoan:
             )
 
     def test_cannot_loan_from_self(self, agent_user, agent_profile, agent_wallet):
-        agent_wallet.paystack_subaccount_code = "SUB_test"
-        agent_wallet.save()
         with pytest.raises(ValueError, match="yourself"):
             request_loan(
                 borrower=agent_user,
@@ -208,8 +206,12 @@ class TestDisbursement:
         payment = initiate_disbursement(loan=pending_loan)
         assert payment.payment_type == PaymentType.DISBURSEMENT
         assert payment.status == PaymentStatus.PENDING
+        assert payment.recipient_code == "RCP_test_borrower"
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.DISBURSING
+        _, kwargs = mock_charge.call_args
+        assert kwargs["reference"] == payment.reference
+        assert "subaccount_code" not in kwargs
 
     @patch("project.apps.loans.services.paystack.charge_mobile_money")
     def test_paystack_failure(self, mock_charge, pending_loan, agent_user, agent_wallet):
@@ -245,13 +247,22 @@ class TestRepayment:
         payment = initiate_repayment(loan=pending_loan)
         assert payment.payment_type == PaymentType.REPAYMENT
         assert payment.amount == Decimal("110.00")
+        assert payment.recipient_code == "RCP_test_agent"
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.REPAYING
+        _, kwargs = mock_charge.call_args
+        assert kwargs["reference"] == payment.reference
+        assert "subaccount_code" not in kwargs
 
 
 @pytest.mark.django_db
 class TestWebhookHandlers:
-    def test_charge_success_disbursement(self, pending_loan, agent_wallet):
+    @patch("project.apps.loans.services.paystack.initiate_transfer")
+    def test_charge_success_disbursement_initiates_transfer(self, mock_transfer, pending_loan, agent_wallet):
+        mock_transfer.return_value = {
+            "reference": "TRF_webhook_test",
+            "status": "success",
+        }
         pending_loan.agent_wallet = agent_wallet
         pending_loan.status = LoanStatus.DISBURSING
         pending_loan.save()
@@ -268,6 +279,32 @@ class TestWebhookHandlers:
         handle_charge_success(reference="DISB_webhook_test", paystack_data={"status": "success"})
 
         payment.refresh_from_db()
+        assert payment.status == PaymentStatus.PENDING
+        assert payment.paystack_reference == "TRF_webhook_test"
+
+        pending_loan.refresh_from_db()
+        assert pending_loan.status == LoanStatus.DISBURSING
+        assert pending_loan.disbursed_at is None
+        mock_transfer.assert_called_once()
+
+    def test_transfer_success_disbursement(self, pending_loan, agent_wallet):
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.DISBURSING
+        pending_loan.save()
+
+        payment = LoanPayment.objects.create(
+            loan=pending_loan,
+            payment_type=PaymentType.DISBURSEMENT,
+            amount=pending_loan.amount,
+            reference="DISB_webhook_test",
+            paystack_reference="TRF_webhook_test",
+            payer_phone="0559876543",
+            payer_network="mtn",
+        )
+
+        handle_transfer_success(reference="TRF_webhook_test", paystack_data={"status": "success"})
+
+        payment.refresh_from_db()
         assert payment.status == PaymentStatus.SUCCESS
 
         pending_loan.refresh_from_db()
@@ -275,9 +312,14 @@ class TestWebhookHandlers:
         assert pending_loan.disbursed_at is not None
         assert pending_loan.deadline_at is not None
 
-    def test_charge_success_repayment_full(self, pending_loan, agent_wallet):
+    @patch("project.apps.loans.services.paystack.initiate_transfer")
+    def test_charge_success_repayment_full_initiates_transfer(self, mock_transfer, pending_loan, agent_wallet):
         from django.utils import timezone
 
+        mock_transfer.return_value = {
+            "reference": "TRF_repay_webhook_test",
+            "status": "success",
+        }
         pending_loan.agent_wallet = agent_wallet
         pending_loan.status = LoanStatus.REPAYING
         pending_loan.disbursed_at = timezone.now()
@@ -293,6 +335,35 @@ class TestWebhookHandlers:
         )
 
         handle_charge_success(reference="REPAY_webhook_test", paystack_data={"status": "success"})
+
+        payment.refresh_from_db()
+        assert payment.status == PaymentStatus.PENDING
+        assert payment.paystack_reference == "TRF_repay_webhook_test"
+
+        pending_loan.refresh_from_db()
+        assert pending_loan.status == LoanStatus.REPAYING
+        assert pending_loan.outstanding_balance == Decimal("110.00")
+        mock_transfer.assert_called_once()
+
+    def test_transfer_success_repayment_full(self, pending_loan, agent_wallet):
+        from django.utils import timezone
+
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.REPAYING
+        pending_loan.disbursed_at = timezone.now()
+        pending_loan.save()
+
+        payment = LoanPayment.objects.create(
+            loan=pending_loan,
+            payment_type=PaymentType.REPAYMENT,
+            amount=pending_loan.outstanding_balance,
+            reference="REPAY_webhook_test",
+            paystack_reference="TRF_repay_webhook_test",
+            payer_phone="0551234567",
+            payer_network="mtn",
+        )
+
+        handle_transfer_success(reference="TRF_repay_webhook_test", paystack_data={"status": "success"})
 
         payment.refresh_from_db()
         assert payment.status == PaymentStatus.SUCCESS
@@ -319,6 +390,49 @@ class TestWebhookHandlers:
 
         pending_loan.refresh_from_db()
         assert pending_loan.status == LoanStatus.FAILED
+
+    def test_transfer_failed(self, pending_loan, agent_wallet):
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.DISBURSING
+        pending_loan.save()
+
+        LoanPayment.objects.create(
+            loan=pending_loan,
+            payment_type=PaymentType.DISBURSEMENT,
+            amount=pending_loan.amount,
+            reference="DISB_fail_test",
+            paystack_reference="TRF_fail_test",
+            payer_phone="0559876543",
+            payer_network="mtn",
+        )
+
+        handle_transfer_failed(reference="TRF_fail_test", paystack_data={"status": "failed"})
+
+        pending_loan.refresh_from_db()
+        assert pending_loan.status == LoanStatus.FAILED
+
+    def test_transfer_failed_repayment_keeps_loan_repaying(self, pending_loan, agent_wallet):
+        from django.utils import timezone
+
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.REPAYING
+        pending_loan.disbursed_at = timezone.now()
+        pending_loan.save()
+
+        LoanPayment.objects.create(
+            loan=pending_loan,
+            payment_type=PaymentType.REPAYMENT,
+            amount=pending_loan.outstanding_balance,
+            reference="REPAY_fail_test",
+            paystack_reference="TRF_repay_fail_test",
+            payer_phone="0551234567",
+            payer_network="mtn",
+        )
+
+        handle_transfer_failed(reference="TRF_repay_fail_test", paystack_data={"status": "failed"})
+
+        pending_loan.refresh_from_db()
+        assert pending_loan.status == LoanStatus.REPAYING
 
 
 @pytest.mark.django_db

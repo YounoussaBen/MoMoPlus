@@ -7,7 +7,7 @@ class WalletSerializer(serializers.ModelSerializer):
     has_paystack = serializers.SerializerMethodField()
 
     def get_has_paystack(self, obj: Wallet) -> bool:
-        return bool(obj.paystack_subaccount_code)
+        return bool(obj.paystack_recipient_code)
 
     class Meta:
         model = Wallet

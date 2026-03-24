@@ -137,7 +137,7 @@ class LoanPayment(BaseModel):
     # Payer / recipient details for audit
     payer_phone = models.CharField(max_length=15)
     payer_network = models.CharField(max_length=15)
-    recipient_subaccount = models.CharField(max_length=50, blank=True, default="")
+    recipient_code = models.CharField(max_length=50, blank=True, default="")
 
     paystack_response = models.JSONField(default=dict, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)

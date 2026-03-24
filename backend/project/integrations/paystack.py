@@ -23,13 +23,37 @@ def _headers() -> dict[str, str]:
     }
 
 
+def _error_message(body: dict[str, Any], fallback: str = "Paystack request failed") -> str:
+    data = body.get("data")
+    if isinstance(data, dict):
+        nested_message = data.get("message")
+        if isinstance(nested_message, str) and nested_message.strip():
+            return nested_message.strip()
+
+        nested_status = data.get("status")
+        top_level_message = body.get("message")
+        if (
+            isinstance(nested_status, str)
+            and nested_status.strip()
+            and isinstance(top_level_message, str)
+            and top_level_message.strip()
+        ):
+            return f"{top_level_message.strip()} ({nested_status.strip()})"
+
+    message = body.get("message")
+    if isinstance(message, str) and message.strip():
+        return message.strip()
+
+    return fallback
+
+
 def _post(path: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
     url = f"{BASE_URL}{path}"
     resp = httpx.post(url, json=data or {}, headers=_headers(), timeout=TIMEOUT)
     body = resp.json()
     if not body.get("status"):
-        msg = body.get("message", "Paystack request failed")
-        logger.error("Paystack POST %s failed: %s", path, msg)
+        msg = _error_message(body)
+        logger.error("Paystack POST %s failed (%s): %s", path, resp.status_code, msg)
         raise PaystackError(msg, response=body)
     return body
 
@@ -39,19 +63,8 @@ def _get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     resp = httpx.get(url, params=params, headers=_headers(), timeout=TIMEOUT)
     body = resp.json()
     if not body.get("status"):
-        msg = body.get("message", "Paystack request failed")
-        logger.error("Paystack GET %s failed: %s", path, msg)
-        raise PaystackError(msg, response=body)
-    return body
-
-
-def _put(path: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
-    url = f"{BASE_URL}{path}"
-    resp = httpx.put(url, json=data or {}, headers=_headers(), timeout=TIMEOUT)
-    body = resp.json()
-    if not body.get("status"):
-        msg = body.get("message", "Paystack request failed")
-        logger.error("Paystack PUT %s failed: %s", path, msg)
+        msg = _error_message(body)
+        logger.error("Paystack GET %s failed (%s): %s", path, resp.status_code, msg)
         raise PaystackError(msg, response=body)
     return body
 
@@ -82,49 +95,6 @@ def list_mobile_money_banks() -> list[dict[str, Any]]:
     """List supported mobile money providers for GHS."""
     body = _get("/bank", params={"currency": "GHS", "type": "mobile_money"})
     return body.get("data", [])
-
-
-# ── Subaccounts ──────────────────────────────────────────────────────────────
-
-
-def create_subaccount(
-    *,
-    business_name: str,
-    bank_code: str,
-    account_number: str,
-    percentage_charge: float = 0.0,
-    primary_contact_email: str = "",
-    primary_contact_name: str = "",
-    primary_contact_phone: str = "",
-) -> dict[str, Any]:
-    """Create a Paystack subaccount for a mobile money wallet.
-
-    Returns the full response data including `subaccount_code`.
-
-    `percentage_charge` is the main account's share of split payments.
-    Use `0.0` when the subaccount should receive the full split.
-    """
-    payload: dict[str, Any] = {
-        "business_name": business_name,
-        "settlement_bank": bank_code,
-        "account_number": account_number,
-        "percentage_charge": percentage_charge,
-    }
-    if primary_contact_email:
-        payload["primary_contact_email"] = primary_contact_email
-    if primary_contact_name:
-        payload["primary_contact_name"] = primary_contact_name
-    if primary_contact_phone:
-        payload["primary_contact_phone"] = primary_contact_phone
-
-    body = _post("/subaccount", payload)
-    return body["data"]
-
-
-def deactivate_subaccount(subaccount_code: str) -> dict[str, Any]:
-    """Deactivate a subaccount so it no longer receives settlements."""
-    body = _put(f"/subaccount/{subaccount_code}", {"active": False})
-    return body["data"]
 
 
 # ── Transfer Recipients ──────────────────────────────────────────────────────
@@ -191,7 +161,6 @@ def charge_mobile_money(
     phone: str,
     provider: str,
     reference: str,
-    subaccount_code: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Charge a mobile money wallet (e.g. for loan repayment).
@@ -209,9 +178,6 @@ def charge_mobile_money(
         },
         "reference": reference,
     }
-    if subaccount_code:
-        payload["subaccount"] = subaccount_code
-        payload["bearer"] = "subaccount"
     if metadata:
         payload["metadata"] = metadata
 

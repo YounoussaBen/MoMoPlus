@@ -811,8 +811,8 @@ class _ActionButtons extends StatelessWidget {
                 Expanded(
                   child: Text(
                     loan.isDisbursing
-                        ? 'Waiting for payment confirmation. Please approve the prompt on your phone.'
-                        : 'Processing repayment. Please approve the prompt on your phone.',
+                        ? 'Waiting for payment confirmation.'
+                        : 'Processing repayment. Please wait.',
                     style: const TextStyle(fontSize: 13, color: Colors.blue),
                   ),
                 ),

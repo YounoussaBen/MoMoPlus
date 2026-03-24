@@ -106,7 +106,6 @@ def setup_users_and_wallets():
             "network": "mtn",
             "is_verified": True,
             "is_default": True,
-            "paystack_subaccount_code": "SUB_test_borrower",
             "paystack_recipient_code": "RCP_test_borrower",
         },
     )
@@ -117,7 +116,6 @@ def setup_users_and_wallets():
             "network": "mtn",
             "is_verified": True,
             "is_default": True,
-            "paystack_subaccount_code": "SUB_test_agent",
             "paystack_recipient_code": "RCP_test_agent",
         },
     )
@@ -147,7 +145,6 @@ class TestLoanRequestEndpoint:
                 "network": "mtn",
                 "is_verified": True,
                 "is_default": True,
-                "paystack_subaccount_code": "SUB_test_borrower",
                 "paystack_recipient_code": "RCP_test_borrower",
             },
         )
@@ -181,7 +178,6 @@ class TestLoanRequestEndpoint:
                 "network": "mtn",
                 "is_verified": True,
                 "is_default": True,
-                "paystack_subaccount_code": "SUB_test_borrower",
                 "paystack_recipient_code": "RCP_test_borrower",
             },
         )
@@ -214,7 +210,6 @@ class TestLoanListEndpoint:
                 "network": "mtn",
                 "is_verified": True,
                 "is_default": True,
-                "paystack_subaccount_code": "SUB_test_borrower",
                 "paystack_recipient_code": "RCP_test_borrower",
             },
         )
@@ -249,7 +244,6 @@ class TestLoanAcceptEndpoint:
                 "network": "mtn",
                 "is_verified": True,
                 "is_default": True,
-                "paystack_subaccount_code": "SUB_test_borrower",
                 "paystack_recipient_code": "RCP_test_borrower",
             },
         )
@@ -260,7 +254,6 @@ class TestLoanAcceptEndpoint:
                 "network": "mtn",
                 "is_verified": True,
                 "is_default": True,
-                "paystack_subaccount_code": "SUB_test_agent",
                 "paystack_recipient_code": "RCP_test_agent",
             },
         )
@@ -299,7 +292,6 @@ class TestLoanRejectEndpoint:
                 "network": "mtn",
                 "is_verified": True,
                 "is_default": True,
-                "paystack_subaccount_code": "SUB_test_borrower",
                 "paystack_recipient_code": "RCP_test_borrower",
             },
         )

@@ -44,13 +44,9 @@ def send_otp(wallet: Wallet) -> WalletOtp:
 @transaction.atomic
 def add_wallet(*, user: User, phone_number: str, network: str) -> Wallet:
     """Add a new wallet and send OTP for verification."""
-    existing_wallet = Wallet.objects.filter(phone_number=phone_number).first()
+    existing_wallet = Wallet.objects.filter(user=user, phone_number=phone_number).first()
     if existing_wallet is not None:
-        if existing_wallet.user_id == user.pk:
-            raise ValueError("This phone number is already added to your account.")
-        raise ValueError(
-            "This phone number is already linked to another account. Remove it there before adding it here."
-        )
+        raise ValueError("This phone number is already added to your account.")
 
     wallet = Wallet.objects.create(
         user=user,
@@ -91,14 +87,14 @@ def verify_otp(*, wallet: Wallet, code: str) -> Wallet:
     if not Wallet.objects.filter(user=wallet.user, is_verified=True).exclude(pk=wallet.pk).exists():
         wallet.is_default = True
 
-    # Create Paystack subaccount and transfer recipient for this wallet
-    _create_paystack_accounts(wallet)
+    # Wallet verification remains a single step: OTP ownership plus
+    # successful Paystack recipient creation.
+    _create_paystack_recipient(wallet)
 
     wallet.save(
         update_fields=[
             "is_verified",
             "is_default",
-            "paystack_subaccount_code",
             "paystack_recipient_code",
             "updated_at",
         ]
@@ -130,37 +126,17 @@ def set_default_wallet(*, user: User, wallet: Wallet) -> Wallet:
     return wallet
 
 
-def _create_paystack_accounts(wallet: Wallet) -> None:
-    """Create the Paystack records required before a wallet is considered verified."""
+def _create_paystack_recipient(wallet: Wallet) -> None:
+    """Create the Paystack transfer recipient required before wallet verification succeeds."""
     if not getattr(settings, "PAYSTACK_SECRET_KEY", ""):
-        logger.info("Paystack secret key not configured; skipping subaccount creation for wallet %s", wallet.pk)
-        return
+        raise ValueError("Wallet verification failed: Paystack is not configured.")
 
     user = wallet.user
     bank_code = paystack.NETWORK_TO_BANK_CODE.get(wallet.network, "MTN")
     full_name = f"{user.first_name} {user.last_name}".strip() or user.email
     account_number = wallet.phone_number
-    subaccount_code = ""
 
-    # 1. Create subaccount (so money can be routed TO this wallet)
-    try:
-        sub_data = paystack.create_subaccount(
-            business_name=f"{full_name} - {wallet.phone_number}",
-            bank_code=bank_code,
-            account_number=account_number,
-            percentage_charge=0.0,
-            primary_contact_email=user.email,
-            primary_contact_name=full_name,
-            primary_contact_phone=wallet.phone_number,
-        )
-        subaccount_code = sub_data.get("subaccount_code", "")
-        wallet.paystack_subaccount_code = subaccount_code
-        logger.info("Paystack subaccount created: %s for wallet %s", wallet.paystack_subaccount_code, wallet.pk)
-    except paystack.PaystackError as exc:
-        logger.exception("Failed to create Paystack subaccount for wallet %s", wallet.pk)
-        raise ValueError(f"Wallet verification failed: {exc}")
-
-    # 2. Create transfer recipient (so money can be SENT to this wallet)
+    # Create the transfer recipient used for both disbursement and repayment transfers.
     try:
         recip_data = paystack.create_transfer_recipient(
             name=full_name,
@@ -171,13 +147,6 @@ def _create_paystack_accounts(wallet: Wallet) -> None:
         logger.info("Paystack recipient created: %s for wallet %s", wallet.paystack_recipient_code, wallet.pk)
     except paystack.PaystackError as exc:
         logger.exception("Failed to create Paystack transfer recipient for wallet %s", wallet.pk)
-        if subaccount_code:
-            try:
-                paystack.deactivate_subaccount(subaccount_code)
-            except paystack.PaystackError:
-                logger.exception(
-                    "Failed to deactivate Paystack subaccount %s after recipient setup failure", subaccount_code
-                )
         raise ValueError(f"Wallet verification failed: {exc}")
 
 
@@ -193,12 +162,6 @@ def delete_wallet(*, user: User, wallet: Wallet) -> None:
             raise ValueError(
                 "You must have at least one verified wallet. Add another wallet before deleting this one."
             )
-
-    if getattr(settings, "PAYSTACK_SECRET_KEY", "") and wallet.paystack_subaccount_code:
-        try:
-            paystack.deactivate_subaccount(wallet.paystack_subaccount_code)
-        except paystack.PaystackError as exc:
-            raise ValueError(f"Failed to remove wallet from Paystack: {exc}")
 
     was_default = wallet.is_default
     wallet.delete()

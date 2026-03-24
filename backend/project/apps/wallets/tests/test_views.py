@@ -63,7 +63,7 @@ class TestWalletCreateView:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_rejects_phone_number_added_on_another_account(self, authenticated_client, auth_client_factory):
+    def test_allows_phone_number_added_on_another_account(self, authenticated_client, auth_client_factory):
         authenticated_client.post(
             "/api/wallets/add/",
             {"phone_number": "0241234567", "network": "mtn"},
@@ -86,7 +86,8 @@ class TestWalletCreateView:
             format="json",
         )
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["phone_number"] == "0241234567"
 
     def test_rejects_invalid_network(self, authenticated_client):
         response = authenticated_client.post(
@@ -154,8 +155,8 @@ class TestWalletVerifyView:
         wallet_id = create_resp.data["id"]
         otp = WalletOtp.objects.get(wallet_id=wallet_id)
 
-        with patch("project.apps.wallets.services.paystack.create_subaccount") as mock_subaccount:
-            mock_subaccount.side_effect = PaystackError("Account details are invalid")
+        with patch("project.apps.wallets.services.paystack.create_transfer_recipient") as mock_recipient:
+            mock_recipient.side_effect = PaystackError("Account details are invalid")
 
             response = authenticated_client.post(
                 f"/api/wallets/{wallet_id}/verify/",

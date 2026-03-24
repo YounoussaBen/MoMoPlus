@@ -34,6 +34,43 @@ def _pesewas(amount: Decimal) -> int:
     return int((amount * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
+def _merge_paystack_response(existing: dict | None, *, stage: str, data: dict) -> dict:
+    payload = existing.copy() if isinstance(existing, dict) else {}
+    payload[stage] = data
+    return payload
+
+
+def _paystack_error_payload(exc: paystack.PaystackError) -> dict:
+    payload: dict = {"error": str(exc)}
+    if exc.response:
+        payload["response"] = exc.response
+    return payload
+
+
+def _recipient_details(payment: LoanPayment) -> tuple[str, str, str]:
+    loan = payment.loan
+    if payment.payment_type == PaymentType.DISBURSEMENT:
+        recipient_code = loan.borrower_wallet.paystack_recipient_code
+        return recipient_code, str(LoanStatus.FAILED), f"Loan disbursement {loan.pk}"
+
+    recipient_code = loan.agent_wallet.paystack_recipient_code if loan.agent_wallet else ""
+    return recipient_code, str(LoanStatus.REPAYING), f"Loan repayment {loan.pk}"
+
+
+def _complete_payment_success(payment: LoanPayment, *, paystack_data: dict) -> None:
+    payment.status = PaymentStatus.SUCCESS
+    payment.paystack_response = _merge_paystack_response(
+        payment.paystack_response, stage="transfer", data=paystack_data
+    )
+    payment.completed_at = timezone.now()
+    payment.save(update_fields=["status", "paystack_response", "completed_at", "updated_at"])
+
+    if payment.payment_type == PaymentType.DISBURSEMENT:
+        _handle_disbursement_success(payment.loan)
+    elif payment.payment_type == PaymentType.REPAYMENT:
+        _handle_repayment_success(payment.loan, payment)
+
+
 def _compute_deadline() -> tuple[timedelta, int]:
     """Return (deadline timedelta, hours) based on current day."""
     now = timezone.now()
@@ -80,7 +117,7 @@ def request_loan(
     if not wallet.is_verified:
         raise ValueError("Only verified wallets can receive loan disbursements.")
 
-    if not wallet.paystack_subaccount_code:
+    if not wallet.paystack_recipient_code:
         raise ValueError("This wallet is not yet set up for payments. Please re-verify.")
 
     # Check for existing pending/active loan with same agent
@@ -132,7 +169,7 @@ def accept_loan(
     if not agent_wallet.is_verified:
         raise ValueError("Agent wallet must be verified.")
 
-    if not agent_wallet.paystack_subaccount_code:
+    if not agent_wallet.paystack_recipient_code:
         raise ValueError("Agent wallet is not set up for payments.")
 
     loan.agent_wallet = agent_wallet
@@ -189,11 +226,7 @@ def cancel_loan(
 
 
 def initiate_disbursement(*, loan: Loan) -> LoanPayment:
-    """Charge the agent's MoMo to disburse funds to the borrower's wallet.
-
-    The agent's MoMo is charged, and the money is routed to the borrower's
-    subaccount (their verified wallet).
-    """
+    """Charge the agent's MoMo, then disburse from the business balance."""
     if loan.status != LoanStatus.APPROVED:
         raise ValueError("Loan must be approved before disbursement.")
 
@@ -203,6 +236,9 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
     agent_wallet = loan.agent_wallet
     borrower_wallet = loan.borrower_wallet
     agent_user = loan.agent.user
+
+    if not borrower_wallet.paystack_recipient_code:
+        raise ValueError("Borrower wallet is not set up to receive transfers. Please re-verify it.")
 
     provider = paystack.NETWORK_TO_PROVIDER.get(agent_wallet.network, "mtn")
     reference = _generate_reference("DISB")
@@ -216,7 +252,8 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
             reference=reference,
             payer_phone=agent_wallet.phone_number,
             payer_network=agent_wallet.network,
-            recipient_subaccount=borrower_wallet.paystack_subaccount_code,
+            # Keep the payout target on the existing audit field until the model is expanded.
+            recipient_code=borrower_wallet.paystack_recipient_code,
         )
         loan.status = LoanStatus.DISBURSING
         loan.save(update_fields=["status", "updated_at"])
@@ -229,7 +266,6 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
             phone=agent_wallet.phone_number,
             provider=provider,
             reference=reference,
-            subaccount_code=borrower_wallet.paystack_subaccount_code,
             metadata={
                 "loan_id": str(loan.pk),
                 "payment_type": "disbursement",
@@ -237,11 +273,11 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
             },
         )
         payment.paystack_reference = resp.get("reference", "")
-        payment.paystack_response = resp
+        payment.paystack_response = _merge_paystack_response(payment.paystack_response, stage="charge_init", data=resp)
         payment.save(update_fields=["paystack_reference", "paystack_response", "updated_at"])
     except paystack.PaystackError as exc:
         payment.status = PaymentStatus.FAILED
-        payment.paystack_response = {"error": str(exc)}
+        payment.paystack_response = _paystack_error_payload(exc)
         payment.save(update_fields=["status", "paystack_response", "updated_at"])
         loan.status = LoanStatus.FAILED
         loan.save(update_fields=["status", "updated_at"])
@@ -254,9 +290,9 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
 
 
 def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPayment:
-    """Charge the borrower's MoMo to repay the loan to the agent's subaccount."""
-    if loan.status not in (LoanStatus.ACTIVE, LoanStatus.REPAYING):
-        raise ValueError("Loan is not active.")
+    """Charge the borrower's MoMo, then transfer the repayment to the agent."""
+    if loan.status != LoanStatus.ACTIVE:
+        raise ValueError("Loan is not ready for repayment.")
 
     if not loan.agent_wallet:
         raise ValueError("Agent wallet not configured for this loan.")
@@ -269,6 +305,9 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
 
     borrower_wallet = loan.borrower_wallet
     agent_wallet = loan.agent_wallet
+    if not agent_wallet.paystack_recipient_code:
+        raise ValueError("Agent wallet is not set up to receive transfers. Please re-verify it.")
+
     provider = paystack.NETWORK_TO_PROVIDER.get(borrower_wallet.network, "mtn")
     reference = _generate_reference("REPAY")
 
@@ -280,7 +319,8 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
             reference=reference,
             payer_phone=borrower_wallet.phone_number,
             payer_network=borrower_wallet.network,
-            recipient_subaccount=agent_wallet.paystack_subaccount_code,
+            # Keep the payout target on the existing audit field until the model is expanded.
+            recipient_code=agent_wallet.paystack_recipient_code,
         )
         loan.status = LoanStatus.REPAYING
         loan.save(update_fields=["status", "updated_at"])
@@ -292,7 +332,6 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
             phone=borrower_wallet.phone_number,
             provider=provider,
             reference=reference,
-            subaccount_code=agent_wallet.paystack_subaccount_code,
             metadata={
                 "loan_id": str(loan.pk),
                 "payment_type": "repayment",
@@ -300,11 +339,11 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
             },
         )
         payment.paystack_reference = resp.get("reference", "")
-        payment.paystack_response = resp
+        payment.paystack_response = _merge_paystack_response(payment.paystack_response, stage="charge_init", data=resp)
         payment.save(update_fields=["paystack_reference", "paystack_response", "updated_at"])
     except paystack.PaystackError as exc:
         payment.status = PaymentStatus.FAILED
-        payment.paystack_response = {"error": str(exc)}
+        payment.paystack_response = _paystack_error_payload(exc)
         payment.save(update_fields=["status", "paystack_response", "updated_at"])
         loan.status = LoanStatus.ACTIVE
         loan.save(update_fields=["status", "updated_at"])
@@ -318,11 +357,73 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
 
 @transaction.atomic
 def handle_charge_success(*, reference: str, paystack_data: dict) -> None:
-    """Handle a successful charge (disbursement or repayment confirmed)."""
+    """Handle a successful charge webhook."""
     try:
-        payment = LoanPayment.objects.select_related("loan").get(reference=reference)
+        payment = LoanPayment.objects.select_related(
+            "loan",
+            "loan__borrower_wallet",
+            "loan__agent_wallet",
+        ).get(reference=reference)
     except LoanPayment.DoesNotExist:
         logger.warning("Charge success webhook for unknown reference: %s", reference)
+        return
+
+    payment.paystack_response = _merge_paystack_response(payment.paystack_response, stage="charge", data=paystack_data)
+
+    if payment.payment_type in (PaymentType.DISBURSEMENT, PaymentType.REPAYMENT):
+        if payment.status == PaymentStatus.SUCCESS:
+            logger.info("Payment %s already completed, skipping duplicate charge.success.", reference)
+            return
+
+        if payment.paystack_reference and payment.paystack_reference != reference:
+            payment.save(update_fields=["paystack_response", "updated_at"])
+            logger.info("Transfer already initiated for payment %s, skipping duplicate charge.success.", reference)
+            return
+
+        loan = payment.loan
+        recipient_code, failure_status, reason = _recipient_details(payment)
+        if not recipient_code:
+            payment.status = PaymentStatus.FAILED
+            payment.paystack_response = _merge_paystack_response(
+                payment.paystack_response,
+                stage="transfer_error",
+                data={"error": "Payment recipient has no Paystack transfer recipient code."},
+            )
+            payment.save(update_fields=["status", "paystack_response", "updated_at"])
+            loan.status = failure_status
+            loan.save(update_fields=["status", "updated_at"])
+            logger.error("Payment %s cannot continue: recipient wallet has no transfer recipient code.", reference)
+            return
+
+        transfer_reference = _generate_reference("TRF")
+        try:
+            transfer_resp = paystack.initiate_transfer(
+                amount_pesewas=_pesewas(payment.amount),
+                recipient_code=recipient_code,
+                reference=transfer_reference,
+                reason=reason,
+            )
+        except paystack.PaystackError as exc:
+            payment.status = PaymentStatus.FAILED
+            payment.paystack_response = _merge_paystack_response(
+                payment.paystack_response,
+                stage="transfer_error",
+                data=_paystack_error_payload(exc),
+            )
+            payment.save(update_fields=["status", "paystack_response", "updated_at"])
+            loan.status = failure_status
+            loan.save(update_fields=["status", "updated_at"])
+            logger.exception("Transfer initiation failed for payment %s", reference)
+            return
+
+        payment.paystack_reference = transfer_resp.get("reference", transfer_reference)
+        payment.paystack_response = _merge_paystack_response(
+            payment.paystack_response,
+            stage="transfer_init",
+            data=transfer_resp,
+        )
+        payment.save(update_fields=["paystack_reference", "paystack_response", "updated_at"])
+        logger.info("Transfer initiated for payment %s with reference %s", reference, payment.paystack_reference)
         return
 
     if payment.status == PaymentStatus.SUCCESS:
@@ -330,16 +431,26 @@ def handle_charge_success(*, reference: str, paystack_data: dict) -> None:
         return
 
     payment.status = PaymentStatus.SUCCESS
-    payment.paystack_response = paystack_data
     payment.completed_at = timezone.now()
     payment.save(update_fields=["status", "paystack_response", "completed_at", "updated_at"])
 
-    loan = payment.loan
 
-    if payment.payment_type == PaymentType.DISBURSEMENT:
-        _handle_disbursement_success(loan)
-    elif payment.payment_type == PaymentType.REPAYMENT:
-        _handle_repayment_success(loan, payment)
+@transaction.atomic
+def handle_transfer_success(*, reference: str, paystack_data: dict) -> None:
+    """Handle a successful transfer webhook for a payment."""
+    try:
+        payment = LoanPayment.objects.select_related("loan").get(
+            paystack_reference=reference,
+        )
+    except LoanPayment.DoesNotExist:
+        logger.warning("Transfer success webhook for unknown reference: %s", reference)
+        return
+
+    if payment.status == PaymentStatus.SUCCESS:
+        logger.info("Transfer %s already marked success, skipping.", reference)
+        return
+
+    _complete_payment_success(payment, paystack_data=paystack_data)
 
 
 def _handle_disbursement_success(loan: Loan) -> None:
@@ -379,7 +490,9 @@ def handle_charge_failed(*, reference: str, paystack_data: dict) -> None:
         return
 
     payment.status = PaymentStatus.FAILED
-    payment.paystack_response = paystack_data
+    payment.paystack_response = _merge_paystack_response(
+        payment.paystack_response, stage="charge_failed", data=paystack_data
+    )
     payment.save(update_fields=["status", "paystack_response", "updated_at"])
 
     loan = payment.loan
@@ -390,6 +503,32 @@ def handle_charge_failed(*, reference: str, paystack_data: dict) -> None:
     elif payment.payment_type == PaymentType.REPAYMENT:
         loan.status = LoanStatus.ACTIVE
         loan.save(update_fields=["status", "updated_at"])
+
+
+@transaction.atomic
+def handle_transfer_failed(*, reference: str, paystack_data: dict) -> None:
+    """Handle a failed transfer webhook for a payment."""
+    try:
+        payment = LoanPayment.objects.select_related("loan").get(
+            paystack_reference=reference,
+        )
+    except LoanPayment.DoesNotExist:
+        logger.warning("Transfer failed webhook for unknown reference: %s", reference)
+        return
+
+    payment.status = PaymentStatus.FAILED
+    payment.paystack_response = _merge_paystack_response(
+        payment.paystack_response, stage="transfer_failed", data=paystack_data
+    )
+    payment.save(update_fields=["status", "paystack_response", "updated_at"])
+
+    loan = payment.loan
+    if payment.payment_type == PaymentType.DISBURSEMENT:
+        loan.status = LoanStatus.FAILED
+    elif payment.payment_type == PaymentType.REPAYMENT:
+        # Borrower was already charged, so keep the loan in repayment for manual resolution.
+        loan.status = LoanStatus.REPAYING
+    loan.save(update_fields=["status", "updated_at"])
 
 
 # ── Penalties & Defaults ─────────────────────────────────────────────────────
