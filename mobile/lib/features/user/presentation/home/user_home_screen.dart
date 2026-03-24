@@ -158,6 +158,8 @@ class _SpotlightCard extends StatefulWidget {
 
 class _SpotlightCardState extends State<_SpotlightCard> {
   Timer? _timer;
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -170,37 +172,53 @@ class _SpotlightCardState extends State<_SpotlightCard> {
   @override
   void dispose() {
     _timer?.cancel();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  List<Widget> _buildCards() {
+    final cards = <Widget>[];
+
+    // Active loans with countdown
+    for (final loan in widget.ongoingLoans.where(
+      (l) => l.isActive || l.isRepaying,
+    )) {
+      cards.add(_ActiveFundsSpotlight(loan: loan, isAgent: widget.isAgent));
+    }
+
+    // Active cash service transactions
+    for (final txn in widget.activeTransactions) {
+      cards.add(_ActiveCashServiceSpotlight(txn: txn, isAgent: widget.isAgent));
+    }
+
+    // Pending loans
+    for (final loan in widget.ongoingLoans.where(
+      (l) => l.isPending || l.isApproved || l.isDisbursing,
+    )) {
+      cards.add(_PendingFundsSpotlight(loan: loan, isAgent: widget.isAgent));
+    }
+
+    return cards;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Priority 1: Active get-funds item with countdown
-    final activeLoan = widget.ongoingLoans
-        .where((l) => l.isActive || l.isRepaying)
-        .toList();
-    if (activeLoan.isNotEmpty) {
-      final loan = activeLoan.first;
-      return _ActiveFundsSpotlight(loan: loan, isAgent: widget.isAgent);
+    final cards = _buildCards();
+
+    if (cards.isEmpty) return _EmptySpotlight();
+    if (cards.length == 1) return cards.first;
+
+    // Clamp current page if list shrinks
+    if (_currentPage >= cards.length) {
+      _currentPage = cards.length - 1;
     }
 
-    // Priority 2: Active cash service
-    if (widget.activeTransactions.isNotEmpty) {
-      final txn = widget.activeTransactions.first;
-      return _ActiveCashServiceSpotlight(txn: txn, isAgent: widget.isAgent);
-    }
-
-    // Priority 3: Pending get-funds (waiting for agent)
-    final pendingLoan = widget.ongoingLoans
-        .where((l) => l.isPending || l.isApproved || l.isDisbursing)
-        .toList();
-    if (pendingLoan.isNotEmpty) {
-      final loan = pendingLoan.first;
-      return _PendingFundsSpotlight(loan: loan, isAgent: widget.isAgent);
-    }
-
-    // Empty state
-    return _EmptySpotlight();
+    return _SwipeableSpotlight(
+      pageController: _pageController,
+      currentPage: _currentPage,
+      onPageChanged: (i) => setState(() => _currentPage = i),
+      cards: cards,
+    );
   }
 }
 
@@ -228,7 +246,7 @@ class _ActiveFundsSpotlight extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/loans/${loan.id}'),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isOverdue
@@ -241,6 +259,7 @@ class _ActiveFundsSpotlight extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
@@ -270,24 +289,26 @@ class _ActiveFundsSpotlight extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Text(
-              'GHS ${loan.outstandingBalance.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'GHS ${loan.outstandingBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'outstanding balance',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'outstanding balance',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withValues(alpha: 0.8),
-              ),
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
                 Icon(
@@ -346,7 +367,7 @@ class _ActiveCashServiceSpotlight extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/transactions/${txn.id}'),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
@@ -357,6 +378,7 @@ class _ActiveCashServiceSpotlight extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
@@ -386,7 +408,6 @@ class _ActiveCashServiceSpotlight extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
             Text(
               '${txn.typeLabel} · GHS ${txn.amount.toStringAsFixed(2)}',
               style: const TextStyle(
@@ -395,7 +416,6 @@ class _ActiveCashServiceSpotlight extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 6),
             Row(
               children: [
                 NetworkLogo(network: txn.network, size: 16),
@@ -453,7 +473,7 @@ class _PendingFundsSpotlight extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/loans/${loan.id}'),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
             colors: [Color(0xFFF57C00), Color(0xFFEF6C00)],
@@ -464,6 +484,7 @@ class _PendingFundsSpotlight extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
@@ -493,7 +514,6 @@ class _PendingFundsSpotlight extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
             Text(
               'GHS ${loan.amount.toStringAsFixed(2)}',
               style: const TextStyle(
@@ -502,7 +522,6 @@ class _PendingFundsSpotlight extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 6),
             Row(
               children: [
                 const Icon(
@@ -561,6 +580,60 @@ class _EmptySpotlight extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SwipeableSpotlight extends StatelessWidget {
+  final PageController pageController;
+  final int currentPage;
+  final ValueChanged<int> onPageChanged;
+  final List<Widget> cards;
+
+  const _SwipeableSpotlight({
+    required this.pageController,
+    required this.currentPage,
+    required this.onPageChanged,
+    required this.cards,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final height = constraints.maxWidth * 0.5;
+            return SizedBox(
+              height: height.clamp(160.0, 220.0),
+              child: PageView.builder(
+                controller: pageController,
+                itemCount: cards.length,
+                onPageChanged: onPageChanged,
+                itemBuilder: (_, i) => cards[i],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(cards.length, (i) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: currentPage == i ? 20 : 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: currentPage == i
+                    ? AppColors.primary
+                    : AppColors.textSecondary.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }

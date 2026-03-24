@@ -13,15 +13,18 @@ class WalletListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sharedWalletVm = context.read<WalletViewModel>();
     return ChangeNotifierProvider(
       create: (ctx) => WalletViewModel(ctx.read<BackendApiService>()),
-      child: const _WalletListBody(),
+      child: _WalletListBody(sharedWalletVm: sharedWalletVm),
     );
   }
 }
 
 class _WalletListBody extends StatelessWidget {
-  const _WalletListBody();
+  final WalletViewModel sharedWalletVm;
+
+  const _WalletListBody({required this.sharedWalletVm});
 
   Future<void> _pushAndReload(
     BuildContext context,
@@ -31,6 +34,7 @@ class _WalletListBody extends StatelessWidget {
     final shouldReload = await context.push<bool>(path, extra: extra);
     if (context.mounted && shouldReload == true) {
       await context.read<WalletViewModel>().loadWallets();
+      await sharedWalletVm.loadWallets();
     }
   }
 
@@ -132,6 +136,7 @@ class _WalletListBody extends StatelessWidget {
                                 _WalletTile(
                                   wallet: vm.wallets[i],
                                   onPushAndReload: _pushAndReload,
+                                  sharedWalletVm: sharedWalletVm,
                                 ),
                               ],
                             ],
@@ -148,7 +153,13 @@ class _WalletTile extends StatelessWidget {
   final Wallet wallet;
   final Future<void> Function(BuildContext, String, {Object? extra})
   onPushAndReload;
-  const _WalletTile({required this.wallet, required this.onPushAndReload});
+  final WalletViewModel sharedWalletVm;
+
+  const _WalletTile({
+    required this.wallet,
+    required this.onPushAndReload,
+    required this.sharedWalletVm,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +296,9 @@ class _WalletTile extends StatelessWidget {
         confirmLabel: 'Set Default',
         onConfirm: () async {
           final ok = await vm.setDefault(wallet.id);
+          if (ok) {
+            await sharedWalletVm.loadWallets();
+          }
           return ok
               ? null
               : (vm.errorMessage ??
@@ -304,6 +318,9 @@ class _WalletTile extends StatelessWidget {
         isDestructive: true,
         onConfirm: () async {
           final ok = await vm.deleteWallet(wallet.id);
+          if (ok) {
+            await sharedWalletVm.loadWallets();
+          }
           return ok
               ? null
               : (vm.errorMessage ??

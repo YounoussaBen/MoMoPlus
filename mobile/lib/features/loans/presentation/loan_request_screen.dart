@@ -365,7 +365,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
       network: _selectedWallet!.network,
     );
     if (loan != null && mounted) {
-      context.go('/loans/${loan.id}');
+      context.pushReplacement('/loans/${loan.id}');
     }
   }
 
