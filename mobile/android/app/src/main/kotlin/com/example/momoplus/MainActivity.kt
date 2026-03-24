@@ -1,4 +1,4 @@
-package com.example.momoplus
+package com.app.momoplus
 
 import android.content.ActivityNotFoundException
 import android.content.Intent

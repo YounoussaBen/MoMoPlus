@@ -1,4 +1,4 @@
-package com.example.momoplus
+package com.app.momoplus
 
 import android.os.Bundle
 import android.widget.ImageButton
