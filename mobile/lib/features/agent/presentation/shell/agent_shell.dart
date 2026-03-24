@@ -67,7 +67,7 @@ class AgentShell extends StatelessWidget {
                       _TabItem(
                         icon: Icons.receipt_long_outlined,
                         activeIcon: Icons.receipt_long_rounded,
-                        label: 'Transactions',
+                        label: 'Activity',
                         isSelected: selectedIndex == 1,
                         onTap: () => _onTap(1),
                       ),

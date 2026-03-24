@@ -27,7 +27,7 @@ class AgentRequestsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Loan and physical requests\nsorted by urgency and distance.',
+                'Funding and cash service requests\nsorted by urgency and distance.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               ),

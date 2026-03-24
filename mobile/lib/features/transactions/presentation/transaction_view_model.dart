@@ -4,6 +4,8 @@ import '../../../core/data/services/backend_api_service.dart';
 import '../../wallet/domain/wallet.dart';
 import '../domain/physical_transaction.dart';
 
+const Duration _transactionsRefreshInterval = Duration(seconds: 10);
+
 class TransactionViewModel extends ChangeNotifier {
   final BackendApiService _api;
 
@@ -14,9 +16,18 @@ class TransactionViewModel extends ChangeNotifier {
   bool _isLoadingWallets = true;
   bool _isSubmitting = false;
   String? _errorMessage;
+  bool _hasLoadedTransactions = false;
   Timer? _pollTimer;
+  Timer? _refreshTimer;
+  Future<void>? _loadTransactionsFuture;
 
-  TransactionViewModel(this._api);
+  TransactionViewModel(this._api) {
+    loadTransactions();
+    _refreshTimer = Timer.periodic(
+      _transactionsRefreshInterval,
+      (_) => loadTransactions(),
+    );
+  }
 
   List<PhysicalTransaction> get transactions => _transactions;
   PhysicalTransaction? get currentTransaction => _currentTransaction;
@@ -34,7 +45,17 @@ class TransactionViewModel extends ChangeNotifier {
       _transactions.where((t) => !t.isActive).toList();
 
   Future<void> loadTransactions() async {
-    _isLoading = true;
+    final inFlight = _loadTransactionsFuture;
+    if (inFlight != null) return inFlight;
+
+    final future = _loadTransactionsInternal();
+    _loadTransactionsFuture = future;
+    future.whenComplete(() => _loadTransactionsFuture = null);
+    return future;
+  }
+
+  Future<void> _loadTransactionsInternal() async {
+    _isLoading = !_hasLoadedTransactions && _transactions.isEmpty;
     _errorMessage = null;
     notifyListeners();
     try {
@@ -42,9 +63,18 @@ class TransactionViewModel extends ChangeNotifier {
       _transactions = data
           .map((e) => PhysicalTransaction.fromJson(e as Map<String, dynamic>))
           .toList();
+      if (_currentTransaction != null) {
+        for (final txn in _transactions) {
+          if (txn.id == _currentTransaction!.id) {
+            _currentTransaction = txn;
+            break;
+          }
+        }
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
+      _hasLoadedTransactions = true;
       _isLoading = false;
       notifyListeners();
     }
@@ -104,6 +134,7 @@ class TransactionViewModel extends ChangeNotifier {
       final data = await _api.getPhysicalTransactionDetail(id);
       if (data != null) {
         _currentTransaction = PhysicalTransaction.fromJson(data);
+        _updateInList(_currentTransaction!);
       }
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -219,12 +250,18 @@ class TransactionViewModel extends ChangeNotifier {
     final idx = _transactions.indexWhere((t) => t.id == updated.id);
     if (idx >= 0) {
       _transactions[idx] = updated;
+    } else {
+      _transactions.insert(0, updated);
+    }
+    if (_currentTransaction?.id == updated.id) {
+      _currentTransaction = updated;
     }
   }
 
   @override
   void dispose() {
     stopPolling();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 }

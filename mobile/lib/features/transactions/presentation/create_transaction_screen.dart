@@ -70,7 +70,7 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
           return Scaffold(
             backgroundColor: AppColors.surface,
             appBar: AppBar(
-              title: const Text('New Transaction'),
+              title: const Text('Cash Services'),
               backgroundColor: Colors.white,
               foregroundColor: AppColors.textPrimary,
               elevation: 0,
@@ -115,7 +115,7 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
 
                   // Transaction type
                   const Text(
-                    'Transaction Type',
+                    'Service Type',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -307,7 +307,7 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
                               ),
                             )
                           : const Text(
-                              'Submit Request',
+                              'Submit',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,

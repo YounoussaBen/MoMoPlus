@@ -532,6 +532,136 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  // ── Loans ─────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> requestLoan({
+    required String agentId,
+    required String amount,
+    required String walletId,
+    required String network,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/loans/request/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({
+        'agent_id': agentId,
+        'amount': amount,
+        'wallet_id': walletId,
+        'network': network,
+      }),
+    );
+    if (response.statusCode != 201) {
+      throw _buildApiException(response, 'Failed to request loan.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> getLoans({String? status}) async {
+    if (_accessToken == null) return [];
+    final params = <String, String>{};
+    if (status != null) params['status'] = status;
+    final uri = Uri.parse(
+      '$_baseUrl/api/loans/',
+    ).replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>?> getLoanDetail(String loanId) async {
+    if (_accessToken == null) return null;
+    final uri = Uri.parse('$_baseUrl/api/loans/$loanId/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>> acceptLoan(
+    String loanId, {
+    required String agentWalletId,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/loans/$loanId/accept/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'agent_wallet_id': agentWalletId}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to accept loan.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> rejectLoan(
+    String loanId, {
+    String reason = '',
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/loans/$loanId/reject/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'reason': reason}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to reject loan.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> disburseLoan(String loanId) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/loans/$loanId/disburse/');
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to initiate disbursement.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> repayLoan(
+    String loanId, {
+    String? amount,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/loans/$loanId/repay/');
+    final body = <String, dynamic>{};
+    if (amount != null) body['amount'] = amount;
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to initiate repayment.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> cancelLoan(
+    String loanId, {
+    String reason = '',
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/loans/$loanId/cancel/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'reason': reason}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to cancel loan.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Exception _buildApiException(http.Response response, String fallbackMessage) {
     try {
       final body = jsonDecode(response.body);

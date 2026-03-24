@@ -63,7 +63,7 @@ def get_nearby_agents(
     for profile in qs:
         dist = haversine(lat, lon, float(profile.latitude), float(profile.longitude))
         if dist <= radius_km:
-            profile.distance_km = round(dist, 2)  # type: ignore[attr-defined]
+            profile.distance_km = round(dist, 2)
             results.append(profile)
 
     if sort_by == "rating":

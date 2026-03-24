@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import '../../features/activity/presentation/activity_screen.dart';
 import '../../features/agent/presentation/home/agent_home_screen.dart';
 import '../../features/agent/presentation/more/agent_more_screen.dart';
 import '../../features/agent/presentation/shell/agent_shell.dart';
@@ -19,12 +20,18 @@ import '../../features/discover/presentation/discover_screen.dart';
 import '../../features/wallet/presentation/add_wallet_screen.dart';
 import '../../features/wallet/presentation/verify_wallet_screen.dart';
 import '../../features/wallet/presentation/wallet_list_screen.dart';
+import '../../features/loans/presentation/loan_detail_screen.dart';
+import '../../features/loans/presentation/loan_request_screen.dart';
+import '../../features/transactions/presentation/create_transaction_screen.dart';
+import '../../features/transactions/presentation/transaction_detail_screen.dart';
 import '../../features/user/presentation/home/user_home_screen.dart';
 import '../../features/user/presentation/more/user_more_screen.dart';
 import '../../features/user/presentation/shell/user_shell.dart';
-import '../../features/transactions/presentation/create_transaction_screen.dart';
-import '../../features/transactions/presentation/transaction_detail_screen.dart';
-import '../../features/transactions/presentation/transaction_list_screen.dart';
+
+int _activityTabIndex(String? tab) {
+  if (tab == 'cashServices' || tab == 'cash' || tab == '1') return 1;
+  return 0; // default: getFunds
+}
 
 class AppRouter {
   static GoRouter create(AuthViewModel authViewModel) {
@@ -165,6 +172,40 @@ class AppRouter {
           },
         ),
 
+        // ── Get Funds (loans) ──
+        GoRoute(
+          path: '/loans/request',
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>;
+            return LoanRequestScreen(
+              agentId: extra['agentId'] as String,
+              agentName: extra['agentName'] as String,
+              agentSelfieUrl: extra['agentSelfieUrl'] as String?,
+            );
+          },
+        ),
+        GoRoute(
+          path: '/loans/:id',
+          builder: (context, state) {
+            return LoanDetailScreen(loanId: state.pathParameters['id']!);
+          },
+        ),
+
+        // ── Legacy redirects ──
+        GoRoute(
+          path: '/user/requests',
+          redirect: (context, state) =>
+              '/user/activity?tab=${state.uri.queryParameters['tab'] == 'history' ? 'cashServices' : 'cashServices'}',
+        ),
+        GoRoute(
+          path: '/user/loans',
+          redirect: (context, state) => '/user/activity?tab=getFunds',
+        ),
+        GoRoute(
+          path: '/user/agents',
+          redirect: (context, state) => '/user/discover',
+        ),
+
         // ── User shell (4 tabs) ──
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) =>
@@ -181,7 +222,7 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/user/agents',
+                  path: '/user/discover',
                   builder: (context, state) => const DiscoverScreen(),
                 ),
               ],
@@ -189,11 +230,12 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/user/requests',
-                  builder: (context, state) => TransactionListScreen(
+                  path: '/user/activity',
+                  builder: (context, state) => ActivityScreen(
                     isAgent: false,
-                    initialTabIndex:
-                        state.uri.queryParameters['tab'] == 'history' ? 1 : 0,
+                    initialTabIndex: _activityTabIndex(
+                      state.uri.queryParameters['tab'],
+                    ),
                   ),
                 ),
               ],
@@ -223,9 +265,19 @@ class AppRouter {
           builder: (context, state) => const CertificationScreen(),
         ),
 
+        // ── Agent legacy redirects ──
         GoRoute(
           path: '/agent/requests',
-          redirect: (context, state) => '/agent/transactions?tab=active',
+          redirect: (context, state) => '/agent/activity?tab=cashServices',
+        ),
+        GoRoute(
+          path: '/agent/transactions',
+          redirect: (context, state) =>
+              '/agent/activity?tab=${state.uri.queryParameters['tab'] == 'history' ? 'cashServices' : 'cashServices'}',
+        ),
+        GoRoute(
+          path: '/agent/loans',
+          redirect: (context, state) => '/agent/activity?tab=getFunds',
         ),
 
         // ── Agent shell (3 tabs) ──
@@ -244,11 +296,12 @@ class AppRouter {
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/agent/transactions',
-                  builder: (context, state) => TransactionListScreen(
+                  path: '/agent/activity',
+                  builder: (context, state) => ActivityScreen(
                     isAgent: true,
-                    initialTabIndex:
-                        state.uri.queryParameters['tab'] == 'history' ? 1 : 0,
+                    initialTabIndex: _activityTabIndex(
+                      state.uri.queryParameters['tab'],
+                    ),
                   ),
                 ),
               ],

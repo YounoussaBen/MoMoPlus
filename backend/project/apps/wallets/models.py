@@ -21,6 +21,8 @@ class Wallet(BaseModel):
     network = models.CharField(max_length=15, choices=Network.choices)
     is_verified = models.BooleanField(default=False)
     is_default = models.BooleanField(default=False)
+    paystack_subaccount_code = models.CharField(max_length=50, blank=True, default="")
+    paystack_recipient_code = models.CharField(max_length=50, blank=True, default="")
 
     class Meta(BaseModel.Meta):
         constraints = [

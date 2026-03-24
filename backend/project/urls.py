@@ -19,10 +19,13 @@ from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
+from project.apps.loans.webhook import paystack_webhook
+
 urlpatterns = [
     path("", include("project.apps.core.urls")),
     path("admin/", admin.site.urls),
     path("api/", include("project.apps.api.urls")),
+    path("api/paystack/webhook/", paystack_webhook, name="paystack-webhook"),
 ]
 
 if settings.DEBUG:

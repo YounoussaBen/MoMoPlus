@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
+import '../../loans/domain/loan.dart';
 import '../../transactions/domain/physical_transaction.dart';
 import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
@@ -15,6 +16,7 @@ class AgentDetailSheet extends StatelessWidget {
   final VoidCallback onStreetView;
   final VoidCallback onOpenDirections;
   final PhysicalTransaction? activeTransaction;
+  final Loan? activeLoan;
 
   const AgentDetailSheet({
     super.key,
@@ -25,6 +27,7 @@ class AgentDetailSheet extends StatelessWidget {
     required this.onStreetView,
     required this.onOpenDirections,
     this.activeTransaction,
+    this.activeLoan,
   });
 
   @override
@@ -235,73 +238,59 @@ class AgentDetailSheet extends StatelessWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            if (activeLoan != null)
+              _ActiveItemCard(
+                label: 'Get Funds',
+                statusText:
+                    '${activeLoan!.statusLabel} · GHS ${activeLoan!.amount.toStringAsFixed(2)}',
+                color: AppColors.primary,
+                icon: Icons.account_balance_wallet_rounded,
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/loans/${activeLoan!.id}');
+                },
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push(
+                      '/loans/request',
+                      extra: {
+                        'agentId': agent.id,
+                        'agentName': agent.fullName,
+                        'agentSelfieUrl': agent.selfieUrl,
+                      },
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 18,
+                  ),
+                  label: const Text('Get Funds'),
+                ),
+              ),
             if (agent.isCertified) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               if (activeTransaction != null)
-                GestureDetector(
+                _ActiveItemCard(
+                  label: 'Cash Service',
+                  statusText:
+                      '${activeTransaction!.statusLabel} ${activeTransaction!.typeLabel} · GHS ${activeTransaction!.amount.toStringAsFixed(2)}',
+                  color: Colors.orange,
+                  icon: Icons.swap_horiz_rounded,
                   onTap: () {
                     Navigator.pop(context);
                     context.push('/transactions/${activeTransaction!.id}');
                   },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.hourglass_top_rounded,
-                            size: 18,
-                            color: Colors.orange,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${activeTransaction!.statusLabel} ${activeTransaction!.typeLabel}',
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'GHS ${activeTransaction!.amount.toStringAsFixed(2)} · Tap to view',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(
-                          Icons.chevron_right,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
-                      ],
-                    ),
-                  ),
                 )
               else
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: OutlinedButton.icon(
                     onPressed: () {
                       Navigator.pop(context);
                       context.push(
@@ -313,7 +302,8 @@ class AgentDetailSheet extends StatelessWidget {
                         },
                       );
                     },
-                    child: const Text('Request Physical Transaction'),
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                    label: const Text('Cash Services'),
                   ),
                 ),
             ],
@@ -360,6 +350,79 @@ class _RouteChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActiveItemCard extends StatelessWidget {
+  final String label;
+  final String statusText;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ActiveItemCard({
+    required this.label,
+    required this.statusText,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$statusText · Tap to view',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }

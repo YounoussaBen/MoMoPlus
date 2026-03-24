@@ -83,7 +83,7 @@ def agent_detail(request: Request, pk: str) -> Response:
     except AgentProfile.DoesNotExist:
         return Response({"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    profile.distance_km = 0.0  # type: ignore[attr-defined]
+    profile.distance_km = 0.0
     return Response(NearbyAgentSerializer(profile, context={"request": request}).data)
 
 

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import logging
 import random
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
 from project.apps.accounts.models import User
+from project.integrations import paystack
 
 from .models import Wallet, WalletOtp
+
+logger = logging.getLogger(__name__)
 
 OTP_EXPIRY_MINUTES = 10
 
@@ -81,7 +86,18 @@ def verify_otp(*, wallet: Wallet, code: str) -> Wallet:
     if not Wallet.objects.filter(user=wallet.user, is_verified=True).exclude(pk=wallet.pk).exists():
         wallet.is_default = True
 
-    wallet.save(update_fields=["is_verified", "is_default", "updated_at"])
+    # Create Paystack subaccount and transfer recipient for this wallet
+    _create_paystack_accounts(wallet)
+
+    wallet.save(
+        update_fields=[
+            "is_verified",
+            "is_default",
+            "paystack_subaccount_code",
+            "paystack_recipient_code",
+            "updated_at",
+        ]
+    )
     return wallet
 
 
@@ -107,6 +123,48 @@ def set_default_wallet(*, user: User, wallet: Wallet) -> Wallet:
     wallet.is_default = True
     wallet.save(update_fields=["is_default", "updated_at"])
     return wallet
+
+
+def _create_paystack_accounts(wallet: Wallet) -> None:
+    """Create a Paystack subaccount and transfer recipient for a verified wallet.
+
+    Non-fatal: logs errors but does not block wallet verification.
+    """
+    if not getattr(settings, "PAYSTACK_SECRET_KEY", ""):
+        logger.info("Paystack secret key not configured; skipping subaccount creation for wallet %s", wallet.pk)
+        return
+
+    user = wallet.user
+    bank_code = paystack.NETWORK_TO_BANK_CODE.get(wallet.network, "MTN")
+    full_name = f"{user.first_name} {user.last_name}".strip() or user.email
+
+    # 1. Create subaccount (so money can be routed TO this wallet)
+    try:
+        sub_data = paystack.create_subaccount(
+            business_name=f"{full_name} – {wallet.phone_number}",
+            bank_code=bank_code,
+            account_number=wallet.phone_number,
+            percentage_charge=100.0,
+            primary_contact_email=user.email,
+            primary_contact_name=full_name,
+            primary_contact_phone=wallet.phone_number,
+        )
+        wallet.paystack_subaccount_code = sub_data.get("subaccount_code", "")
+        logger.info("Paystack subaccount created: %s for wallet %s", wallet.paystack_subaccount_code, wallet.pk)
+    except paystack.PaystackError:
+        logger.exception("Failed to create Paystack subaccount for wallet %s", wallet.pk)
+
+    # 2. Create transfer recipient (so money can be SENT to this wallet)
+    try:
+        recip_data = paystack.create_transfer_recipient(
+            name=full_name,
+            account_number=wallet.phone_number,
+            bank_code=bank_code,
+        )
+        wallet.paystack_recipient_code = recip_data.get("recipient_code", "")
+        logger.info("Paystack recipient created: %s for wallet %s", wallet.paystack_recipient_code, wallet.pk)
+    except paystack.PaystackError:
+        logger.exception("Failed to create Paystack transfer recipient for wallet %s", wallet.pk)
 
 
 @transaction.atomic

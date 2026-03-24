@@ -11,6 +11,10 @@ import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
+import '../../loans/domain/loan.dart';
+import '../../loans/presentation/loan_view_model.dart';
+import '../../transactions/domain/physical_transaction.dart';
+import '../../transactions/presentation/transaction_view_model.dart';
 import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 import 'agent_detail_sheet.dart';
@@ -171,6 +175,13 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<DiscoverViewModel>();
+    final activeTransactions = context
+        .select<TransactionViewModel, List<PhysicalTransaction>>(
+          (txnVm) => txnVm.activeTransactions,
+        );
+    final ongoingLoans = context.select<LoanViewModel, List<Loan>>(
+      (loanVm) => loanVm.ongoingLoans,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -196,7 +207,7 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
             )
           : !vm.hasLocation
           ? _buildNoLocation(vm)
-          : _buildContent(vm),
+          : _buildContent(vm, activeTransactions, ongoingLoans),
     );
   }
 
@@ -241,7 +252,11 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     );
   }
 
-  Widget _buildContent(DiscoverViewModel vm) {
+  Widget _buildContent(
+    DiscoverViewModel vm,
+    List<PhysicalTransaction> activeTransactions,
+    List<Loan> ongoingLoans,
+  ) {
     final selectedAgent = _selectedAgent(vm);
     final safeTop = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).size.height * 0.24;
@@ -393,7 +408,11 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
                       isRouteLoading: _isRouteLoading,
                       routeErrorMessage: _routeErrorMessage,
                       onClear: () => _resetFocus(vm),
-                      onViewDetails: () => _showAgentDetail(selectedAgent),
+                      onViewDetails: () => _showAgentDetail(
+                        selectedAgent,
+                        activeTransactions,
+                        ongoingLoans,
+                      ),
                       onStreetView: () => _openStreetView(selectedAgent),
                       onOpenDirections: () => _openDirections(selectedAgent),
                     ),
@@ -468,7 +487,12 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
                       _AgentCard(
                         agent: vm.agents[i],
                         selected: vm.agents[i].id == _selectedAgentId,
-                        onTap: () => _handleAgentTap(vm, vm.agents[i]),
+                        onTap: () => _handleAgentTap(
+                          vm,
+                          vm.agents[i],
+                          activeTransactions,
+                          ongoingLoans,
+                        ),
                       ),
                       if (i < vm.agents.length - 1) const SizedBox(height: 8),
                     ],
@@ -726,9 +750,14 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     await _fitMapToVisiblePoints(vm);
   }
 
-  void _handleAgentTap(DiscoverViewModel vm, NearbyAgent agent) {
+  void _handleAgentTap(
+    DiscoverViewModel vm,
+    NearbyAgent agent,
+    List<PhysicalTransaction> activeTransactions,
+    List<Loan> ongoingLoans,
+  ) {
     if (_selectedAgentId == agent.id) {
-      _showAgentDetail(agent);
+      _showAgentDetail(agent, activeTransactions, ongoingLoans);
       return;
     }
     unawaited(_focusOnAgent(vm, agent));
@@ -773,7 +802,12 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
           position: LatLng(agent.latitude, agent.longitude),
           zIndexInt: isSelected ? 3 : 1,
           icon: icon,
-          onTap: () => _handleAgentTap(vm, agent),
+          onTap: () => _handleAgentTap(
+            vm,
+            agent,
+            context.read<TransactionViewModel>().activeTransactions,
+            context.read<LoanViewModel>().ongoingLoans,
+          ),
         ),
       );
     }
@@ -857,8 +891,27 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showAgentDetail(NearbyAgent agent) {
-    final vm = context.read<DiscoverViewModel>();
+  void _showAgentDetail(
+    NearbyAgent agent,
+    List<PhysicalTransaction> activeTransactions,
+    List<Loan> ongoingLoans,
+  ) {
+    Loan? activeLoan;
+    for (final loan in ongoingLoans) {
+      if (loan.agentId == agent.id) {
+        activeLoan = loan;
+        break;
+      }
+    }
+
+    PhysicalTransaction? activeTransaction;
+    for (final txn in activeTransactions) {
+      if (txn.agentId == agent.id) {
+        activeTransaction = txn;
+        break;
+      }
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -873,7 +926,8 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
             : null,
         onStreetView: () => _openStreetView(agent),
         onOpenDirections: () => _openDirections(agent),
-        activeTransaction: vm.activeTransactionWith(agent.id),
+        activeTransaction: activeTransaction,
+        activeLoan: activeLoan,
       ),
     );
   }

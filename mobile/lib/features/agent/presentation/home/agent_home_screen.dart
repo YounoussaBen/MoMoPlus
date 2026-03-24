@@ -9,10 +9,12 @@ import '../../../../core/ui/widgets/network_logo.dart';
 import '../../../../core/ui/widgets/top_in_app_notification.dart';
 import '../../../agent_profile/presentation/agent_profile_view_model.dart';
 import '../../../auth/presentation/auth_view_model.dart';
+import '../../../loans/domain/loan.dart';
+import '../../../loans/presentation/loan_view_model.dart';
 import '../../../transactions/domain/physical_transaction.dart';
 import '../../../transactions/presentation/transaction_view_model.dart';
 
-const int _homePreviewLimit = 5;
+const int _homePreviewLimit = 3;
 
 class AgentHomeScreen extends StatefulWidget {
   const AgentHomeScreen({super.key});
@@ -30,6 +32,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<TransactionViewModel>().loadTransactions();
+      context.read<LoanViewModel>().loadLoans();
     });
   }
 
@@ -43,6 +46,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       context.read<TransactionViewModel>().loadTransactions();
+      context.read<LoanViewModel>().loadLoans();
     }
   }
 
@@ -50,6 +54,7 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
   Widget build(BuildContext context) {
     final appUser = context.watch<AuthViewModel>().appUser;
     final txnVm = context.watch<TransactionViewModel>();
+    final loanVm = context.watch<LoanViewModel>();
 
     if (appUser == null) {
       return const Scaffold(
@@ -66,6 +71,10 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
     final displayName = appUser.firstName.isNotEmpty
         ? appUser.firstName
         : appUser.email.split('@').first;
+
+    final activeTransactions = txnVm.transactions
+        .where((t) => t.isActive)
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -90,59 +99,45 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: Builder(
-        builder: (context) {
-          final activeTransactions = txnVm.transactions
-              .where((t) => t.isActive)
-              .toList();
-          final historyTransactions = txnVm.transactions
-              .where((t) => !t.isActive)
-              .toList();
-
-          return ListView(
-            padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100),
+      body: ListView(
+        padding: const EdgeInsets.only(left: 20, right: 20, bottom: 100),
+        children: [
+          const SizedBox(height: 24),
+          Row(
             children: [
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Hello, $displayName',
-                          style: Theme.of(context).textTheme.displayLarge,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Welcome back to MoMo Plus',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hello, $displayName',
+                      style: Theme.of(context).textTheme.displayLarge,
                     ),
-                  ),
-                  _AvailabilityToggle(),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      'Welcome back to MoMo Plus',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 28),
-              _QuickActions(),
-              const SizedBox(height: 28),
-              _PendingRequests(
-                transactions: activeTransactions
-                    .take(_homePreviewLimit)
-                    .toList(),
-                totalCount: activeTransactions.length,
-              ),
-              const SizedBox(height: 28),
-              _RecentTransactions(
-                transactions: historyTransactions
-                    .take(_homePreviewLimit)
-                    .toList(),
-              ),
-              const SizedBox(height: 24),
+              _AvailabilityToggle(),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 28),
+          _SpotlightCard(
+            ongoingLoans: loanVm.ongoingLoans,
+            activeTransactions: activeTransactions,
+            isAgent: true,
+          ),
+          const SizedBox(height: 28),
+          _QuickActions(),
+          const SizedBox(height: 28),
+          _GetFundsSection(loans: loanVm.ongoingLoans, isAgent: true),
+          const SizedBox(height: 28),
+          _CashServicesSection(transactions: activeTransactions, isAgent: true),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
@@ -153,6 +148,8 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
     ).push(MaterialPageRoute(builder: (_) => const _NotificationsPage()));
   }
 }
+
+// ── Availability Toggle ─────────────────────────────────────────────────────
 
 class _AvailabilityToggle extends StatelessWidget {
   const _AvailabilityToggle();
@@ -341,6 +338,426 @@ class _AvailabilityToggleChipState extends State<_AvailabilityToggleChip> {
   }
 }
 
+// ── Spotlight Card ──────────────────────────────────────────────────────────
+
+class _SpotlightCard extends StatefulWidget {
+  final List<Loan> ongoingLoans;
+  final List<PhysicalTransaction> activeTransactions;
+  final bool isAgent;
+
+  const _SpotlightCard({
+    required this.ongoingLoans,
+    required this.activeTransactions,
+    required this.isAgent,
+  });
+
+  @override
+  State<_SpotlightCard> createState() => _SpotlightCardState();
+}
+
+class _SpotlightCardState extends State<_SpotlightCard> {
+  late final _timer = Stream.periodic(const Duration(seconds: 1));
+  late final _sub = _timer.listen((_) {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Priority 1: Pending loan needing agent action
+    final pendingLoans = widget.ongoingLoans
+        .where((l) => l.isPending || l.isApproved)
+        .toList();
+    if (pendingLoans.isNotEmpty) {
+      final loan = pendingLoans.first;
+      return _AgentActionSpotlight(loan: loan);
+    }
+
+    // Priority 2: Active loan with timer
+    final activeLoans = widget.ongoingLoans
+        .where((l) => l.isActive || l.isRepaying || l.isDisbursing)
+        .toList();
+    if (activeLoans.isNotEmpty) {
+      final loan = activeLoans.first;
+      return _ActiveFundsSpotlight(loan: loan);
+    }
+
+    // Priority 3: Active cash service
+    if (widget.activeTransactions.isNotEmpty) {
+      final txn = widget.activeTransactions.first;
+      return _ActiveCashServiceSpotlight(txn: txn);
+    }
+
+    return _EmptySpotlight();
+  }
+}
+
+class _AgentActionSpotlight extends StatelessWidget {
+  final Loan loan;
+  const _AgentActionSpotlight({required this.loan});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusText = switch (loan.status) {
+      'pending' => 'New funding request',
+      'approved' => 'Ready to send funds',
+      _ => loan.statusLabel,
+    };
+
+    return GestureDetector(
+      onTap: () => context.push('/loans/${loan.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFF57C00), Color(0xFFEF6C00)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Action Needed',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'GHS ${loan.amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              loan.borrowerName,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    loan.isPending ? 'Review' : 'Send Funds',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFF57C00),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveFundsSpotlight extends StatelessWidget {
+  final Loan loan;
+  const _ActiveFundsSpotlight({required this.loan});
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = loan.timeRemaining;
+    final isOverdue = loan.isOverdue;
+
+    String timeText;
+    if (remaining == null || isOverdue) {
+      timeText = 'Overdue';
+    } else {
+      final h = remaining.inHours;
+      final m = remaining.inMinutes % 60;
+      final s = remaining.inSeconds % 60;
+      timeText =
+          '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    }
+
+    return GestureDetector(
+      onTap: () => context.push('/loans/${loan.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isOverdue
+                ? [AppColors.error, const Color(0xFFD32F2F)]
+                : [AppColors.primary, const Color(0xFF4AA025)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Funds Sent',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'GHS ${loan.outstandingBalance.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${loan.borrowerName} · outstanding',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(
+                  isOverdue
+                      ? Icons.warning_amber_rounded
+                      : Icons.timer_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isOverdue ? 'Overdue' : timeText,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveCashServiceSpotlight extends StatelessWidget {
+  final PhysicalTransaction txn;
+  const _ActiveCashServiceSpotlight({required this.txn});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/transactions/${txn.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Cash Service',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${txn.typeLabel} · GHS ${txn.amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                NetworkLogo(network: txn.network, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  '${txn.networkLabel} · ${txn.userName}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    txn.statusLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptySpotlight extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppColors.primary, Color(0xFF4AA025)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ready for action',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Incoming requests will appear here',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Quick Actions ───────────────────────────────────────────────────────────
+
 class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -422,13 +839,169 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-class _PendingRequests extends StatelessWidget {
-  final List<PhysicalTransaction> transactions;
-  final int totalCount;
+// ── Get Funds Section ───────────────────────────────────────────────────────
 
-  const _PendingRequests({
+class _GetFundsSection extends StatelessWidget {
+  final List<Loan> loans;
+  final bool isAgent;
+
+  const _GetFundsSection({required this.loans, required this.isAgent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Get Funds${loans.isNotEmpty ? ' (${loans.length})' : ''}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            GestureDetector(
+              onTap: () => context.go('/agent/activity?tab=getFunds'),
+              child: const Text(
+                'View All',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (loans.isEmpty)
+          _EmptySection(
+            icon: Icons.account_balance_wallet_outlined,
+            message: 'No activity yet',
+          )
+        else
+          ...loans
+              .take(_homePreviewLimit)
+              .map(
+                (loan) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _CompactLoanCard(loan: loan, isAgent: isAgent),
+                ),
+              ),
+      ],
+    );
+  }
+}
+
+class _CompactLoanCard extends StatelessWidget {
+  final Loan loan;
+  final bool isAgent;
+  const _CompactLoanCard({required this.loan, required this.isAgent});
+
+  @override
+  Widget build(BuildContext context) {
+    final (statusColor, statusIcon) = switch (loan.status) {
+      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
+      'approved' => (AppColors.primary, Icons.check_circle_outline),
+      'disbursing' => (Colors.blue, Icons.sync_rounded),
+      'active' => (AppColors.primary, Icons.account_balance_wallet_rounded),
+      'repaying' => (Colors.blue, Icons.sync_rounded),
+      _ => (AppColors.textSecondary, Icons.info_outline),
+    };
+
+    final displayStatus = loan.status == 'disbursing'
+        ? 'Sending Funds'
+        : loan.statusLabel;
+
+    return GestureDetector(
+      onTap: () => context.push('/loans/${loan.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(statusIcon, size: 22, color: statusColor),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isAgent ? loan.borrowerName : loan.agentName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '$displayStatus · ${loan.networkLabel}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'GHS ${loan.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (loan.isActive && loan.isOverdue)
+                  const Text(
+                    'OVERDUE',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Cash Services Section ───────────────────────────────────────────────────
+
+class _CashServicesSection extends StatelessWidget {
+  final List<PhysicalTransaction> transactions;
+  final bool isAgent;
+
+  const _CashServicesSection({
     required this.transactions,
-    required this.totalCount,
+    required this.isAgent,
   });
 
   @override
@@ -439,7 +1012,7 @@ class _PendingRequests extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Pending Requests${totalCount > 0 ? ' ($totalCount)' : ''}',
+              'Cash Services${transactions.isNotEmpty ? ' (${transactions.length})' : ''}',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -447,7 +1020,7 @@ class _PendingRequests extends StatelessWidget {
               ),
             ),
             GestureDetector(
-              onTap: () => context.go('/agent/transactions?tab=active'),
+              onTap: () => context.go('/agent/activity?tab=cashServices'),
               child: const Text(
                 'View All',
                 style: TextStyle(
@@ -461,122 +1034,28 @@ class _PendingRequests extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (transactions.isEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.swap_horiz_outlined,
-                    size: 40,
-                    color: AppColors.textSecondary.withValues(alpha: 0.4),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'No pending requests',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _EmptySection(
+            icon: Icons.swap_horiz_outlined,
+            message: 'No active cash services',
           )
         else
-          ...transactions.map(
-            (txn) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _TransactionCard(txn: txn),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _RecentTransactions extends StatelessWidget {
-  final List<PhysicalTransaction> transactions;
-
-  const _RecentTransactions({required this.transactions});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Recent Transactions',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => context.go('/agent/transactions?tab=history'),
-              child: const Text(
-                'View All',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+          ...transactions
+              .take(_homePreviewLimit)
+              .map(
+                (txn) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _CompactTransactionCard(txn: txn, isAgent: isAgent),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (transactions.isEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 40,
-                    color: AppColors.textSecondary.withValues(alpha: 0.4),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'No transactions yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          ...transactions.map(
-            (txn) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _TransactionCard(txn: txn),
-            ),
-          ),
       ],
     );
   }
 }
 
-class _TransactionCard extends StatelessWidget {
+class _CompactTransactionCard extends StatelessWidget {
   final PhysicalTransaction txn;
-  const _TransactionCard({required this.txn});
+  final bool isAgent;
+  const _CompactTransactionCard({required this.txn, required this.isAgent});
 
   @override
   Widget build(BuildContext context) {
@@ -614,7 +1093,7 @@ class _TransactionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${txn.typeLabel} · ${txn.userName}',
+                    '${txn.typeLabel} · ${isAgent ? txn.userName : txn.agentName}',
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
@@ -666,6 +1145,45 @@ class _TransactionCard extends StatelessWidget {
   }
 }
 
+// ── Shared ──────────────────────────────────────────────────────────────────
+
+class _EmptySection extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  const _EmptySection({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 40,
+              color: AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _NotificationsPage extends StatelessWidget {
   const _NotificationsPage();
 
@@ -675,7 +1193,7 @@ class _NotificationsPage extends StatelessWidget {
       _NotificationItem(
         icon: Icons.campaign_rounded,
         title: 'Welcome Agent!',
-        subtitle: 'You are now ready to receive loan requests from users.',
+        subtitle: 'You are now ready to receive requests from users.',
         time: '2h ago',
       ),
       _NotificationItem(

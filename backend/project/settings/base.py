@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "project.apps.wallets",
     "project.apps.agents",
     "project.apps.transactions",
+    "project.apps.loans",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -261,6 +262,13 @@ SUPABASE_JWT_ISSUER = config(
     default=f"{SUPABASE_URL.rstrip('/')}/auth/v1" if SUPABASE_URL else "",
 )
 GOOGLE_MAPS_SERVER_KEY = config("GOOGLE_MAPS_SERVER_KEY", default="")
+
+# ==============================================================================
+# PAYSTACK SETTINGS
+# ==============================================================================
+
+PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
+PAYSTACK_PUBLIC_KEY = config("PAYSTACK_PUBLIC_KEY", default="")
 GOOGLE_MAPS_HTTP_TIMEOUT = config("GOOGLE_MAPS_HTTP_TIMEOUT", default=8, cast=int)
 SUPABASE_JWKS_URL = config(
     "SUPABASE_JWKS_URL",

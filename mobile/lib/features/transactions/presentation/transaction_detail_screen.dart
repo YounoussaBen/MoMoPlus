@@ -53,7 +53,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.surface,
-          appBar: AppBar(title: const Text('Transaction')),
+          appBar: AppBar(title: const Text('Cash Service')),
           body: _vm.isLoading && txn == null
               ? const Center(
                   child: CircularProgressIndicator(
@@ -776,7 +776,7 @@ class _ActionButtons extends StatelessWidget {
       subtitle: 'This action cannot be undone.',
       icon: Icons.cancel_outlined,
       iconColor: AppColors.error,
-      confirmLabel: 'Cancel',
+      confirmLabel: 'Continue',
       confirmColor: AppColors.error,
       reasons: const [
         'I changed my mind',
@@ -879,258 +879,279 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    final bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    final mediaQuery = MediaQuery.of(context);
+    final bottomInset = mediaQuery.viewInsets.bottom;
+    final bottomPadding = mediaQuery.viewPadding.bottom;
+    final maxHeight =
+        mediaQuery.size.height - mediaQuery.padding.top - bottomInset - 12;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        24,
-        24,
-        24 + (bottomInset > 0 ? bottomInset : bottomPadding),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.textSecondary.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: widget.iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(widget.icon, size: 20, color: widget.iconColor),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        letterSpacing: -0.3,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomPadding),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.textSecondary.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.subtitle,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Select a reason',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...List.generate(widget.reasons.length, (i) {
-            final selected = !_isOther && _selectedIndex == i;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: GestureDetector(
-                onTap: () => setState(() {
-                  _selectedIndex = i;
-                  _isOther = false;
-                }),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
                   ),
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? widget.iconColor.withValues(alpha: 0.06)
-                        : AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: selected
-                          ? widget.iconColor.withValues(alpha: 0.3)
-                          : Colors.transparent,
-                    ),
-                  ),
-                  child: Row(
+                  const SizedBox(height: 20),
+                  Row(
                     children: [
                       Container(
-                        width: 20,
-                        height: 20,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: selected ? widget.iconColor : Colors.white,
-                          border: Border.all(
-                            color: selected
-                                ? widget.iconColor
-                                : AppColors.textSecondary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                            width: selected ? 0 : 1.5,
-                          ),
+                          color: widget.iconColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: selected
-                            ? const Icon(
-                                Icons.check,
-                                size: 14,
-                                color: Colors.white,
-                              )
-                            : null,
+                        child: Icon(
+                          widget.icon,
+                          size: 20,
+                          color: widget.iconColor,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          widget.reasons[i],
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: selected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: AppColors.textPrimary,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              widget.subtitle,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            );
-          }),
-          // Other option
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: GestureDetector(
-              onTap: () => setState(() {
-                _isOther = true;
-                _selectedIndex = null;
-              }),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: _isOther
-                      ? widget.iconColor.withValues(alpha: 0.06)
-                      : AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _isOther
-                        ? widget.iconColor.withValues(alpha: 0.3)
-                        : Colors.transparent,
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Select a reason',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _isOther ? widget.iconColor : Colors.white,
-                        border: Border.all(
-                          color: _isOther
-                              ? widget.iconColor
-                              : AppColors.textSecondary.withValues(alpha: 0.3),
-                          width: _isOther ? 0 : 1.5,
+                  const SizedBox(height: 12),
+                  ...List.generate(widget.reasons.length, (i) {
+                    final selected = !_isOther && _selectedIndex == i;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _selectedIndex = i;
+                          _isOther = false;
+                        }),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? widget.iconColor.withValues(alpha: 0.06)
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: selected
+                                  ? widget.iconColor.withValues(alpha: 0.3)
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: selected
+                                      ? widget.iconColor
+                                      : Colors.white,
+                                  border: Border.all(
+                                    color: selected
+                                        ? widget.iconColor
+                                        : AppColors.textSecondary.withValues(
+                                            alpha: 0.3,
+                                          ),
+                                    width: selected ? 0 : 1.5,
+                                  ),
+                                ),
+                                child: selected
+                                    ? const Icon(
+                                        Icons.check,
+                                        size: 14,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  widget.reasons[i],
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      child: _isOther
-                          ? const Icon(
-                              Icons.check,
-                              size: 14,
-                              color: Colors.white,
-                            )
-                          : null,
+                    );
+                  }),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _isOther = true;
+                        _selectedIndex = null;
+                      }),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _isOther
+                              ? widget.iconColor.withValues(alpha: 0.06)
+                              : AppColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _isOther
+                                ? widget.iconColor.withValues(alpha: 0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 20,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _isOther
+                                    ? widget.iconColor
+                                    : Colors.white,
+                                border: Border.all(
+                                  color: _isOther
+                                      ? widget.iconColor
+                                      : AppColors.textSecondary.withValues(
+                                          alpha: 0.3,
+                                        ),
+                                  width: _isOther ? 0 : 1.5,
+                                ),
+                              ),
+                              child: _isOther
+                                  ? const Icon(
+                                      Icons.check,
+                                      size: 14,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Other',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: _isOther
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Other',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: _isOther
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                        color: AppColors.textPrimary,
+                  ),
+                  if (_isOther) ...[
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _otherCtrl,
+                      autofocus: true,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your reason...',
                       ),
                     ),
                   ],
-                ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Back'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _selectedReason != null
+                              ? () => widget.onConfirm(_selectedReason!)
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.confirmColor,
+                          ),
+                          child: Text(widget.confirmLabel),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-          if (_isOther) ...[
-            const SizedBox(height: 4),
-            TextField(
-              controller: _otherCtrl,
-              autofocus: true,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                hintText: 'Enter your reason...',
-              ),
-            ),
-          ],
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: const Text('Back'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _selectedReason != null
-                      ? () => widget.onConfirm(_selectedReason!)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.confirmColor,
-                  ),
-                  child: Text(widget.confirmLabel),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -4,6 +4,11 @@ from .models import Wallet
 
 
 class WalletSerializer(serializers.ModelSerializer):
+    has_paystack = serializers.SerializerMethodField()
+
+    def get_has_paystack(self, obj: Wallet) -> bool:
+        return bool(obj.paystack_subaccount_code)
+
     class Meta:
         model = Wallet
         fields = [
@@ -12,6 +17,7 @@ class WalletSerializer(serializers.ModelSerializer):
             "network",
             "is_verified",
             "is_default",
+            "has_paystack",
             "created_at",
         ]
         read_only_fields = fields
