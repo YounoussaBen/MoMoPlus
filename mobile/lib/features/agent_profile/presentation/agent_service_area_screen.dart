@@ -32,16 +32,33 @@ class _ServiceAreaBody extends StatefulWidget {
   State<_ServiceAreaBody> createState() => _ServiceAreaBodyState();
 }
 
-class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
+class _ServiceAreaBodyState extends State<_ServiceAreaBody>
+    with SingleTickerProviderStateMixin {
   final Completer<GoogleMapController> _mapCtrl = Completer();
-  final _radiusCtrl = TextEditingController();
+  static const List<double> _radiusOptions = [5, 10, 15, 25, 50];
   LatLng? _selectedLocation;
+  double? _selectedRadiusKm;
   bool? _availabilityValue;
   bool _isSyncingAvailability = false;
   bool _isProcessingAvailability = false;
   bool _isLocating = false;
   bool _didInitRadius = false;
   MapType _mapType = MapType.normal;
+  late final AnimationController _skeletonController;
+  late final Animation<double> _skeletonPulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _skeletonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _skeletonPulse = CurvedAnimation(
+      parent: _skeletonController,
+      curve: Curves.easeInOut,
+    );
+  }
 
   LatLng get _initialCenter {
     final profile = context.read<AgentProfileViewModel>().profile;
@@ -53,7 +70,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
 
   @override
   void dispose() {
-    _radiusCtrl.dispose();
+    _skeletonController.dispose();
     super.dispose();
   }
 
@@ -62,23 +79,26 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
     if (_didInitRadius || profile == null) return;
 
     _didInitRadius = true;
-    _radiusCtrl.text = _formatRadius(profile.serviceRadiusKm);
+    _selectedRadiusKm = _nearestRadiusOption(profile.serviceRadiusKm);
     _availabilityValue = profile.isAvailable;
     if (profile.hasLocation) {
       _selectedLocation = LatLng(profile.latitude!, profile.longitude!);
     }
   }
 
-  String _formatRadius(double value) {
-    if (value == value.truncateToDouble()) {
-      return value.toStringAsFixed(0);
+  double _nearestRadiusOption(double value) {
+    var nearest = _radiusOptions.first;
+    for (final option in _radiusOptions) {
+      if ((option - value).abs() < (nearest - value).abs()) {
+        nearest = option;
+      }
     }
-    return value.toStringAsFixed(1);
+    return nearest;
   }
 
   double _serviceRadiusKm(AgentProfileViewModel vm) {
-    final parsed = double.tryParse(_radiusCtrl.text.trim());
-    if (parsed != null && parsed > 0) return parsed;
+    final selected = _selectedRadiusKm;
+    if (selected != null && selected > 0) return selected;
     return vm.profile?.serviceRadiusKm ?? 5;
   }
 
@@ -180,16 +200,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
 
   Future<void> _save() async {
     final vm = context.read<AgentProfileViewModel>();
-    final radius = double.tryParse(_radiusCtrl.text.trim());
-    if (radius == null || radius <= 0) {
-      showTopInAppNotification(
-        context,
-        title: 'Invalid Radius',
-        message: 'Enter a valid service radius in kilometers.',
-        type: AppNotificationType.error,
-      );
-      return;
-    }
+    final radius = _serviceRadiusKm(vm);
 
     final fields = <String, dynamic>{
       'service_radius_km': radius.toStringAsFixed(2),
@@ -201,7 +212,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
 
     final ok = await vm.updateProfile(fields);
     if (ok && mounted) {
-      _radiusCtrl.text = _formatRadius(vm.profile?.serviceRadiusKm ?? radius);
+      _selectedRadiusKm = _nearestRadiusOption(
+        vm.profile?.serviceRadiusKm ?? radius,
+      );
       showTopInAppNotification(
         context,
         title: 'Saved',
@@ -216,6 +229,31 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
         type: AppNotificationType.error,
       );
     }
+  }
+
+  void _showRadiusPicker() {
+    final vm = context.read<AgentProfileViewModel>();
+    final selectedRadius = _serviceRadiusKm(vm);
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('Service Radius'),
+        actions: _radiusOptions.map((radius) {
+          return CupertinoActionSheetAction(
+            isDefaultAction: radius == selectedRadius,
+            onPressed: () {
+              Navigator.pop(ctx);
+              setState(() => _selectedRadiusKm = radius);
+            },
+            child: Text('${radius.toStringAsFixed(0)} km'),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
   }
 
   Future<void> _handleAvailabilityChanged(bool nextValue) async {
@@ -300,6 +338,162 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
     }
   }
 
+  Widget _buildLoadingState() {
+    final mediaQuery = MediaQuery.of(context);
+    final size = mediaQuery.size;
+    final safeTop = mediaQuery.padding.top;
+    final bottomPadding = mediaQuery.padding.bottom;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFEAF4E2),
+                  Color(0xFFF9FBF6),
+                  Color(0xFFDDEAD2),
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: safeTop + 90,
+                  left: -36,
+                  child: _ServiceBackdropOrb(
+                    size: 170,
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+                Positioned(
+                  top: safeTop + 240,
+                  right: -28,
+                  child: _ServiceBackdropOrb(
+                    size: 130,
+                    color: const Color(0xFFFFC95B).withValues(alpha: 0.14),
+                  ),
+                ),
+                Positioned(
+                  top: safeTop + 220,
+                  left: size.width * 0.24,
+                  child: _ServiceGhostPin(animation: _skeletonPulse),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          left: 16,
+          right: 16,
+          child: _ServiceAreaLoadingCard(animation: _skeletonPulse, height: 76),
+        ),
+        Positioned(
+          top: 104,
+          left: 16,
+          right: 88,
+          child: _ServiceAreaLoadingCard(animation: _skeletonPulse, height: 72),
+        ),
+        Positioned(
+          right: 16,
+          bottom: 190,
+          child: Column(
+            children: [
+              _ServiceLoadingActionButton(animation: _skeletonPulse),
+              const SizedBox(height: 10),
+              _ServiceLoadingActionButton(animation: _skeletonPulse),
+              const SizedBox(height: 10),
+              _ServiceLoadingActionButton(animation: _skeletonPulse),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, bottomPadding + 40),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ServiceSkeletonStat(animation: _skeletonPulse),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ServiceSkeletonStat(animation: _skeletonPulse),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _ServiceSkeletonStat(animation: _skeletonPulse),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _ServiceSkeletonBlock(
+                  animation: _skeletonPulse,
+                  height: 12,
+                  width: double.infinity,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                const SizedBox(height: 8),
+                _ServiceSkeletonBlock(
+                  animation: _skeletonPulse,
+                  height: 12,
+                  width: size.width * 0.62,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: _ServiceSkeletonBlock(
+                    animation: _skeletonPulse,
+                    height: 12,
+                    width: 128,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _ServiceSkeletonBlock(
+                  animation: _skeletonPulse,
+                  height: 52,
+                  width: double.infinity,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                const SizedBox(height: 16),
+                _ServiceSkeletonBlock(
+                  animation: _skeletonPulse,
+                  height: 52,
+                  width: double.infinity,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<AgentProfileViewModel>();
@@ -319,12 +513,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
         ),
       ),
       body: vm.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 2,
-              ),
-            )
+          ? _buildLoadingState()
           : Column(
               children: [
                 AnimatedContainer(
@@ -575,17 +764,45 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      TextField(
-                        controller: _radiusCtrl,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        onChanged: (_) => setState(() {}),
-                        decoration: const InputDecoration(
-                          hintText: '5',
-                          prefixIcon: Icon(Icons.radar_outlined),
+                      GestureDetector(
+                        onTap: _showRadiusPicker,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.divider),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.radar_outlined,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  '${radiusKm.toStringAsFixed(0)} km',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: AppColors.textSecondary,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                      const SizedBox(height: 8),
                       if (vm.errorMessage != null) ...[
                         const SizedBox(height: 12),
                         Text(
@@ -621,6 +838,225 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _ServiceBackdropOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _ServiceBackdropOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
+    );
+  }
+}
+
+class _ServiceGhostPin extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _ServiceGhostPin({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            final color = Color.lerp(
+              AppColors.primary.withValues(alpha: 0.22),
+              AppColors.primary.withValues(alpha: 0.34),
+              animation.value,
+            )!;
+            return Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  width: 2,
+                ),
+              ),
+            );
+          },
+        ),
+        Container(
+          width: 4,
+          height: 22,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.24),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServiceAreaLoadingCard extends StatelessWidget {
+  final Animation<double> animation;
+  final double height;
+
+  const _ServiceAreaLoadingCard({
+    required this.animation,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(minHeight: height),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ServiceSkeletonBlock(
+            animation: animation,
+            height: 14,
+            width: 120,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          const SizedBox(height: 10),
+          _ServiceSkeletonBlock(
+            animation: animation,
+            height: 10,
+            width: double.infinity,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          const SizedBox(height: 8),
+          _ServiceSkeletonBlock(
+            animation: animation,
+            height: 10,
+            width: 180,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceLoadingActionButton extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _ServiceLoadingActionButton({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Center(
+        child: _ServiceSkeletonBlock(
+          animation: animation,
+          height: 18,
+          width: 18,
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+}
+
+class _ServiceSkeletonStat extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _ServiceSkeletonStat({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ServiceSkeletonBlock(
+            animation: animation,
+            height: 10,
+            width: 56,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          const SizedBox(height: 8),
+          _ServiceSkeletonBlock(
+            animation: animation,
+            height: 14,
+            width: double.infinity,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ServiceSkeletonBlock extends StatelessWidget {
+  final Animation<double> animation;
+  final double height;
+  final double width;
+  final BorderRadius borderRadius;
+
+  const _ServiceSkeletonBlock({
+    required this.animation,
+    required this.height,
+    required this.width,
+    required this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final color = Color.lerp(
+          const Color(0xFFE7EDE2),
+          const Color(0xFFF2F6EF),
+          animation.value,
+        )!;
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(color: color, borderRadius: borderRadius),
+        );
+      },
     );
   }
 }

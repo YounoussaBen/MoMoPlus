@@ -144,7 +144,7 @@ def _create_paystack_accounts(wallet: Wallet) -> None:
             business_name=f"{full_name} – {wallet.phone_number}",
             bank_code=bank_code,
             account_number=wallet.phone_number,
-            percentage_charge=100.0,
+            percentage_charge=0.0,
             primary_contact_email=user.email,
             primary_contact_name=full_name,
             primary_contact_phone=wallet.phone_number,

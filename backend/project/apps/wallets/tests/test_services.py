@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -103,6 +104,23 @@ class TestVerifyOtp:
 
         with pytest.raises(ValueError, match="already verified"):
             verify_otp(wallet=wallet, code=otp.code)
+
+    def test_creates_subaccount_with_full_settlement_to_wallet(self, user):
+        wallet = add_wallet(user=user, phone_number="0241234567", network="mtn")
+        otp = WalletOtp.objects.get(wallet=wallet)
+
+        with (
+            patch("project.apps.wallets.services.paystack.create_subaccount") as mock_subaccount,
+            patch("project.apps.wallets.services.paystack.create_transfer_recipient") as mock_recipient,
+        ):
+            mock_subaccount.return_value = {"subaccount_code": "SUB_test_wallet"}
+            mock_recipient.return_value = {"recipient_code": "RCP_test_wallet"}
+
+            result = verify_otp(wallet=wallet, code=otp.code)
+
+        assert mock_subaccount.call_args.kwargs["percentage_charge"] == 0.0
+        assert result.paystack_subaccount_code == "SUB_test_wallet"
+        assert result.paystack_recipient_code == "RCP_test_wallet"
 
 
 @pytest.mark.django_db

@@ -81,7 +81,7 @@ def create_subaccount(
     business_name: str,
     bank_code: str,
     account_number: str,
-    percentage_charge: float = 100.0,
+    percentage_charge: float = 0.0,
     primary_contact_email: str = "",
     primary_contact_name: str = "",
     primary_contact_phone: str = "",
@@ -89,6 +89,9 @@ def create_subaccount(
     """Create a Paystack subaccount for a mobile money wallet.
 
     Returns the full response data including `subaccount_code`.
+
+    `percentage_charge` is the main account's share of split payments.
+    Use `0.0` when the subaccount should receive the full split.
     """
     payload: dict[str, Any] = {
         "business_name": business_name,

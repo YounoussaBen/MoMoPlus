@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 import '../../../core/data/services/backend_api_service.dart';
 import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
+
+const Duration _discoverRefreshInterval = Duration(seconds: 10);
 
 class DiscoverViewModel extends ChangeNotifier {
   final BackendApiService _api;
@@ -11,14 +14,21 @@ class DiscoverViewModel extends ChangeNotifier {
   List<NearbyAgent> _agents = [];
   bool _isLoading = false;
   String? _errorMessage;
+  bool _hasLoadedAgents = false;
   double? _userLat;
   double? _userLon;
   double _radius = 10.0;
-  String _sortBy = 'distance';
   bool _isLocating = false;
   final Map<String, AgentRoutePreview> _routeCache = {};
+  Timer? _refreshTimer;
+  Future<void>? _loadAgentsFuture;
 
-  DiscoverViewModel(this._api);
+  DiscoverViewModel(this._api) {
+    _refreshTimer = Timer.periodic(
+      _discoverRefreshInterval,
+      (_) => loadAgents(),
+    );
+  }
 
   List<NearbyAgent> get agents => _agents;
   bool get isLoading => _isLoading;
@@ -26,7 +36,6 @@ class DiscoverViewModel extends ChangeNotifier {
   double? get userLat => _userLat;
   double? get userLon => _userLon;
   double get radius => _radius;
-  String get sortBy => _sortBy;
   bool get isLocating => _isLocating;
   bool get hasLocation => _userLat != null && _userLon != null;
 
@@ -65,8 +74,18 @@ class DiscoverViewModel extends ChangeNotifier {
   }
 
   Future<void> loadAgents() async {
+    final inFlight = _loadAgentsFuture;
+    if (inFlight != null) return inFlight;
+
+    final future = _loadAgentsInternal();
+    _loadAgentsFuture = future;
+    future.whenComplete(() => _loadAgentsFuture = null);
+    return future;
+  }
+
+  Future<void> _loadAgentsInternal() async {
     if (_userLat == null || _userLon == null) return;
-    _isLoading = true;
+    _isLoading = !_hasLoadedAgents && _agents.isEmpty;
     _errorMessage = null;
     notifyListeners();
     try {
@@ -74,7 +93,6 @@ class DiscoverViewModel extends ChangeNotifier {
         lat: _userLat!,
         lon: _userLon!,
         radius: _radius,
-        sortBy: _sortBy,
       );
       _agents = data
           .map((j) => NearbyAgent.fromJson(j as Map<String, dynamic>))
@@ -82,16 +100,10 @@ class DiscoverViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
     } finally {
+      _hasLoadedAgents = true;
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  void setSortBy(String sort) {
-    if (_sortBy == sort) return;
-    _sortBy = sort;
-    notifyListeners();
-    loadAgents();
   }
 
   void setRadius(double r) {
@@ -110,6 +122,8 @@ class DiscoverViewModel extends ChangeNotifier {
       agent.id,
       _userLat!.toStringAsFixed(5),
       _userLon!.toStringAsFixed(5),
+      agent.latitude.toStringAsFixed(5),
+      agent.longitude.toStringAsFixed(5),
     ].join(':');
     final cached = _routeCache[cacheKey];
     if (cached != null) return cached;
@@ -130,5 +144,11 @@ class DiscoverViewModel extends ChangeNotifier {
           );
     _routeCache[cacheKey] = normalizedRoute;
     return normalizedRoute;
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 }

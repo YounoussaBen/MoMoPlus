@@ -40,7 +40,8 @@ class _DiscoverBody extends StatefulWidget {
   State<_DiscoverBody> createState() => _DiscoverBodyState();
 }
 
-class _DiscoverBodyState extends State<_DiscoverBody> {
+class _DiscoverBodyState extends State<_DiscoverBody>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final Completer<GoogleMapController> _mapCtrl = Completer();
   final DraggableScrollableController _sheetCtrl =
       DraggableScrollableController();
@@ -56,6 +57,22 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
   BitmapDescriptor? _selfEnrolledMarker;
   BitmapDescriptor? _selectedMarker;
   bool _markersInitialised = false;
+  late final AnimationController _skeletonController;
+  late final Animation<double> _skeletonPulse;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _skeletonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _skeletonPulse = CurvedAnimation(
+      parent: _skeletonController,
+      curve: Curves.easeInOut,
+    );
+  }
 
   Future<void> _initMarkerIcons() async {
     if (_markersInitialised) return;
@@ -168,8 +185,19 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _skeletonController.dispose();
     _sheetCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final vm = context.read<DiscoverViewModel>();
+    if (vm.hasLocation) {
+      vm.loadAgents();
+    }
   }
 
   @override
@@ -186,28 +214,224 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: vm.isLocating
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(
-                    color: AppColors.primary,
-                    strokeWidth: 2,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Getting your location...',
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            )
+          ? _buildLocatingState()
           : !vm.hasLocation
           ? _buildNoLocation(vm)
           : _buildContent(vm, activeTransactions, ongoingLoans),
+    );
+  }
+
+  Widget _buildLocatingState() {
+    final mediaQuery = MediaQuery.of(context);
+    final safeTop = mediaQuery.padding.top;
+    final bottomPadding = mediaQuery.padding.bottom;
+    final size = mediaQuery.size;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFEAF4E2),
+                  Color(0xFFF9FBF6),
+                  Color(0xFFDDEAD2),
+                ],
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: safeTop + 80,
+                  left: -40,
+                  child: _BackdropOrb(
+                    size: 180,
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                  ),
+                ),
+                Positioned(
+                  top: safeTop + 200,
+                  right: -30,
+                  child: _BackdropOrb(
+                    size: 140,
+                    color: const Color(0xFFFFC95B).withValues(alpha: 0.16),
+                  ),
+                ),
+                Positioned(
+                  bottom: size.height * 0.34,
+                  left: 28,
+                  child: _MapGhostMarker(
+                    animation: _skeletonPulse,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Positioned(
+                  top: safeTop + 210,
+                  right: 52,
+                  child: _MapGhostMarker(
+                    animation: _skeletonPulse,
+                    color: const Color(0xFFFF9800),
+                  ),
+                ),
+                Positioned(
+                  top: safeTop + 320,
+                  left: size.width * 0.42,
+                  child: _MapGhostMarker(
+                    animation: _skeletonPulse,
+                    color: const Color(0xFFE53935),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          top: safeTop + 12,
+          left: 16,
+          right: 16,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.96),
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Finding Agents Nearby',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Preparing your location and loading live availability.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _SkeletonBlock(
+                        animation: _skeletonPulse,
+                        height: 8,
+                        width: 150,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const _LoadingActionButton(icon: Icons.layers_outlined),
+              const SizedBox(width: 12),
+              const _LoadingActionButton(icon: Icons.my_location),
+            ],
+          ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            height: size.height * 0.54,
+            padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPadding + 110),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textSecondary.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [_StaticLoadingChip(label: 'Radius')],
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    const Text(
+                      'Nearby Agents',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    _SkeletonBlock(
+                      animation: _skeletonPulse,
+                      height: 18,
+                      width: 28,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'We are warming up your map and nearby agent list.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: ListView.separated(
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: 4,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) =>
+                        _LoadingAgentCard(animation: _skeletonPulse),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -352,53 +576,37 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _SortChip(
-                        label: 'Distance',
-                        selected: vm.sortBy == 'distance',
-                        onTap: () => vm.setSortBy('distance'),
+                  GestureDetector(
+                    onTap: () => _showRadiusFilter(vm),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      _SortChip(
-                        label: 'Rating',
-                        selected: vm.sortBy == 'rating',
-                        onTap: () => vm.setSortBy('rating'),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      GestureDetector(
-                        onTap: () => _showRadiusFilter(vm),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.tune,
+                            size: 16,
+                            color: AppColors.textSecondary,
                           ),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(999),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${vm.radius.toStringAsFixed(0)} km',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.tune,
-                                size: 16,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '${vm.radius.toStringAsFixed(0)} km',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   if (selectedAgent != null) ...[
                     const SizedBox(height: 16),
@@ -441,14 +649,9 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
                   ),
                   const SizedBox(height: 12),
                   if (vm.isLoading)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 48),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                          strokeWidth: 2,
-                        ),
-                      ),
+                      child: _LoadingAgentList(animation: _skeletonPulse),
                     )
                   else if (vm.agents.isEmpty)
                     Padding(
@@ -525,7 +728,7 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
       return 'Searching within ${vm.radius.toStringAsFixed(0)} km of your location';
     }
     if (_isRouteLoading) {
-      return 'Fetching driving route and road geometry...';
+      return '...';
     }
     if (_activeRoute != null) {
       if (_activeRoute!.isApproximate) {
@@ -555,6 +758,8 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
       if (!mounted) return;
       if (selectedAgent != null) {
         unawaited(_focusOnAgent(vm, selectedAgent, expandSheet: false));
+      } else if (_selectedAgentId != null) {
+        unawaited(_resetFocus(vm));
       } else {
         unawaited(_fitMapToVisiblePoints(vm));
       }
@@ -963,37 +1168,248 @@ class _DiscoverBodyState extends State<_DiscoverBody> {
   }
 }
 
-class _SortChip extends StatelessWidget {
+class _BackdropOrb extends StatelessWidget {
+  final double size;
+  final Color color;
+
+  const _BackdropOrb({required this.size, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+      ),
+    );
+  }
+}
+
+class _MapGhostMarker extends StatelessWidget {
+  final Animation<double> animation;
+  final Color color;
+
+  const _MapGhostMarker({required this.animation, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedBuilder(
+          animation: animation,
+          builder: (context, _) {
+            final markerColor = Color.lerp(
+              color.withValues(alpha: 0.22),
+              color.withValues(alpha: 0.36),
+              animation.value,
+            )!;
+            return Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: markerColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.24),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingActionButton extends StatelessWidget {
+  final IconData icon;
+
+  const _LoadingActionButton({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Icon(
+        icon,
+        color: AppColors.primary.withValues(alpha: 0.55),
+        size: 22,
+      ),
+    );
+  }
+}
+
+class _StaticLoadingChip extends StatelessWidget {
   final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _SortChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+
+  const _StaticLoadingChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingAgentList extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _LoadingAgentList({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(
+        3,
+        (index) => Padding(
+          padding: EdgeInsets.only(bottom: index == 2 ? 0 : 10),
+          child: _LoadingAgentCard(animation: animation),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingAgentCard extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _LoadingAgentCard({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.divider.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          _SkeletonBlock(
+            animation: animation,
+            height: 44,
+            width: 44,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonBlock(
+                  animation: animation,
+                  height: 14,
+                  width: 140,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                const SizedBox(height: 8),
+                _SkeletonBlock(
+                  animation: animation,
+                  height: 11,
+                  width: 112,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _SkeletonBlock(
+                animation: animation,
+                height: 13,
+                width: 64,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              const SizedBox(height: 8),
+              _SkeletonBlock(
+                animation: animation,
+                height: 11,
+                width: 40,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  final Animation<double> animation;
+  final double height;
+  final double? width;
+  final BorderRadius borderRadius;
+
+  const _SkeletonBlock({
+    required this.animation,
+    required this.height,
+    this.width,
+    required this.borderRadius,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? AppColors.primary : AppColors.textSecondary,
-          ),
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, _) {
+        final color = Color.lerp(
+          const Color(0xFFE7EDE2),
+          const Color(0xFFF2F6EF),
+          animation.value,
+        )!;
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(color: color, borderRadius: borderRadius),
+        );
+      },
     );
   }
 }
