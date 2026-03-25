@@ -4,7 +4,7 @@ import { use } from "react";
 import {
   useUserDetail,
   DetailHeader,
-  DetailLoading,
+  UserDetailSkeleton,
   DetailNotFound,
   ProfileSection,
 } from "@/components/dashboard/user-detail-shared";
@@ -13,7 +13,7 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const { user, loading } = useUserDetail(id);
 
-  if (loading) return <DetailLoading />;
+  if (loading) return <UserDetailSkeleton />;
   if (!user) return <DetailNotFound backHref="/dashboard/users" />;
 
   return (

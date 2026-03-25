@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { DashboardShellSkeleton } from "@/components/dashboard/skeletons";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, hydrated } = useAuth();
@@ -15,11 +16,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, hydrated, router]);
 
   if (!hydrated || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
-      </div>
-    );
+    return <DashboardShellSkeleton />;
   }
 
   return <>{children}</>;

@@ -12,7 +12,7 @@ import { ContentViewerModal, useContentViewer } from "@/components/modals/conten
 import {
   useUserDetail,
   DetailHeader,
-  DetailLoading,
+  AgentDetailSkeleton,
   DetailNotFound,
   ProfileSection,
   Section,
@@ -65,7 +65,7 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
 
   const { user, loading, refetch } = useUserDetail(id, fetchExtra);
 
-  if (loading) return <DetailLoading />;
+  if (loading) return <AgentDetailSkeleton />;
   if (!user) return <DetailNotFound backHref="/dashboard/agents" />;
 
   const handleAgentAction = async () => {

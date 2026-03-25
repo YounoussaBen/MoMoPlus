@@ -13,6 +13,7 @@ import type {
 } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
+import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { RejectModal } from "@/components/modals/reject-modal";
@@ -244,65 +245,69 @@ export default function AgentsPage() {
           title: "No agents found",
           description: "Try adjusting your search or filters.",
         }}
-        actions={(row) => (
-          <div className="flex items-center gap-1">
-            {row.agent_status === "pending" && (
-              <>
-                <button
-                  onClick={() => setModal({ type: "approve_agent", user: row })}
-                  className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-500/10"
-                  title="Approve agent"
-                >
-                  <CheckCircle size={18} />
-                </button>
-                <button
-                  onClick={() => setModal({ type: "reject_agent", user: row })}
-                  className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-500/10"
-                  title="Reject agent"
-                >
-                  <XCircle size={18} />
-                </button>
-              </>
-            )}
-            {row.cert_status === "pending" && certMap[row.email] && (
-              <>
-                <button
-                  onClick={() =>
-                    setModal({
-                      type: "approve_cert",
-                      user: row,
-                      certId: certMap[row.email].id,
-                    })
-                  }
-                  className="rounded-lg p-1.5 text-blue-600 transition-colors hover:bg-blue-500/10"
-                  title="Approve certification"
-                >
-                  <CheckCircle size={18} />
-                </button>
-                <button
-                  onClick={() =>
-                    setModal({
-                      type: "reject_cert",
-                      user: row,
-                      certId: certMap[row.email].id,
-                    })
-                  }
-                  className="rounded-lg p-1.5 text-orange-500 transition-colors hover:bg-orange-500/10"
-                  title="Reject certification"
-                >
-                  <XCircle size={18} />
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => router.push(`/dashboard/agents/${row.id}` as never)}
-              className="text-muted-foreground hover:bg-muted rounded-lg p-1.5 transition-colors"
-              title="View details"
-            >
-              <Eye size={18} />
-            </button>
-          </div>
-        )}
+        actions={(row) => {
+          const displayName =
+            row.full_name || `${row.first_name} ${row.last_name}`.trim() || row.email;
+          const certification = certMap[row.email];
+          const menuActions: TableActionItem[] = [
+            {
+              label: "View details",
+              icon: Eye,
+              onSelect: () => router.push(`/dashboard/agents/${row.id}` as never),
+            },
+          ];
+
+          if (row.agent_status === "pending") {
+            menuActions.push(
+              {
+                label: "Approve agent",
+                icon: CheckCircle,
+                onSelect: () => setModal({ type: "approve_agent", user: row }),
+                separatorBefore: true,
+              },
+              {
+                label: "Reject agent",
+                icon: XCircle,
+                onSelect: () => setModal({ type: "reject_agent", user: row }),
+                destructive: true,
+              },
+            );
+          }
+
+          if (row.cert_status === "pending" && certification) {
+            menuActions.push(
+              {
+                label: "Approve certification",
+                icon: CheckCircle,
+                onSelect: () =>
+                  setModal({
+                    type: "approve_cert",
+                    user: row,
+                    certId: certification.id,
+                  }),
+                separatorBefore: true,
+              },
+              {
+                label: "Reject certification",
+                icon: XCircle,
+                onSelect: () =>
+                  setModal({
+                    type: "reject_cert",
+                    user: row,
+                    certId: certification.id,
+                  }),
+                destructive: true,
+              },
+            );
+          }
+
+          return (
+            <TableActionMenu
+              actions={menuActions}
+              triggerLabel={`Open actions for ${displayName}`}
+            />
+          );
+        }}
       />
 
       {/* Agent approve */}

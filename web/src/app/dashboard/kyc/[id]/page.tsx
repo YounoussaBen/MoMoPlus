@@ -12,7 +12,7 @@ import { ContentViewerModal, useContentViewer } from "@/components/modals/conten
 import {
   useUserDetail,
   DetailHeader,
-  DetailLoading,
+  KycDetailSkeleton,
   DetailNotFound,
   ProfileSection,
   Section,
@@ -47,7 +47,7 @@ export default function KycDetailPage({ params }: { params: Promise<{ id: string
 
   const { user, loading, refetch } = useUserDetail(id, fetchExtra);
 
-  if (loading) return <DetailLoading />;
+  if (loading) return <KycDetailSkeleton />;
   if (!user) return <DetailNotFound backHref="/dashboard/kyc" />;
 
   const handleKycAction = async (reason?: string) => {

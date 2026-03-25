@@ -8,8 +8,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileText,
-  Loader2,
 } from "lucide-react";
+import { TableSkeleton } from "@/components/dashboard/skeletons";
 import type { LucideIcon } from "lucide-react";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,11 +236,8 @@ export function DataTable<T = any>({
 
   if (isLoading) {
     return (
-      <div className="bg-card flex h-64 w-full items-center justify-center rounded-xl">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="text-primary h-8 w-8 animate-spin" />
-          <p className="text-muted-foreground text-sm">{loadingText}</p>
-        </div>
+      <div aria-live="polite" aria-label={loadingText}>
+        <TableSkeleton columns={columns.length} hasActions={!!actions} />
       </div>
     );
   }

@@ -40,8 +40,23 @@ export default function LoginPage() {
 
   if (loading || user) {
     return (
-      <div className="bg-background flex min-h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+      <div className="flex min-h-screen flex-col lg:flex-row">
+        <div className="flex items-start bg-[#e8f5e0] p-8 lg:w-1/2 lg:p-12">
+          <div className="h-40 w-40 animate-pulse rounded-xl bg-white/50" />
+        </div>
+        <div className="flex flex-1 items-center justify-center bg-white p-8 lg:w-1/2 lg:p-12">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="space-y-2">
+              <div className="h-8 w-32 animate-pulse rounded-xl bg-gray-200" />
+              <div className="h-4 w-56 animate-pulse rounded-xl bg-gray-100" />
+            </div>
+            <div className="space-y-4">
+              <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
+              <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
+              <div className="h-10 w-full animate-pulse rounded-xl bg-gray-200" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

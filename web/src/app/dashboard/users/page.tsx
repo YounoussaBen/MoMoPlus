@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format";
 import type { AppUser, PaginatedResponse } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
+import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 
@@ -176,35 +177,41 @@ export default function UsersPage() {
           title: "No users found",
           description: "Try adjusting your search or filters.",
         }}
-        actions={(row) => (
-          <div className="flex items-center gap-1">
-            {row.agent_status === "pending" && (
-              <>
-                <button
-                  onClick={() => setModal({ type: "approve", user: row })}
-                  className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-500/10"
-                  title="Approve agent"
-                >
-                  <CheckCircle size={18} />
-                </button>
-                <button
-                  onClick={() => setModal({ type: "reject", user: row })}
-                  className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-500/10"
-                  title="Reject agent"
-                >
-                  <XCircle size={18} />
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => router.push(`/dashboard/users/${row.id}` as never)}
-              className="text-muted-foreground hover:bg-muted rounded-lg p-1.5 transition-colors"
-              title="View details"
-            >
-              <Eye size={18} />
-            </button>
-          </div>
-        )}
+        actions={(row) => {
+          const displayName =
+            row.full_name || `${row.first_name} ${row.last_name}`.trim() || row.email;
+          const menuActions: TableActionItem[] = [
+            {
+              label: "View details",
+              icon: Eye,
+              onSelect: () => router.push(`/dashboard/users/${row.id}` as never),
+            },
+          ];
+
+          if (row.agent_status === "pending") {
+            menuActions.push(
+              {
+                label: "Approve agent",
+                icon: CheckCircle,
+                onSelect: () => setModal({ type: "approve", user: row }),
+                separatorBefore: true,
+              },
+              {
+                label: "Reject agent",
+                icon: XCircle,
+                onSelect: () => setModal({ type: "reject", user: row }),
+                destructive: true,
+              },
+            );
+          }
+
+          return (
+            <TableActionMenu
+              actions={menuActions}
+              triggerLabel={`Open actions for ${displayName}`}
+            />
+          );
+        }}
       />
 
       {modal && (

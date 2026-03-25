@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RootPage() {
   const { user, hydrated } = useAuth();
@@ -16,7 +17,10 @@ export default function RootPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
+      <div className="space-y-4 text-center">
+        <Skeleton className="mx-auto h-12 w-12 rounded-full" />
+        <Skeleton className="mx-auto h-4 w-32 rounded" />
+      </div>
     </div>
   );
 }

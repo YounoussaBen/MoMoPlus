@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, Calendar, Users, Loader2, ImageIcon } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Users, ImageIcon } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import type { AppUserDetail } from "@/lib/types";
@@ -170,13 +170,11 @@ export function DetailHeader({ user, backHref }: { user: AppUserDetail; backHref
   );
 }
 
-export function DetailLoading() {
-  return (
-    <div className="flex h-64 items-center justify-center">
-      <Loader2 className="text-primary h-8 w-8 animate-spin" />
-    </div>
-  );
-}
+export {
+  UserDetailSkeleton,
+  AgentDetailSkeleton,
+  KycDetailSkeleton,
+} from "@/components/dashboard/skeletons";
 
 export function DetailNotFound({ backHref }: { backHref: string }) {
   const router = useRouter();

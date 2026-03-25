@@ -8,6 +8,7 @@ import { formatDate, formatIdType } from "@/lib/format";
 import type { KycSubmission, PaginatedResponse } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
+import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { RejectModal } from "@/components/modals/reject-modal";
@@ -192,35 +193,41 @@ export default function KycPage() {
           title: "No KYC submissions found",
           description: "Try adjusting your search or filters.",
         }}
-        actions={(row) => (
-          <div className="flex items-center gap-1">
-            {row.status === "pending" && (
-              <>
-                <button
-                  onClick={() => setModal({ type: "approve", kyc: row })}
-                  className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-500/10"
-                  title="Approve KYC"
-                >
-                  <CheckCircle size={18} />
-                </button>
-                <button
-                  onClick={() => setModal({ type: "reject", kyc: row })}
-                  className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-500/10"
-                  title="Reject KYC"
-                >
-                  <XCircle size={18} />
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => router.push(`/dashboard/kyc/${row.user.id}` as never)}
-              className="text-muted-foreground hover:bg-muted rounded-lg p-1.5 transition-colors"
-              title="View user details"
-            >
-              <Eye size={18} />
-            </button>
-          </div>
-        )}
+        actions={(row) => {
+          const displayName =
+            `${row.user.first_name} ${row.user.last_name}`.trim() || row.user.email;
+          const menuActions: TableActionItem[] = [
+            {
+              label: "View details",
+              icon: Eye,
+              onSelect: () => router.push(`/dashboard/kyc/${row.user.id}` as never),
+            },
+          ];
+
+          if (row.status === "pending") {
+            menuActions.push(
+              {
+                label: "Approve KYC",
+                icon: CheckCircle,
+                onSelect: () => setModal({ type: "approve", kyc: row }),
+                separatorBefore: true,
+              },
+              {
+                label: "Reject KYC",
+                icon: XCircle,
+                onSelect: () => setModal({ type: "reject", kyc: row }),
+                destructive: true,
+              },
+            );
+          }
+
+          return (
+            <TableActionMenu
+              actions={menuActions}
+              triggerLabel={`Open actions for ${displayName}`}
+            />
+          );
+        }}
       />
 
       {modal?.type === "approve" && (
