@@ -115,90 +115,113 @@ export interface AgentCertification {
 
 // ─── Loans ───────────────────────────────────────────────────────────────────
 
-export type LoanStatus =
-  | "pending_agent_review"
-  | "approved_pending_disbursement"
-  | "disbursed"
+export type StaffLoanStatus =
+  | "pending"
+  | "approved"
+  | "disbursing"
   | "active"
-  | "repayment_pending"
+  | "repaying"
   | "completed"
   | "defaulted"
+  | "rejected"
   | "failed"
   | "cancelled";
 
-export interface LoanPayment {
+export type StaffLoanPaymentType = "disbursement" | "repayment";
+export type StaffLoanPaymentStatus = "pending" | "success" | "failed";
+
+export interface StaffLoanPayment {
   id: string;
-  payment_type: "disbursement" | "repayment";
+  payment_type: StaffLoanPaymentType;
   amount: string;
   charge_amount: string;
   transfer_amount: string;
   platform_amount: string;
-  status: "pending" | "completed" | "failed";
+  status: StaffLoanPaymentStatus;
   reference: string;
+  paystack_reference: string;
   payer_phone: string;
   payer_network: string;
+  recipient_code: string;
   completed_at: string | null;
   created_at: string;
+  updated_at: string;
 }
 
-export interface Loan {
+export interface StaffLoanListItem {
   id: string;
+  borrower_id: string;
   borrower_name: string;
   borrower_email: string;
+  agent_user_id: string;
   agent_name: string;
   agent_id: string;
+  agent_email: string;
   amount: string;
-  interest_rate: string;
-  origination_fee: string;
-  agent_interest_amount: string;
-  platform_interest_amount: string;
   total_repayment: string;
   penalty_amount: string;
   outstanding_balance: string;
   agent_receivable_balance: string;
-  status: LoanStatus;
+  status: StaffLoanStatus;
   network: string;
   borrower_wallet_phone: string;
   borrower_wallet_network: string;
   agent_wallet_phone: string;
-  rejection_reason: string | null;
+  agent_wallet_network: string;
   approved_at: string | null;
   disbursed_at: string | null;
   deadline_at: string | null;
   completed_at: string | null;
   defaulted_at: string | null;
+  is_overdue: boolean;
   created_at: string;
-  payments: LoanPayment[];
+  updated_at: string;
+}
+
+export interface StaffLoanDetail extends StaffLoanListItem {
+  interest_rate: string;
+  origination_fee: string;
+  agent_interest_amount: string;
+  platform_interest_amount: string;
+  rejection_reason: string;
+  last_penalty_at: string | null;
+  payments: StaffLoanPayment[];
 }
 
 // ─── Physical Transactions ───────────────────────────────────────────────────
 
-export type TransactionType = "cash_out" | "cash_in";
-export type TransactionStatus =
-  | "pending_agent_review"
+export type StaffTransactionType = "cash_out" | "deposit";
+export type StaffTransactionStatus =
+  | "pending"
   | "accepted"
   | "completed"
   | "rejected"
-  | "cancelled";
+  | "cancelled"
+  | "expired";
 
-export interface PhysicalTransaction {
+export interface StaffPhysicalTransaction {
   id: string;
-  transaction_type: TransactionType;
+  user_id: string;
+  user_email: string;
+  user_name: string;
+  agent_user_id: string;
+  agent_id: string;
+  agent_email: string;
+  agent_name: string;
+  transaction_type: StaffTransactionType;
   amount: string;
   network: string;
-  status: TransactionStatus;
+  status: StaffTransactionStatus;
   verification_code: string;
-  meeting_latitude: number | null;
-  meeting_longitude: number | null;
+  meeting_latitude: string | null;
+  meeting_longitude: string | null;
   meeting_description: string;
+  has_meeting: boolean;
   user_confirmed: boolean;
   agent_confirmed: boolean;
-  user_name: string;
-  agent_name: string;
-  agent_id: string;
   wallet_phone_number: string;
   wallet_network: string;
-  cancellation_reason: string | null;
+  cancellation_reason: string;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

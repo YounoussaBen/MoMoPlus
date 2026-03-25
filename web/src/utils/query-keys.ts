@@ -21,3 +21,17 @@ export const kycKeys = {
   list: (input: TableQueryInput) => ["kyc", "list", input] as const,
   detail: (id: string) => ["kyc", "detail", id] as const,
 };
+
+export const getFundsKeys = {
+  all: ["get-funds"] as const,
+  lists: () => ["get-funds", "list"] as const,
+  list: (input: TableQueryInput) => ["get-funds", "list", input] as const,
+  detail: (id: string) => ["get-funds", "detail", id] as const,
+};
+
+export const cashServicesKeys = {
+  all: ["cash-services"] as const,
+  lists: () => ["cash-services", "list"] as const,
+  list: (input: TableQueryInput) => ["cash-services", "list", input] as const,
+  detail: (id: string) => ["cash-services", "detail", id] as const,
+};
