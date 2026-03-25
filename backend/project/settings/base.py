@@ -232,6 +232,13 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Modern Django REST API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "UserReviewStatusEnum": "project.apps.accounts.models.AgentStatus",
+        "ReviewStatusEnum": "project.apps.kyc.models.KycSubmission.Status",
+        "LoanStatusEnum": "project.apps.loans.models.LoanStatus",
+        "LoanPaymentStatusEnum": "project.apps.loans.models.PaymentStatus",
+        "PhysicalTransactionStatusEnum": "project.apps.transactions.models.TransactionStatus",
+    },
     "SWAGGER_UI_SETTINGS": {
         "displayRequestDuration": True,
         "persistAuthorization": True,

@@ -2,9 +2,12 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from rest_framework.permissions import AllowAny
 
+from .staff_views import dashboard_overview
+
 urlpatterns = [
     path("auth/", include("project.apps.accounts.urls")),
     path("staff/", include("project.apps.accounts.staff_urls")),
+    path("staff/dashboard/", dashboard_overview, name="staff-dashboard-overview"),
     path("files/", include("project.apps.files.urls")),
     path("kyc/", include("project.apps.kyc.urls")),
     path("staff/kyc/", include("project.apps.kyc.staff_urls")),

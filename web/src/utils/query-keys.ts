@@ -1,5 +1,10 @@
 import type { TableQueryInput } from "@/utils/query-params";
 
+export const dashboardKeys = {
+  all: ["dashboard"] as const,
+  overview: (days: number) => ["dashboard", "overview", days] as const,
+};
+
 export const usersKeys = {
   all: ["users"] as const,
   lists: () => ["users", "list"] as const,

@@ -1,10 +1,5 @@
-import { ComingSoonPage } from "@/components/dashboard/coming-soon";
+import { DashboardOverviewPage } from "@/components/dashboard/dashboard-overview";
 
 export default function DashboardHome() {
-  return (
-    <ComingSoonPage
-      title="Dashboard"
-      description="Overview metrics, analytics, and platform health will appear here."
-    />
-  );
+  return <DashboardOverviewPage />;
 }

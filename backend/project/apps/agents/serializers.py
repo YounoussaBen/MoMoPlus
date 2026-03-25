@@ -41,7 +41,7 @@ class AgentProfileSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def get_full_name(self, obj):
+    def get_full_name(self, obj: AgentProfile) -> str:
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
 
 
@@ -79,10 +79,10 @@ class NearbyAgentSerializer(serializers.ModelSerializer):
             "selfie_url",
         ]
 
-    def get_full_name(self, obj):
+    def get_full_name(self, obj: AgentProfile) -> str:
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
 
-    def get_selfie_url(self, obj):
+    def get_selfie_url(self, obj: AgentProfile) -> str | None:
         kyc = getattr(obj.user, "kyc_submission", None)
         if kyc is None or kyc.selfie is None:
             return None
@@ -184,6 +184,6 @@ class StaffCertificationListSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
-    def get_agent_name(self, obj):
+    def get_agent_name(self, obj: CertificationApplication) -> str:
         u = obj.agent_profile.user
         return f"{u.first_name} {u.last_name}".strip()

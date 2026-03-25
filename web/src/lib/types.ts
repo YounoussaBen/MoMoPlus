@@ -227,3 +227,68 @@ export interface StaffPhysicalTransaction {
   completed_at: string | null;
   expires_at: string;
 }
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+export interface DashboardSummary {
+  total_users: number;
+  approved_agents: number;
+  pending_kyc_reviews: number;
+  pending_agent_reviews: number;
+  open_get_funds_cases: number;
+  overdue_get_funds_cases: number;
+  open_cash_services: number;
+  scheduled_cash_meetings: number;
+}
+
+export interface DashboardPeriod {
+  new_users: number;
+  new_agents: number;
+  new_kyc_submissions: number;
+  new_get_funds_cases: number;
+  new_cash_services: number;
+  loan_disbursement_volume: string;
+  loan_repayment_volume: string;
+  cash_in_volume: string;
+  cash_out_volume: string;
+}
+
+export interface DashboardActivityPoint {
+  date: string;
+  users: number;
+  agents: number;
+  kyc_submissions: number;
+  get_funds_cases: number;
+  cash_services: number;
+}
+
+export interface DashboardMoneyFlowPoint {
+  date: string;
+  loan_disbursements: string;
+  loan_repayments: string;
+  cash_in: string;
+  cash_out: string;
+}
+
+export interface DashboardBreakdownPoint {
+  key: string;
+  label: string;
+  value: number;
+}
+
+export interface DashboardCharts {
+  activity: DashboardActivityPoint[];
+  money_flow: DashboardMoneyFlowPoint[];
+  kyc_status_breakdown: DashboardBreakdownPoint[];
+  loan_status_breakdown: DashboardBreakdownPoint[];
+  cash_service_status_breakdown: DashboardBreakdownPoint[];
+  network_breakdown: DashboardBreakdownPoint[];
+}
+
+export interface StaffDashboardOverview {
+  generated_at: string;
+  range_days: number;
+  summary: DashboardSummary;
+  period: DashboardPeriod;
+  charts: DashboardCharts;
+}

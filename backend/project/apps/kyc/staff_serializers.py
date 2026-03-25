@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from project.apps.accounts.serializers import UserSerializer
+from project.apps.files.models import FileAsset
+from project.apps.files.serializers import FileAssetAccessUrlSerializer
 
 from .models import KycSubmission
 
@@ -50,7 +55,7 @@ class StaffKycDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def _get_url(self, asset):
+    def _get_url(self, asset: FileAsset | None) -> dict[str, str | int | None] | None:
         if asset is None:
             return None
         request = self.context.get("request")
@@ -61,14 +66,18 @@ class StaffKycDetailSerializer(serializers.ModelSerializer):
         except FileAssetAccessError:
             return None
 
-    def get_id_front_url(self, obj):
+    @extend_schema_field(FileAssetAccessUrlSerializer)
+    def get_id_front_url(self, obj: KycSubmission) -> dict[str, str | int | None] | None:
         return self._get_url(obj.id_front)
 
-    def get_id_back_url(self, obj):
+    @extend_schema_field(FileAssetAccessUrlSerializer)
+    def get_id_back_url(self, obj: KycSubmission) -> dict[str, str | int | None] | None:
         return self._get_url(obj.id_back)
 
-    def get_selfie_url(self, obj):
+    @extend_schema_field(FileAssetAccessUrlSerializer)
+    def get_selfie_url(self, obj: KycSubmission) -> dict[str, str | int | None] | None:
         return self._get_url(obj.selfie)
 
-    def get_proof_of_address_url(self, obj):
+    @extend_schema_field(FileAssetAccessUrlSerializer)
+    def get_proof_of_address_url(self, obj: KycSubmission) -> dict[str, str | int | None] | None:
         return self._get_url(obj.proof_of_address)
