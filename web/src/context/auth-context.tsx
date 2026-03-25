@@ -53,6 +53,7 @@ function emitChange() {
 interface AuthContextValue {
   user: StaffUser | null;
   loading: boolean;
+  hydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -60,7 +61,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const hydrated = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+  const { user } = snapshot;
   const [loggingIn, setLoggingIn] = useState(false);
   const router = useRouter();
 
@@ -100,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading: loggingIn, login, logout }}>
+    <AuthContext.Provider value={{ user, loading: loggingIn, hydrated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

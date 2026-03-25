@@ -53,23 +53,45 @@ export interface AppUserDetail extends AppUser {
   is_superuser: boolean;
 }
 
+// ─── Shared (nested user in KYC / file URLs) ────────────────────────────────
+
+export interface EmbeddedUser {
+  id: string;
+  supabase_user_id: string;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+export interface FileUrl {
+  url: string;
+  expires_in: number | null;
+}
+
 // ─── KYC ─────────────────────────────────────────────────────────────────────
 
-export type IdType = "ghana_card" | "passport" | "drivers_license";
+export type IdType = "national_id" | "passport" | "drivers_license";
 
 export interface KycSubmission {
   id: string;
-  user_email: string;
-  user_name: string;
+  user: EmbeddedUser;
   status: KycStatus;
   id_type: IdType;
-  id_front_id: string;
-  id_back_id: string;
-  selfie_id: string;
-  proof_of_address_id: string;
-  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface KycSubmissionDetail extends KycSubmission {
+  id_front_url: FileUrl | null;
+  id_back_url: FileUrl | null;
+  selfie_url: FileUrl | null;
+  proof_of_address_url: FileUrl | null;
+  rejection_reason: string;
+  reviewed_at: string | null;
 }
 
 // ─── Agents ──────────────────────────────────────────────────────────────────
@@ -78,17 +100,17 @@ export type CertificationStatus = "pending" | "approved" | "rejected";
 
 export interface AgentCertification {
   id: string;
+  agent_email: string;
+  agent_name: string;
   agent_id_number: string;
   network: string;
   agent_id_photo: string;
   business_location_photo: string;
   business_registration_number: string;
   status: CertificationStatus;
-  rejection_reason: string | null;
+  rejection_reason: string;
+  reviewed_at: string | null;
   created_at: string;
-  updated_at: string;
-  agent_email?: string;
-  agent_name?: string;
 }
 
 // ─── Loans ───────────────────────────────────────────────────────────────────

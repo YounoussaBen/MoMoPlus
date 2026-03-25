@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 
 export default function RootPage() {
-  const { user, loading } = useAuth();
+  const { user, hydrated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
+    if (hydrated) {
       router.replace(user ? "/dashboard" : "/login");
     }
-  }, [user, loading, router]);
+  }, [user, hydrated, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

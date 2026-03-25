@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, CheckCircle, XCircle, MoreHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, CheckCircle, XCircle, Eye } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import type { AppUser, PaginatedResponse } from "@/lib/types";
@@ -20,16 +21,6 @@ const filters: FilterDefinition[] = [
     ],
   },
   {
-    label: "Agent Status",
-    key: "agent_status",
-    options: [
-      { label: "None", value: "none" },
-      { label: "Pending", value: "pending" },
-      { label: "Approved", value: "approved" },
-      { label: "Rejected", value: "rejected" },
-    ],
-  },
-  {
     label: "Active",
     key: "is_active",
     options: [
@@ -38,13 +29,6 @@ const filters: FilterDefinition[] = [
     ],
   },
 ];
-
-const AGENT_STATUS_VARIANT: Record<string, "muted" | "warning" | "success" | "destructive"> = {
-  none: "muted",
-  pending: "warning",
-  approved: "success",
-  rejected: "destructive",
-};
 
 const columns: Column<AppUser>[] = [
   {
@@ -62,13 +46,6 @@ const columns: Column<AppUser>[] = [
     key: "role",
     label: "Role",
     render: (_, row) => <Badge variant={row.role === "agent" ? "info" : "muted"}>{row.role}</Badge>,
-  },
-  {
-    key: "agent_status",
-    label: "Agent Status",
-    render: (_, row) => (
-      <Badge variant={AGENT_STATUS_VARIANT[row.agent_status] ?? "muted"}>{row.agent_status}</Badge>
-    ),
   },
   {
     key: "is_active",
@@ -92,6 +69,7 @@ const columns: Column<AppUser>[] = [
 type ModalAction = { type: "approve" | "reject"; user: AppUser } | null;
 
 export default function UsersPage() {
+  const router = useRouter();
   const [data, setData] = useState<AppUser[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [page, setPage] = useState(1);
@@ -112,7 +90,6 @@ export default function UsersPage() {
       Object.entries(activeFilters).forEach(([key, value]) => {
         if (value) params.set(key, value);
       });
-
       const res = await apiFetch<PaginatedResponse<AppUser>>(
         `/api/staff/users/?${params.toString()}`,
       );
@@ -162,7 +139,7 @@ export default function UsersPage() {
       setModal(null);
       fetchUsers();
     } catch {
-      // error handled silently, modal stays open
+      // keep modal open on error
     } finally {
       setActionLoading(false);
     }
@@ -172,9 +149,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-foreground text-2xl font-bold">User Management</h1>
-        <p className="text-muted-foreground text-sm">
-          View and manage all platform users, approve or reject agent applications.
-        </p>
+        <p className="text-muted-foreground text-sm">View and manage all platform users.</p>
       </div>
 
       <FilterBar
@@ -195,38 +170,41 @@ export default function UsersPage() {
         pageSize={pageSize}
         onPageChange={setPage}
         onPageSizeChange={handlePageSizeChange}
+        onRowClick={(row) => router.push(`/dashboard/users/${row.id}` as never)}
         emptyState={{
           icon: Users,
           title: "No users found",
           description: "Try adjusting your search or filters.",
         }}
-        actions={(row) =>
-          row.agent_status === "pending" ? (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setModal({ type: "approve", user: row })}
-                className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-500/10"
-                title="Approve agent"
-              >
-                <CheckCircle size={18} />
-              </button>
-              <button
-                onClick={() => setModal({ type: "reject", user: row })}
-                className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-500/10"
-                title="Reject agent"
-              >
-                <XCircle size={18} />
-              </button>
-            </div>
-          ) : (
+        actions={(row) => (
+          <div className="flex items-center gap-1">
+            {row.agent_status === "pending" && (
+              <>
+                <button
+                  onClick={() => setModal({ type: "approve", user: row })}
+                  className="rounded-lg p-1.5 text-green-600 transition-colors hover:bg-green-500/10"
+                  title="Approve agent"
+                >
+                  <CheckCircle size={18} />
+                </button>
+                <button
+                  onClick={() => setModal({ type: "reject", user: row })}
+                  className="rounded-lg p-1.5 text-red-500 transition-colors hover:bg-red-500/10"
+                  title="Reject agent"
+                >
+                  <XCircle size={18} />
+                </button>
+              </>
+            )}
             <button
+              onClick={() => router.push(`/dashboard/users/${row.id}` as never)}
               className="text-muted-foreground hover:bg-muted rounded-lg p-1.5 transition-colors"
-              title="More options"
+              title="View details"
             >
-              <MoreHorizontal size={18} />
+              <Eye size={18} />
             </button>
-          )
-        }
+          </div>
+        )}
       />
 
       {modal && (
