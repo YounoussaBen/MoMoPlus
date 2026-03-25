@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { UserCog, CheckCircle, XCircle, Eye } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import {
+  type AgentRow,
+  useAgentsList,
+  useApproveAgent,
+  useApproveCertification,
+  useRejectAgent,
+  useRejectCertification,
+} from "@/hooks/use-agents";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 import { formatDate } from "@/lib/format";
-import type {
-  AppUser,
-  AgentCertification,
-  CertificationStatus,
-  PaginatedResponse,
-} from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
 import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
@@ -46,8 +48,7 @@ const STATUS_VARIANT: Record<string, "muted" | "warning" | "success" | "destruct
   approved: "success",
   rejected: "destructive",
 };
-
-type AgentRow = AppUser & { cert_status: CertificationStatus | "none" };
+const FILTER_KEYS = filters.map((filter) => filter.key);
 
 const columns: Column<AgentRow>[] = [
   {
@@ -92,125 +93,76 @@ type ModalAction =
 
 export default function AgentsPage() {
   const router = useRouter();
-  const [data, setData] = useState<AgentRow[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const {
+    page,
+    pageSize,
+    search,
+    activeFilters,
+    setPage,
+    setPageSize,
+    setSearch,
+    setFilter,
+    clearFilters,
+  } = useTableUrlState({
+    defaultPageSize: 20,
+    filterKeys: FILTER_KEYS,
+  });
+  const queryInput = useMemo(
+    () => ({
+      page,
+      pageSize,
+      search,
+      activeFilters,
+    }),
+    [activeFilters, page, pageSize, search],
+  );
+  const agentsQuery = useAgentsList(queryInput);
+  const approveAgentMutation = useApproveAgent();
+  const rejectAgentMutation = useRejectAgent();
+  const approveCertificationMutation = useApproveCertification();
+  const rejectCertificationMutation = useRejectCertification();
   const [modal, setModal] = useState<ModalAction>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [certMap, setCertMap] = useState<Record<string, AgentCertification>>({});
+  const actionLoading =
+    approveAgentMutation.isPending ||
+    rejectAgentMutation.isPending ||
+    approveCertificationMutation.isPending ||
+    rejectCertificationMutation.isPending;
+  const data = agentsQuery.data?.rows ?? [];
+  const totalItems = agentsQuery.data?.totalItems ?? 0;
+  const certMap = agentsQuery.data?.certMap ?? {};
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("page_size", String(pageSize));
-      params.set("role", "agent");
-      if (search) params.set("search", search);
-      Object.entries(activeFilters).forEach(([key, value]) => {
-        if (value && key !== "certified") params.set(key, value);
-      });
-      const res = await apiFetch<PaginatedResponse<AppUser>>(
-        `/api/staff/users/?${params.toString()}`,
-      );
-
-      // Fetch certifications for the displayed agents
-      const emails = res.results.map((u) => u.email);
-      const certs: Record<string, AgentCertification> = {};
-      if (emails.length > 0) {
-        try {
-          const certRes = await apiFetch<PaginatedResponse<AgentCertification>>(
-            `/api/staff/agents/certifications/?page_size=100`,
-          );
-          for (const cert of certRes.results) {
-            if (emails.includes(cert.agent_email)) {
-              certs[cert.agent_email] = cert;
-            }
-          }
-        } catch {
-          /* certifications unavailable */
-        }
-      }
-      setCertMap(certs);
-
-      // Merge cert status into rows
-      const certFilter = activeFilters.certified;
-      let rows: AgentRow[] = res.results.map((u) => ({
-        ...u,
-        cert_status: (certs[u.email]?.status ?? "none") as CertificationStatus | "none",
-      }));
-
-      // Client-side filter for certification status
-      if (certFilter) {
-        rows = rows.filter((r) => r.cert_status === certFilter);
-      }
-
-      setData(rows);
-      setTotalItems(certFilter ? rows.length : res.count);
-    } catch {
-      setData([]);
-      setTotalItems(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, pageSize, search, activeFilters]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(1);
-  }, []);
-
-  const handleFilterChange = useCallback((key: string, value: string) => {
-    setActiveFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
-  }, []);
-
-  const handleClearFilters = useCallback(() => {
-    setActiveFilters({});
-    setPage(1);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setPage(1);
-  }, []);
+  const handleSearch = useCallback((query: string) => setSearch(query), [setSearch]);
+  const handleFilterChange = useCallback(
+    (key: string, value: string) => setFilter(key, value),
+    [setFilter],
+  );
+  const handleClearFilters = useCallback(() => clearFilters(), [clearFilters]);
+  const handlePageSizeChange = useCallback((size: number) => setPageSize(size), [setPageSize]);
 
   const handleAction = async (reason?: string) => {
     if (!modal) return;
-    setActionLoading(true);
+
     try {
-      let endpoint: string;
-      let body: string | undefined;
       switch (modal.type) {
         case "approve_agent":
-          endpoint = `/api/staff/users/${modal.user.id}/approve-agent/`;
+          await approveAgentMutation.mutateAsync(modal.user.id);
           break;
         case "reject_agent":
-          endpoint = `/api/staff/users/${modal.user.id}/reject-agent/`;
+          await rejectAgentMutation.mutateAsync(modal.user.id);
           break;
         case "approve_cert":
-          endpoint = `/api/staff/agents/certifications/${modal.certId}/approve/`;
+          await approveCertificationMutation.mutateAsync(modal.certId);
           break;
         case "reject_cert":
-          endpoint = `/api/staff/agents/certifications/${modal.certId}/reject/`;
-          if (reason) body = JSON.stringify({ reason });
+          await rejectCertificationMutation.mutateAsync({
+            id: modal.certId,
+            reason,
+          });
           break;
       }
-      await apiFetch(endpoint, { method: "POST", body });
       setModal(null);
-      fetchData();
     } catch {
       /* keep modal open on error */
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -223,6 +175,7 @@ export default function AgentsPage() {
 
       <FilterBar
         onSearch={handleSearch}
+        searchValue={search}
         searchPlaceholder="Search by name or email..."
         filters={filters}
         activeFilters={activeFilters}
@@ -233,7 +186,7 @@ export default function AgentsPage() {
       <DataTable
         columns={columns}
         data={data}
-        isLoading={isLoading}
+        isLoading={agentsQuery.isLoading}
         currentPage={page}
         totalItems={totalItems}
         pageSize={pageSize}

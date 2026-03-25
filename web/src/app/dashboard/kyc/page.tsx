@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { FileCheck, CheckCircle, XCircle, Eye } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { useApproveKyc, useKycList, useRejectKyc } from "@/hooks/use-kyc";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 import { formatDate, formatIdType } from "@/lib/format";
-import type { KycSubmission, PaginatedResponse } from "@/lib/types";
+import type { KycSubmission } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
 import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
@@ -79,84 +80,61 @@ const columns: Column<KycSubmission>[] = [
 ];
 
 type ModalAction = { type: "approve" | "reject"; kyc: KycSubmission } | null;
+const FILTER_KEYS = filters.map((filter) => filter.key);
 
 export default function KycPage() {
   const router = useRouter();
-  const [data, setData] = useState<KycSubmission[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const {
+    page,
+    pageSize,
+    search,
+    activeFilters,
+    setPage,
+    setPageSize,
+    setSearch,
+    setFilter,
+    clearFilters,
+  } = useTableUrlState({
+    defaultPageSize: 20,
+    filterKeys: FILTER_KEYS,
+  });
+  const queryInput = useMemo(
+    () => ({
+      page,
+      pageSize,
+      search,
+      activeFilters,
+    }),
+    [activeFilters, page, pageSize, search],
+  );
+  const kycQuery = useKycList(queryInput);
+  const approveKycMutation = useApproveKyc();
+  const rejectKycMutation = useRejectKyc();
   const [modal, setModal] = useState<ModalAction>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const actionLoading = approveKycMutation.isPending || rejectKycMutation.isPending;
+  const data = kycQuery.data?.results ?? [];
+  const totalItems = kycQuery.data?.count ?? 0;
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("page_size", String(pageSize));
-      if (search) params.set("search", search);
-      Object.entries(activeFilters).forEach(([key, value]) => {
-        if (value) params.set(key, value);
-      });
-      const res = await apiFetch<PaginatedResponse<KycSubmission>>(
-        `/api/staff/kyc/?${params.toString()}`,
-      );
-      setData(res.results);
-      setTotalItems(res.count);
-    } catch {
-      setData([]);
-      setTotalItems(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, pageSize, search, activeFilters]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(1);
-  }, []);
-
-  const handleFilterChange = useCallback((key: string, value: string) => {
-    setActiveFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
-  }, []);
-
-  const handleClearFilters = useCallback(() => {
-    setActiveFilters({});
-    setPage(1);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setPage(1);
-  }, []);
+  const handleSearch = useCallback((query: string) => setSearch(query), [setSearch]);
+  const handleFilterChange = useCallback(
+    (key: string, value: string) => setFilter(key, value),
+    [setFilter],
+  );
+  const handleClearFilters = useCallback(() => clearFilters(), [clearFilters]);
+  const handlePageSizeChange = useCallback((size: number) => setPageSize(size), [setPageSize]);
 
   const handleAction = async (reason?: string) => {
     if (!modal) return;
-    setActionLoading(true);
+
     try {
-      const endpoint =
-        modal.type === "approve"
-          ? `/api/staff/kyc/${modal.kyc.id}/approve/`
-          : `/api/staff/kyc/${modal.kyc.id}/reject/`;
-      await apiFetch(endpoint, {
-        method: "POST",
-        body: modal.type === "reject" && reason ? JSON.stringify({ reason }) : undefined,
-      });
+      if (modal.type === "approve") {
+        await approveKycMutation.mutateAsync(modal.kyc.id);
+      } else {
+        await rejectKycMutation.mutateAsync({ id: modal.kyc.id, reason });
+      }
       setModal(null);
-      fetchData();
     } catch {
       /* keep modal open on error */
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -171,6 +149,7 @@ export default function KycPage() {
 
       <FilterBar
         onSearch={handleSearch}
+        searchValue={search}
         searchPlaceholder="Search by name or email..."
         filters={filters}
         activeFilters={activeFilters}
@@ -181,7 +160,7 @@ export default function KycPage() {
       <DataTable
         columns={columns}
         data={data}
-        isLoading={isLoading}
+        isLoading={kycQuery.isLoading}
         currentPage={page}
         totalItems={totalItems}
         pageSize={pageSize}

@@ -1,16 +1,20 @@
 "use client";
 
-import { use, useState, useCallback } from "react";
+import { use, useState } from "react";
 import { UserCog, CreditCard, CheckCircle, XCircle } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import {
+  useAgentDetail,
+  useApproveAgent,
+  useApproveCertification,
+  useRejectAgent,
+  useRejectCertification,
+} from "@/hooks/use-agents";
 import { formatDate } from "@/lib/format";
-import type { AgentCertification, PaginatedResponse, FileUrl, AppUserDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { RejectModal } from "@/components/modals/reject-modal";
 import { ContentViewerModal, useContentViewer } from "@/components/modals/content-viewer-modal";
 import {
-  useUserDetail,
   DetailHeader,
   AgentDetailSkeleton,
   DetailNotFound,
@@ -25,85 +29,55 @@ export default function AgentDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const viewer = useContentViewer();
 
-  const [certification, setCertification] = useState<AgentCertification | null>(null);
-  const [certPhotoUrls, setCertPhotoUrls] = useState<Record<string, FileUrl>>({});
   const [agentModal, setAgentModal] = useState<"approve" | "reject" | null>(null);
   const [certModal, setCertModal] = useState<"approve" | "reject" | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const approveAgentMutation = useApproveAgent();
+  const rejectAgentMutation = useRejectAgent();
+  const approveCertificationMutation = useApproveCertification();
+  const rejectCertificationMutation = useRejectCertification();
+  const actionLoading =
+    approveAgentMutation.isPending ||
+    rejectAgentMutation.isPending ||
+    approveCertificationMutation.isPending ||
+    rejectCertificationMutation.isPending;
+  const agentDetailQuery = useAgentDetail(id);
+  const user = agentDetailQuery.data?.user ?? null;
+  const certification = agentDetailQuery.data?.certification ?? null;
+  const certPhotoUrls = agentDetailQuery.data?.certPhotoUrls ?? {};
 
-  const fetchExtra = useCallback(async (userRes: AppUserDetail) => {
-    if (userRes.role !== "agent" && userRes.agent_status === "none") return;
-    try {
-      const certRes = await apiFetch<PaginatedResponse<AgentCertification>>(
-        `/api/staff/agents/certifications/?search=${encodeURIComponent(userRes.email)}&page_size=1`,
-      );
-      if (certRes.results.length > 0) {
-        setCertification(certRes.results[0]);
-        const cert = certRes.results[0];
-        const urls: Record<string, FileUrl> = {};
-        for (const [key, fileId] of Object.entries({
-          agent_id_photo: cert.agent_id_photo,
-          business_location_photo: cert.business_location_photo,
-        })) {
-          if (fileId) {
-            try {
-              const urlRes = await apiFetch<FileUrl>(`/api/files/${fileId}/access-url/`, {
-                method: "POST",
-              });
-              urls[key] = urlRes;
-            } catch {
-              /* file not available */
-            }
-          }
-        }
-        setCertPhotoUrls(urls);
-      }
-    } catch {
-      /* no certification */
-    }
-  }, []);
-
-  const { user, loading, refetch } = useUserDetail(id, fetchExtra);
-
-  if (loading) return <AgentDetailSkeleton />;
+  if (agentDetailQuery.isLoading) return <AgentDetailSkeleton />;
   if (!user) return <DetailNotFound backHref="/dashboard/agents" />;
 
   const handleAgentAction = async () => {
     if (!agentModal) return;
-    setActionLoading(true);
+
     try {
-      const endpoint =
-        agentModal === "approve"
-          ? `/api/staff/users/${user.id}/approve-agent/`
-          : `/api/staff/users/${user.id}/reject-agent/`;
-      await apiFetch(endpoint, { method: "POST" });
+      if (agentModal === "approve") {
+        await approveAgentMutation.mutateAsync(user.id);
+      } else {
+        await rejectAgentMutation.mutateAsync(user.id);
+      }
       setAgentModal(null);
-      refetch();
     } catch {
       /* keep modal open */
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const handleCertAction = async (reason?: string) => {
     if (!certModal || !certification) return;
-    setActionLoading(true);
+
     try {
-      const endpoint =
-        certModal === "approve"
-          ? `/api/staff/agents/certifications/${certification.id}/approve/`
-          : `/api/staff/agents/certifications/${certification.id}/reject/`;
-      await apiFetch(endpoint, {
-        method: "POST",
-        body: certModal === "reject" ? JSON.stringify({ reason }) : undefined,
-      });
+      if (certModal === "approve") {
+        await approveCertificationMutation.mutateAsync(certification.id);
+      } else {
+        await rejectCertificationMutation.mutateAsync({
+          id: certification.id,
+          reason,
+        });
+      }
       setCertModal(null);
-      refetch();
     } catch {
       /* keep modal open */
-    } finally {
-      setActionLoading(false);
     }
   };
 

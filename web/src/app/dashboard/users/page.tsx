@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Users, CheckCircle, XCircle, Eye } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
+import {
+  useApproveAgentApplication,
+  useRejectAgentApplication,
+  useUsersList,
+} from "@/hooks/use-users";
 import { formatDate } from "@/lib/format";
-import type { AppUser, PaginatedResponse } from "@/lib/types";
+import type { AppUser } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
 import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
@@ -68,81 +73,61 @@ const columns: Column<AppUser>[] = [
 ];
 
 type ModalAction = { type: "approve" | "reject"; user: AppUser } | null;
+const FILTER_KEYS = filters.map((filter) => filter.key);
 
 export default function UsersPage() {
   const router = useRouter();
-  const [data, setData] = useState<AppUser[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+  const {
+    page,
+    pageSize,
+    search,
+    activeFilters,
+    setPage,
+    setPageSize,
+    setSearch,
+    setFilter,
+    clearFilters,
+  } = useTableUrlState({
+    defaultPageSize: 20,
+    filterKeys: FILTER_KEYS,
+  });
+  const queryInput = useMemo(
+    () => ({
+      page,
+      pageSize,
+      search,
+      activeFilters,
+    }),
+    [activeFilters, page, pageSize, search],
+  );
+  const usersQuery = useUsersList(queryInput);
+  const approveAgentMutation = useApproveAgentApplication();
+  const rejectAgentMutation = useRejectAgentApplication();
   const [modal, setModal] = useState<ModalAction>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const actionLoading = approveAgentMutation.isPending || rejectAgentMutation.isPending;
+  const data = usersQuery.data?.results ?? [];
+  const totalItems = usersQuery.data?.count ?? 0;
 
-  const fetchUsers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("page_size", String(pageSize));
-      if (search) params.set("search", search);
-      Object.entries(activeFilters).forEach(([key, value]) => {
-        if (value) params.set(key, value);
-      });
-      const res = await apiFetch<PaginatedResponse<AppUser>>(
-        `/api/staff/users/?${params.toString()}`,
-      );
-      setData(res.results);
-      setTotalItems(res.count);
-    } catch {
-      setData([]);
-      setTotalItems(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [page, pageSize, search, activeFilters]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(1);
-  }, []);
-
-  const handleFilterChange = useCallback((key: string, value: string) => {
-    setActiveFilters((prev) => ({ ...prev, [key]: value }));
-    setPage(1);
-  }, []);
-
-  const handleClearFilters = useCallback(() => {
-    setActiveFilters({});
-    setPage(1);
-  }, []);
-
-  const handlePageSizeChange = useCallback((size: number) => {
-    setPageSize(size);
-    setPage(1);
-  }, []);
+  const handleSearch = useCallback((query: string) => setSearch(query), [setSearch]);
+  const handleFilterChange = useCallback(
+    (key: string, value: string) => setFilter(key, value),
+    [setFilter],
+  );
+  const handleClearFilters = useCallback(() => clearFilters(), [clearFilters]);
+  const handlePageSizeChange = useCallback((size: number) => setPageSize(size), [setPageSize]);
 
   const handleAction = async () => {
     if (!modal) return;
-    setActionLoading(true);
+
     try {
-      const endpoint =
-        modal.type === "approve"
-          ? `/api/staff/users/${modal.user.id}/approve-agent/`
-          : `/api/staff/users/${modal.user.id}/reject-agent/`;
-      await apiFetch(endpoint, { method: "POST" });
+      if (modal.type === "approve") {
+        await approveAgentMutation.mutateAsync(modal.user.id);
+      } else {
+        await rejectAgentMutation.mutateAsync(modal.user.id);
+      }
       setModal(null);
-      fetchUsers();
     } catch {
       // keep modal open on error
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -155,6 +140,7 @@ export default function UsersPage() {
 
       <FilterBar
         onSearch={handleSearch}
+        searchValue={search}
         searchPlaceholder="Search by name or email..."
         filters={filters}
         activeFilters={activeFilters}
@@ -165,7 +151,7 @@ export default function UsersPage() {
       <DataTable
         columns={columns}
         data={data}
-        isLoading={isLoading}
+        isLoading={usersQuery.isLoading}
         currentPage={page}
         totalItems={totalItems}
         pageSize={pageSize}

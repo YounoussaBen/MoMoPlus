@@ -8,9 +8,8 @@ import {
   Users,
   UserCog,
   FileCheck,
-  Landmark,
   ArrowLeftRight,
-  MapPin,
+  Wallet,
   Settings,
 } from "lucide-react";
 
@@ -19,9 +18,8 @@ const navItems = [
   { icon: Users, label: "User Management", href: "/dashboard/users" },
   { icon: UserCog, label: "Agent Management", href: "/dashboard/agents" },
   { icon: FileCheck, label: "KYC Reviews", href: "/dashboard/kyc" },
-  { icon: Landmark, label: "Loan Monitoring", href: "/dashboard/loans" },
-  { icon: ArrowLeftRight, label: "Transactions", href: "/dashboard/transactions" },
-  { icon: MapPin, label: "Physical Transactions", href: "/dashboard/physical" },
+  { icon: Wallet, label: "Get Funds", href: "/dashboard/get-funds" },
+  { icon: ArrowLeftRight, label: "Cash Services", href: "/dashboard/cash-services" },
 ];
 
 const bottomNavItems = [{ icon: Settings, label: "Settings", href: "/dashboard/settings" }];

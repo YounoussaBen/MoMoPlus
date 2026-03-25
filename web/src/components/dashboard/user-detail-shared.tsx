@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Mail, Calendar, Users, ImageIcon } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { useUserDetail as useUserDetailQuery } from "@/hooks/use-users";
 import { formatDate } from "@/lib/format";
 import type { AppUserDetail } from "@/lib/types";
 import type { FileUrl } from "@/lib/types";
@@ -93,28 +92,14 @@ export function DocCard({
   );
 }
 
-export function useUserDetail(id: string, fetchExtra?: (user: AppUserDetail) => Promise<void>) {
-  const [user, setUser] = useState<AppUserDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+export function useUserDetail(id: string) {
+  const query = useUserDetailQuery(id);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const userRes = await apiFetch<AppUserDetail>(`/api/staff/users/${id}/`);
-      setUser(userRes);
-      if (fetchExtra) await fetchExtra(userRes);
-    } catch {
-      /* user fetch failed */
-    } finally {
-      setLoading(false);
-    }
-  }, [id, fetchExtra]);
-
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
-
-  return { user, loading, refetch: fetchAll };
+  return {
+    user: query.data ?? null,
+    loading: query.isLoading,
+    refetch: query.refetch,
+  };
 }
 
 export function ProfileSection({ user }: { user: AppUserDetail }) {

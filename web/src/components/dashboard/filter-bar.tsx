@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, X, ChevronDown } from "lucide-react";
-import React, { useState } from "react";
+import React from "react";
 
 export interface FilterOption {
   label: string;
@@ -16,6 +16,7 @@ export interface FilterDefinition {
 
 export interface FilterBarProps {
   onSearch?: (query: string) => void;
+  searchValue?: string;
   searchPlaceholder?: string;
   filters?: FilterDefinition[];
   onFilterChange?: (key: string, value: string) => void;
@@ -26,6 +27,7 @@ export interface FilterBarProps {
 
 export function FilterBar({
   onSearch,
+  searchValue = "",
   searchPlaceholder = "Search here...",
   filters,
   onFilterChange,
@@ -33,14 +35,7 @@ export function FilterBar({
   activeFilters = {},
   actions,
 }: FilterBarProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    onSearch?.(value);
-  };
-
-  const hasActiveFilters = Object.values(activeFilters).some((v) => v) || searchQuery.length > 0;
+  const hasActiveFilters = Object.values(activeFilters).some((v) => v) || searchValue.length > 0;
 
   return (
     <div className="bg-card space-y-3 rounded-xl p-4">
@@ -50,8 +45,8 @@ export function FilterBar({
         <input
           type="text"
           placeholder={searchPlaceholder}
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
+          value={searchValue}
+          onChange={(e) => onSearch?.(e.target.value)}
           className="border-border bg-background text-foreground placeholder:text-muted-foreground focus:border-ring focus:ring-ring/20 w-full rounded-xl border py-2.5 pr-4 pl-10 text-sm transition-all duration-200 focus:ring-2 focus:outline-none"
         />
       </div>
@@ -85,7 +80,7 @@ export function FilterBar({
             {hasActiveFilters && onClearFilters && (
               <button
                 onClick={() => {
-                  handleSearch("");
+                  onSearch?.("");
                   onClearFilters();
                 }}
                 className="border-border bg-background text-muted-foreground hover:border-ring hover:text-foreground flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-all duration-200"

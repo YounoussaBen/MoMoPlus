@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useState, useSyncExternalStore, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { StaffUser, LoginResponse } from "@/lib/types";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { container } from "@/di/container";
+import { queryClient } from "@/di/query-client";
+import type { StaffUser } from "@/lib/types";
 
 // ─── localStorage-backed store ───────────────────────────────────────────────
 
@@ -75,21 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string) => {
       setLoggingIn(true);
       try {
-        const res = await fetch(`${API_URL}/api/auth/staff/login/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.detail ?? "Invalid credentials.");
-        }
-
-        const data: LoginResponse = await res.json();
+        const data = await container.authService.login(email, password);
 
         localStorage.setItem("access_token", data.access);
         localStorage.setItem("staff_user", JSON.stringify(data.user));
+        queryClient.clear();
         emitChange();
         router.push("/dashboard");
       } finally {
@@ -102,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("staff_user");
+    queryClient.clear();
     emitChange();
     router.push("/login");
   }, [router]);

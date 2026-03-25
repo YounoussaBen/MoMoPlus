@@ -1,16 +1,14 @@
 "use client";
 
-import { use, useState, useCallback } from "react";
+import { use, useState } from "react";
 import { FileCheck, CheckCircle, XCircle } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import { useApproveKyc, useKycDetail, useRejectKyc } from "@/hooks/use-kyc";
 import { formatDate, formatIdType } from "@/lib/format";
-import type { KycSubmissionDetail, PaginatedResponse, AppUserDetail } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { RejectModal } from "@/components/modals/reject-modal";
 import { ContentViewerModal, useContentViewer } from "@/components/modals/content-viewer-modal";
 import {
-  useUserDetail,
   DetailHeader,
   KycDetailSkeleton,
   DetailNotFound,
@@ -25,49 +23,32 @@ export default function KycDetailPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
   const viewer = useContentViewer();
 
-  const [kyc, setKyc] = useState<KycSubmissionDetail | null>(null);
   const [kycModal, setKycModal] = useState<"approve" | "reject" | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
+  const approveKycMutation = useApproveKyc();
+  const rejectKycMutation = useRejectKyc();
+  const actionLoading = approveKycMutation.isPending || rejectKycMutation.isPending;
+  const kycDetailQuery = useKycDetail(id);
+  const user = kycDetailQuery.data?.user ?? null;
+  const kyc = kycDetailQuery.data?.kyc ?? null;
 
-  const fetchExtra = useCallback(async (userRes: AppUserDetail) => {
-    try {
-      const kycRes = await apiFetch<PaginatedResponse<KycSubmissionDetail>>(
-        `/api/staff/kyc/?search=${encodeURIComponent(userRes.email)}&page_size=1`,
-      );
-      if (kycRes.results.length > 0) {
-        const kycDetail = await apiFetch<KycSubmissionDetail>(
-          `/api/staff/kyc/${kycRes.results[0].id}/`,
-        );
-        setKyc(kycDetail);
-      }
-    } catch {
-      /* no KYC */
-    }
-  }, []);
-
-  const { user, loading, refetch } = useUserDetail(id, fetchExtra);
-
-  if (loading) return <KycDetailSkeleton />;
+  if (kycDetailQuery.isLoading) return <KycDetailSkeleton />;
   if (!user) return <DetailNotFound backHref="/dashboard/kyc" />;
 
   const handleKycAction = async (reason?: string) => {
     if (!kycModal || !kyc) return;
-    setActionLoading(true);
+
     try {
-      const endpoint =
-        kycModal === "approve"
-          ? `/api/staff/kyc/${kyc.id}/approve/`
-          : `/api/staff/kyc/${kyc.id}/reject/`;
-      await apiFetch(endpoint, {
-        method: "POST",
-        body: kycModal === "reject" ? JSON.stringify({ reason }) : undefined,
-      });
+      if (kycModal === "approve") {
+        await approveKycMutation.mutateAsync(kyc.id);
+      } else {
+        await rejectKycMutation.mutateAsync({
+          id: kyc.id,
+          reason,
+        });
+      }
       setKycModal(null);
-      refetch();
     } catch {
       /* keep modal open */
-    } finally {
-      setActionLoading(false);
     }
   };
 
