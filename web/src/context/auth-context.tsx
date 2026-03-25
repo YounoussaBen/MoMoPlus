@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useSyncExternalStore, useCallback } from "react";
+import { createContext, useContext, useSyncExternalStore, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { container } from "@/di/container";
 import { queryClient } from "@/di/query-client";
@@ -52,7 +52,6 @@ function emitChange() {
 
 interface AuthContextValue {
   user: StaffUser | null;
-  loading: boolean;
   hydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
@@ -68,26 +67,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => false,
   );
   const { user } = snapshot;
-  const [loggingIn, setLoggingIn] = useState(false);
   const router = useRouter();
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      setLoggingIn(true);
-      try {
-        const data = await container.authService.login(email, password);
+  const login = useCallback(async (email: string, password: string) => {
+    const data = await container.authService.login(email, password);
 
-        localStorage.setItem("access_token", data.access);
-        localStorage.setItem("staff_user", JSON.stringify(data.user));
-        queryClient.clear();
-        emitChange();
-        router.push("/dashboard");
-      } finally {
-        setLoggingIn(false);
-      }
-    },
-    [router],
-  );
+    localStorage.setItem("access_token", data.access);
+    localStorage.setItem("staff_user", JSON.stringify(data.user));
+    queryClient.clear();
+    emitChange();
+  }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem("access_token");
@@ -98,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, loading: loggingIn, hydrated, login, logout }}>
+    <AuthContext.Provider value={{ user, hydrated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
