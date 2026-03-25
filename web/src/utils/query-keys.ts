@@ -1,5 +1,10 @@
 import type { TableQueryInput } from "@/utils/query-params";
 
+export const authKeys = {
+  all: ["auth"] as const,
+  profile: () => ["auth", "profile"] as const,
+};
+
 export const dashboardKeys = {
   all: ["dashboard"] as const,
   overview: (days: number) => ["dashboard", "overview", days] as const,

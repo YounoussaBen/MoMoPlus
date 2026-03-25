@@ -1,10 +1,5 @@
-import { ComingSoonPage } from "@/components/dashboard/coming-soon";
+import { SettingsPageView } from "@/components/dashboard/settings/settings-page";
 
 export default function SettingsPage() {
-  return (
-    <ComingSoonPage
-      title="Settings"
-      description="Configure platform settings including penalty rules, timer durations, and system parameters."
-    />
-  );
+  return <SettingsPageView />;
 }

@@ -1,8 +1,14 @@
 "use client";
 
 import type { Route } from "next";
-import { startTransition, useCallback, useMemo } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  clearStoredTableState,
+  readStoredTableState,
+  useDashboardPreferences,
+  writeStoredTableState,
+} from "@/hooks/use-dashboard-preferences";
 
 interface UseTableUrlStateOptions {
   defaultPageSize?: number;
@@ -16,15 +22,18 @@ function parsePositiveInt(value: string | null, fallback: number) {
 }
 
 export function useTableUrlState({
-  defaultPageSize = 20,
+  defaultPageSize,
   filterKeys = [],
 }: UseTableUrlStateOptions = {}) {
+  const { preferences } = useDashboardPreferences();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const hasRestoredStoredState = useRef(false);
+  const resolvedDefaultPageSize = defaultPageSize ?? preferences.defaultTablePageSize;
 
   const page = parsePositiveInt(searchParams.get("page"), 1);
-  const pageSize = parsePositiveInt(searchParams.get("page_size"), defaultPageSize);
+  const pageSize = parsePositiveInt(searchParams.get("page_size"), resolvedDefaultPageSize);
   const search = searchParams.get("search") ?? "";
   const activeFilters = useMemo(
     () =>
@@ -33,6 +42,52 @@ export function useTableUrlState({
       ),
     [filterKeys, searchParams],
   );
+  const hasExplicitTableState = useMemo(
+    () =>
+      !!searchParams.get("page") ||
+      !!searchParams.get("page_size") ||
+      !!searchParams.get("search") ||
+      filterKeys.some((filterKey) => !!searchParams.get(filterKey)),
+    [filterKeys, searchParams],
+  );
+
+  useEffect(() => {
+    if (hasRestoredStoredState.current) return;
+
+    if (!preferences.rememberListFilters || hasExplicitTableState) {
+      hasRestoredStoredState.current = true;
+      return;
+    }
+
+    const storedQuery = readStoredTableState(pathname);
+    hasRestoredStoredState.current = true;
+    if (!storedQuery) return;
+
+    startTransition(() => {
+      router.replace(`${pathname}?${storedQuery}` as Route, { scroll: false });
+    });
+  }, [hasExplicitTableState, pathname, preferences.rememberListFilters, router]);
+
+  useEffect(() => {
+    if (!preferences.rememberListFilters) {
+      clearStoredTableState(pathname);
+      return;
+    }
+
+    const trackedParams = new URLSearchParams();
+
+    ["page", "page_size", "search"].forEach((key) => {
+      const value = searchParams.get(key);
+      if (value) trackedParams.set(key, value);
+    });
+
+    filterKeys.forEach((filterKey) => {
+      const value = searchParams.get(filterKey);
+      if (value) trackedParams.set(filterKey, value);
+    });
+
+    writeStoredTableState(pathname, trackedParams.toString());
+  }, [filterKeys, pathname, preferences.rememberListFilters, searchParams]);
 
   const replaceParams = useCallback(
     (mutate: (params: URLSearchParams) => void) => {
@@ -40,7 +95,9 @@ export function useTableUrlState({
       mutate(nextParams);
 
       if (nextParams.get("page") === "1") nextParams.delete("page");
-      if (nextParams.get("page_size") === String(defaultPageSize)) nextParams.delete("page_size");
+      if (nextParams.get("page_size") === String(resolvedDefaultPageSize)) {
+        nextParams.delete("page_size");
+      }
       if (!nextParams.get("search")) nextParams.delete("search");
 
       filterKeys.forEach((filterKey) => {
@@ -58,7 +115,7 @@ export function useTableUrlState({
         router.replace(nextHref as Route, { scroll: false });
       });
     },
-    [defaultPageSize, filterKeys, pathname, router, searchParams],
+    [filterKeys, pathname, resolvedDefaultPageSize, router, searchParams],
   );
 
   const setPage = useCallback(

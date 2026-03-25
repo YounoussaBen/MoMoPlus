@@ -1,6 +1,7 @@
 import type { AxiosInstance } from "axios";
 import { apiClient } from "@/repositories/api/client";
-import { loginResponseSchema } from "@/validators/auth";
+import type { UpdateStaffProfileInput } from "@/lib/types";
+import { loginResponseSchema, staffProfileSchema } from "@/validators/auth";
 
 export class AuthRepository {
   constructor(private readonly client: AxiosInstance = apiClient) {}
@@ -12,5 +13,15 @@ export class AuthRepository {
     });
 
     return loginResponseSchema.parse(data);
+  }
+
+  async getProfile() {
+    const { data } = await this.client.get("/api/auth/profile/");
+    return staffProfileSchema.parse(data);
+  }
+
+  async updateProfile(input: UpdateStaffProfileInput) {
+    const { data } = await this.client.patch("/api/auth/profile/", input);
+    return staffProfileSchema.parse(data);
   }
 }

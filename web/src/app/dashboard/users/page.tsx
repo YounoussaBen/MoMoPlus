@@ -88,7 +88,6 @@ export default function UsersPage() {
     setFilter,
     clearFilters,
   } = useTableUrlState({
-    defaultPageSize: 20,
     filterKeys: FILTER_KEYS,
   });
   const queryInput = useMemo(

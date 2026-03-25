@@ -31,8 +31,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const RANGE_OPTIONS = [7, 14, 30, 90] as const;
+import {
+  useDashboardPreferences,
+  DASHBOARD_RANGE_OPTIONS,
+} from "@/hooks/use-dashboard-preferences";
 
 const ACTIVITY_SERIES = [
   { key: "users", label: "Users", color: "var(--color-primary)" },
@@ -132,7 +134,7 @@ function DashboardRangePicker({
 }) {
   return (
     <div className="bg-card border-border/60 inline-flex items-center gap-1 rounded-2xl border p-1">
-      {RANGE_OPTIONS.map((option) => (
+      {DASHBOARD_RANGE_OPTIONS.map((option) => (
         <Button
           key={option}
           variant={option === value ? "secondary" : "ghost"}
@@ -627,7 +629,9 @@ function OverviewContent({ overview }: { overview: StaffDashboardOverview }) {
 }
 
 export function DashboardOverviewPage() {
-  const [selectedDays, setSelectedDays] = useState<number>(30);
+  const { preferences } = useDashboardPreferences();
+  const [selectedDaysOverride, setSelectedDaysOverride] = useState<number | null>(null);
+  const selectedDays = selectedDaysOverride ?? preferences.defaultRangeDays;
   const overviewQuery = useDashboardOverview(selectedDays);
 
   if (overviewQuery.isLoading) {
@@ -639,7 +643,7 @@ export function DashboardOverviewPage() {
       <EmptyState
         icon={<TrendingUp className="size-8" />}
         title="Dashboard data is unavailable"
-        description="The overview endpoint could not be loaded. Try refreshing or check the staff API."
+        description="The overview could not be loaded. Try refreshing."
         action={
           <Button variant="outline" onClick={() => overviewQuery.refetch()}>
             Retry
@@ -654,7 +658,7 @@ export function DashboardOverviewPage() {
       <DashboardSectionHeader
         title="Dashboard"
         description="Platform-level activity, queue health, and money movement in one view."
-        trailing={<DashboardRangePicker value={selectedDays} onChange={setSelectedDays} />}
+        trailing={<DashboardRangePicker value={selectedDays} onChange={setSelectedDaysOverride} />}
       />
 
       <div className="flex flex-wrap items-center gap-3">

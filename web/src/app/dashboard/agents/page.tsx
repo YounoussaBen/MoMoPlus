@@ -104,7 +104,6 @@ export default function AgentsPage() {
     setFilter,
     clearFilters,
   } = useTableUrlState({
-    defaultPageSize: 20,
     filterKeys: FILTER_KEYS,
   });
   const queryInput = useMemo(

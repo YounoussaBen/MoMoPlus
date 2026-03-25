@@ -134,7 +134,6 @@ export default function GetFundsPage() {
     setFilter,
     clearFilters,
   } = useTableUrlState({
-    defaultPageSize: 20,
     filterKeys: FILTER_KEYS,
   });
 

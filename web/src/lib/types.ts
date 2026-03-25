@@ -33,6 +33,26 @@ export type UserRole = "user" | "agent";
 export type AgentStatus = "none" | "pending" | "approved" | "rejected";
 export type KycStatus = "none" | "pending" | "approved" | "rejected";
 
+export interface StaffProfile {
+  id: string;
+  supabase_user_id: string | null;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  role: UserRole;
+  agent_status: AgentStatus;
+  kyc_status: KycStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateStaffProfileInput {
+  first_name: string;
+  last_name: string;
+}
+
 export interface AppUser {
   id: string;
   email: string;

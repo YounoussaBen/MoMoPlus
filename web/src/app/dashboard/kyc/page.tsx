@@ -95,7 +95,6 @@ export default function KycPage() {
     setFilter,
     clearFilters,
   } = useTableUrlState({
-    defaultPageSize: 20,
     filterKeys: FILTER_KEYS,
   });
   const queryInput = useMemo(

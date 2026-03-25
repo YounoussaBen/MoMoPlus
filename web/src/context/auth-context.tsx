@@ -55,6 +55,7 @@ interface AuthContextValue {
   hydrated: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUser: (updates: Partial<StaffUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -86,8 +87,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   }, [router]);
 
+  const updateUser = useCallback((updates: Partial<StaffUser>) => {
+    const snapshot = getSnapshot();
+    if (!snapshot.user) return;
+
+    localStorage.setItem("staff_user", JSON.stringify({ ...snapshot.user, ...updates }));
+    emitChange();
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, hydrated, login, logout }}>
+    <AuthContext.Provider value={{ user, hydrated, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

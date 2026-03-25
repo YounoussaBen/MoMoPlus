@@ -146,7 +146,6 @@ export default function CashServicesPage() {
     setFilter,
     clearFilters,
   } = useTableUrlState({
-    defaultPageSize: 20,
     filterKeys: FILTER_KEYS,
   });
 
