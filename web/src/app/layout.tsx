@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ReactQueryProvider } from "@/di/react-query-provider";
 import { AuthProvider } from "@/context/auth-context";
+import { ThemeProvider } from "@/context/theme-context";
+import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,11 +19,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
-        <AuthProvider>
-          <ReactQueryProvider>{children}</ReactQueryProvider>
-        </AuthProvider>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <ThemeProvider>
+          <AuthProvider>
+            <ReactQueryProvider>{children}</ReactQueryProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

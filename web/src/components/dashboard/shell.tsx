@@ -46,7 +46,7 @@ export function DashboardShell({
     <div className="flex min-h-screen">
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/20 lg:hidden"
+          className="fixed inset-0 z-40 bg-[var(--overlay-subtle)] backdrop-blur-sm lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}

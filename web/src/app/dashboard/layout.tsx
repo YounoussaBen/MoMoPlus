@@ -3,6 +3,7 @@
 import { AuthGuard } from "@/components/auth-guard";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { useAuth } from "@/context/auth-context";
+import { useTheme } from "@/context/theme-context";
 import {
   LayoutDashboard,
   Users,
@@ -26,6 +27,8 @@ const bottomNavItems = [{ icon: Settings, label: "Settings", href: "/dashboard/s
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { resolvedTheme } = useTheme();
+  const logoSrc = resolvedTheme === "dark" ? "/logo-white.png" : "/logo.png";
 
   return (
     <AuthGuard>
@@ -35,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         headerSubtitle="Staff Admin Dashboard"
         navItems={navItems}
         bottomNavItems={bottomNavItems}
-        logoSrc="/logo.png"
+        logoSrc={logoSrc}
         onLogout={logout}
         headerFlat
       >

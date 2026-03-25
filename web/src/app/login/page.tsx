@@ -5,18 +5,23 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
+import { useTheme } from "@/context/theme-context";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const logoSrc = resolvedTheme === "dark" ? "/logo-white.png" : "/logo.png";
 
   useEffect(() => {
     if (!loading && user) {
@@ -40,20 +45,25 @@ export default function LoginPage() {
 
   if (loading || user) {
     return (
-      <div className="flex min-h-screen flex-col lg:flex-row">
-        <div className="flex items-start bg-[#e8f5e0] p-8 lg:w-1/2 lg:p-12">
-          <div className="h-40 w-40 animate-pulse rounded-xl bg-white/50" />
+      <div className="relative flex min-h-screen flex-col lg:flex-row">
+        <div className="absolute top-5 right-5 z-10">
+          <ThemeToggle compact />
         </div>
-        <div className="flex flex-1 items-center justify-center bg-white p-8 lg:w-1/2 lg:p-12">
+
+        <div className="bg-secondary border-border/60 relative flex items-start overflow-hidden border-b p-8 lg:w-1/2 lg:border-r lg:border-b-0 lg:p-12">
+          <div className="bg-primary/12 absolute -top-16 -left-16 h-56 w-56 rounded-full blur-3xl" />
+          <Skeleton className="bg-card/55 h-40 w-40 rounded-[28px]" />
+        </div>
+        <div className="bg-card flex flex-1 items-center justify-center p-8 lg:w-1/2 lg:p-12">
           <div className="w-full max-w-sm space-y-6">
             <div className="space-y-2">
-              <div className="h-8 w-32 animate-pulse rounded-xl bg-gray-200" />
-              <div className="h-4 w-56 animate-pulse rounded-xl bg-gray-100" />
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-4 w-56" />
             </div>
             <div className="space-y-4">
-              <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
-              <div className="h-10 w-full animate-pulse rounded-xl bg-gray-100" />
-              <div className="h-10 w-full animate-pulse rounded-xl bg-gray-200" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
             </div>
           </div>
         </div>
@@ -62,11 +72,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col lg:flex-row">
+    <div className="relative flex min-h-screen flex-col lg:flex-row">
+      <div className="absolute top-5 right-5 z-10">
+        <ThemeToggle compact />
+      </div>
+
       {/* Brand panel */}
-      <div className="flex items-start bg-[#e8f5e0] p-8 lg:w-1/2 lg:p-12">
+      <div className="bg-secondary border-border/60 relative flex items-start overflow-hidden border-b p-8 lg:w-1/2 lg:border-r lg:border-b-0 lg:p-12">
+        <div className="bg-primary/12 absolute -top-24 left-0 h-64 w-64 rounded-full blur-3xl" />
+        <div className="bg-info/10 absolute right-0 bottom-0 h-48 w-48 rounded-full blur-3xl" />
         <Image
-          src="/logo.png"
+          src={logoSrc}
           alt="MoMoPlus"
           width={300}
           height={300}
@@ -76,7 +92,7 @@ export default function LoginPage() {
       </div>
 
       {/* Form panel */}
-      <div className="flex flex-1 items-center justify-center bg-white p-8 lg:w-1/2 lg:p-12">
+      <div className="bg-card flex flex-1 items-center justify-center p-8 lg:w-1/2 lg:p-12">
         <div className="w-full max-w-sm">
           <h1 className="text-foreground mb-2 text-2xl font-semibold tracking-tight lg:text-3xl">
             Staff Login

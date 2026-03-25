@@ -9,8 +9,8 @@ interface ComingSoonPageProps {
 export function ComingSoonPage({ title, description, icon: Icon = Clock }: ComingSoonPageProps) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="max-w-md text-center">
-        <div className="bg-muted mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl">
+      <div className="border-border/60 bg-card/82 max-w-md rounded-[28px] border p-8 text-center backdrop-blur-xl">
+        <div className="bg-secondary text-primary mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl">
           <Icon size={28} className="text-muted-foreground" />
         </div>
         <div className="bg-muted text-muted-foreground mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium">

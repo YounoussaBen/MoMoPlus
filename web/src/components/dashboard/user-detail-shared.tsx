@@ -85,7 +85,7 @@ export function DocCard({
           (e.target as HTMLImageElement).style.display = "none";
         }}
       />
-      <div className="relative z-10 rounded-lg bg-black/50 px-3 py-2 text-white">
+      <div className="bg-card/86 text-card-foreground relative z-10 rounded-lg px-3 py-2 backdrop-blur-md">
         <p className="text-xs font-medium">{label}</p>
       </div>
     </button>

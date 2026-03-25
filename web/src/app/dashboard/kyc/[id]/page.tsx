@@ -5,6 +5,7 @@ import { FileCheck, CheckCircle, XCircle } from "lucide-react";
 import { useApproveKyc, useKycDetail, useRejectKyc } from "@/hooks/use-kyc";
 import { formatDate, formatIdType } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { RejectModal } from "@/components/modals/reject-modal";
 import { ContentViewerModal, useContentViewer } from "@/components/modals/content-viewer-modal";
@@ -66,20 +67,14 @@ export default function KycDetailPage({ params }: { params: Promise<{ id: string
           action={
             kyc.status === "pending" ? (
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setKycModal("approve")}
-                  className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-green-700"
-                >
+                <Button onClick={() => setKycModal("approve")} size="sm">
                   <CheckCircle size={14} />
                   Approve
-                </button>
-                <button
-                  onClick={() => setKycModal("reject")}
-                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700"
-                >
+                </Button>
+                <Button onClick={() => setKycModal("reject")} variant="destructive" size="sm">
                   <XCircle size={14} />
                   Reject
-                </button>
+                </Button>
               </div>
             ) : undefined
           }
@@ -95,7 +90,7 @@ export default function KycDetailPage({ params }: { params: Promise<{ id: string
               )}
               {kyc.rejection_reason && (
                 <InfoRow label="Rejection Reason">
-                  <span className="text-red-500">{kyc.rejection_reason}</span>
+                  <span className="text-destructive">{kyc.rejection_reason}</span>
                 </InfoRow>
               )}
             </div>
@@ -142,7 +137,7 @@ export default function KycDetailPage({ params }: { params: Promise<{ id: string
           title="Approve KYC Submission"
           description="This will mark the user's identity as verified."
           confirmLabel="Approve"
-          confirmClassName="bg-green-600 text-white hover:bg-green-700"
+          confirmVariant="default"
           isLoading={actionLoading}
           onConfirm={() => handleKycAction()}
           onCancel={() => setKycModal(null)}

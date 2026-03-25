@@ -156,7 +156,7 @@ export function DataTable<T = any>({
   const showPaginationFooter = !!(onPageChange || onPageSizeChange);
 
   const PaginationFooter = (
-    <div className="bg-card flex flex-col flex-wrap items-center justify-between gap-3 rounded-lg p-4 sm:flex-row">
+    <div className="border-border/60 bg-card/82 flex flex-col flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 backdrop-blur-xl sm:flex-row">
       <p className="text-muted-foreground text-center text-sm sm:text-left">
         {totalItems === 0 ? "No results" : `${rangeStart}\u2013${rangeEnd} of ${totalItems}`}
       </p>
@@ -245,7 +245,7 @@ export function DataTable<T = any>({
   if (data.length === 0) {
     return (
       <div className="w-full space-y-4">
-        <div className="bg-card w-full rounded-xl p-8 text-center">
+        <div className="border-border/60 bg-card/82 w-full rounded-[28px] border p-8 text-center backdrop-blur-xl">
           <EmptyIcon className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
           <h2 className="text-foreground mb-2 text-lg font-semibold">
             {emptyState?.title ?? "No data found"}
@@ -266,7 +266,7 @@ export function DataTable<T = any>({
   return (
     <div className="w-full space-y-4">
       {/* Desktop Table */}
-      <div className="border-border/50 bg-card hidden overflow-x-auto rounded-lg border md:block">
+      <div className="border-border/60 bg-card/82 hidden overflow-x-auto rounded-2xl border backdrop-blur-xl md:block">
         <table className="w-full min-w-max">
           <thead>
             <tr className="border-border/50 bg-background/50 border-b">
@@ -330,7 +330,7 @@ export function DataTable<T = any>({
         {data.map((row, index) => (
           <div
             key={index}
-            className={`border-border/50 bg-card rounded-lg border p-4 transition-colors ${
+            className={`border-border/60 bg-card/82 rounded-2xl border p-4 backdrop-blur-xl transition-colors ${
               onRowClick ? "hover:bg-muted/40 cursor-pointer" : ""
             }`}
             onClick={() => onRowClick?.(row)}

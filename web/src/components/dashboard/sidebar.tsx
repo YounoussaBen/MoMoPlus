@@ -44,7 +44,7 @@ export function Sidebar({
   return (
     <aside
       className={[
-        "fixed top-0 z-50 flex h-screen flex-col bg-[#e8f5e0] py-6 transition-all duration-300",
+        "bg-sidebar/94 border-border/60 text-sidebar-foreground fixed top-0 z-50 flex h-screen flex-col border-r py-6 backdrop-blur-xl transition-all duration-300",
         "w-64",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
         "lg:sticky lg:translate-x-0",
@@ -61,7 +61,7 @@ export function Sidebar({
         {logoSrc && <Image src={logoSrc} alt="Logo" width={140} height={35} className="shrink-0" />}
         <button
           onClick={onToggleDesktop}
-          className="hidden h-8 w-8 items-center justify-center rounded-lg bg-black/5 text-[#6e6e73] transition-all duration-300 hover:bg-black/10 hover:text-[#111] lg:flex"
+          className="bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hidden h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 lg:flex"
         >
           <ChevronLeft size={18} />
         </button>
@@ -88,7 +88,7 @@ export function Sidebar({
         <div className="mt-4 mb-8">
           <button
             onClick={onToggleDesktop}
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-black/5 text-[#6e6e73] transition-all duration-300 hover:bg-black/10 hover:text-[#111]"
+            className="bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300"
           >
             <ChevronRight size={18} />
           </button>
@@ -110,8 +110,8 @@ export function Sidebar({
                 "w-full justify-start px-4 py-2.5",
                 desktopCollapsed && "lg:h-12 lg:w-12 lg:justify-center lg:px-0 lg:py-0",
                 active
-                  ? "bg-white font-semibold text-[#111]"
-                  : "text-[#6e6e73] hover:bg-white/60 hover:text-[#111]",
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                  : "hover:bg-sidebar-accent/72 hover:text-sidebar-accent-foreground",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -147,8 +147,8 @@ export function Sidebar({
                 "w-full justify-start px-4 py-2.5",
                 desktopCollapsed && "lg:h-12 lg:w-12 lg:justify-center lg:px-0 lg:py-0",
                 active
-                  ? "bg-white font-semibold text-[#111]"
-                  : "text-[#6e6e73] hover:bg-white/60 hover:text-[#111]",
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                  : "hover:bg-sidebar-accent/72 hover:text-sidebar-accent-foreground",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -172,7 +172,7 @@ export function Sidebar({
             "flex items-center gap-3 rounded-xl transition-colors",
             "w-full justify-start px-4 py-2.5",
             desktopCollapsed && "lg:h-12 lg:w-12 lg:justify-center lg:px-0 lg:py-0",
-            "text-[#6e6e73] hover:bg-red-500/10 hover:text-red-600",
+            "hover:bg-destructive/10 hover:text-destructive",
           ]
             .filter(Boolean)
             .join(" ")}

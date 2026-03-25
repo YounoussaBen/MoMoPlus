@@ -38,7 +38,7 @@ export function FilterBar({
   const hasActiveFilters = Object.values(activeFilters).some((v) => v) || searchValue.length > 0;
 
   return (
-    <div className="bg-card space-y-3 rounded-xl p-4">
+    <div className="border-border/60 bg-card/82 space-y-3 rounded-2xl border p-4 backdrop-blur-xl">
       {/* Search */}
       <div className="relative">
         <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />

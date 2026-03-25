@@ -214,7 +214,7 @@ export default function KycPage() {
           title="Approve KYC Submission"
           description={`Are you sure you want to approve the KYC submission from ${`${modal.kyc.user.first_name} ${modal.kyc.user.last_name}`.trim() || modal.kyc.user.email}?`}
           confirmLabel="Approve"
-          confirmClassName="bg-green-600 text-white hover:bg-green-700"
+          confirmVariant="default"
           isLoading={actionLoading}
           onConfirm={() => handleAction()}
           onCancel={() => setModal(null)}

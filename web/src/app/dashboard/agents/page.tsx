@@ -269,7 +269,7 @@ export default function AgentsPage() {
           title="Approve Agent Application"
           description={`Are you sure you want to approve ${modal.user.full_name || modal.user.email} as an agent?`}
           confirmLabel="Approve"
-          confirmClassName="bg-green-600 text-white hover:bg-green-700"
+          confirmVariant="default"
           isLoading={actionLoading}
           onConfirm={() => handleAction()}
           onCancel={() => setModal(null)}
@@ -292,7 +292,7 @@ export default function AgentsPage() {
           title="Approve Certification"
           description={`Are you sure you want to certify ${modal.user.full_name || modal.user.email}?`}
           confirmLabel="Approve"
-          confirmClassName="bg-green-600 text-white hover:bg-green-700"
+          confirmVariant="default"
           isLoading={actionLoading}
           onConfirm={() => handleAction()}
           onCancel={() => setModal(null)}

@@ -46,7 +46,7 @@ export function TableActionMenu({
       <DropdownMenuContent
         align="end"
         sideOffset={10}
-        className="min-w-[220px] rounded-2xl border-0 bg-white p-2 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.28)]"
+        className="border-border/70 bg-popover/95 min-w-[220px] rounded-2xl border p-2 backdrop-blur-xl"
       >
         {actions.map((action, index) => {
           const Icon = action.icon;
@@ -58,14 +58,14 @@ export function TableActionMenu({
                 disabled={action.disabled}
                 onSelect={action.onSelect}
                 className={cn(
-                  "rounded-xl px-3 py-3 text-sm font-medium text-slate-700 focus:bg-transparent focus:text-slate-700",
-                  action.destructive && "text-red-600 focus:text-red-600",
+                  "text-foreground focus:text-foreground rounded-xl px-3 py-3 text-sm font-medium focus:bg-transparent",
+                  action.destructive && "text-destructive focus:text-destructive",
                 )}
               >
                 {Icon ? (
                   <Icon
                     size={15}
-                    className={action.destructive ? "text-red-500" : "text-slate-500"}
+                    className={action.destructive ? "text-destructive" : "text-muted-foreground"}
                   />
                 ) : null}
                 <span>{action.label}</span>

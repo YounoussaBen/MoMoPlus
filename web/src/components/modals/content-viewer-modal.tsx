@@ -52,11 +52,11 @@ export function ContentViewerModal({ url, title, type, isOpen, onClose }: Conten
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-strong)] backdrop-blur-md"
       onClick={onClose}
     >
       <div
-        className="bg-card relative m-4 flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-xl shadow-2xl"
+        className="bg-card/96 border-border/70 relative m-4 flex h-[90vh] w-full max-w-7xl flex-col overflow-hidden rounded-2xl border backdrop-blur-xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

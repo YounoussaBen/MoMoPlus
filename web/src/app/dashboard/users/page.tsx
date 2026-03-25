@@ -59,9 +59,9 @@ const columns: Column<AppUser>[] = [
     hideOnMobile: true,
     render: (_, row) =>
       row.is_active ? (
-        <span className="text-green-600">Yes</span>
+        <Badge variant="success">Yes</Badge>
       ) : (
-        <span className="text-red-500">No</span>
+        <Badge variant="destructive">No</Badge>
       ),
   },
   {
@@ -211,11 +211,7 @@ export default function UsersPage() {
               : `Are you sure you want to reject the agent application from ${modal.user.full_name || modal.user.email}?`
           }
           confirmLabel={modal.type === "approve" ? "Approve" : "Reject"}
-          confirmClassName={
-            modal.type === "approve"
-              ? "bg-green-600 text-white hover:bg-green-700"
-              : "bg-red-600 text-white hover:bg-red-700"
-          }
+          confirmVariant={modal.type === "approve" ? "default" : "destructive"}
           isLoading={actionLoading}
           onConfirm={handleAction}
           onCancel={() => setModal(null)}
