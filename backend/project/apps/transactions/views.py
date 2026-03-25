@@ -35,7 +35,7 @@ def _get_txn_or_404(pk: str) -> PhysicalTransaction | None:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     request=CreatePhysicalTransactionSerializer,
     responses={
         status.HTTP_201_CREATED: PhysicalTransactionSerializer,
@@ -69,7 +69,7 @@ def create_transaction(request: Request) -> Response:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     responses={status.HTTP_200_OK: PhysicalTransactionSerializer(many=True)},
 )
 @api_view(["GET"])
@@ -87,7 +87,7 @@ def list_transactions(request: Request) -> Response:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     responses={
         status.HTTP_200_OK: PhysicalTransactionSerializer,
         status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Transaction not found"),
@@ -106,7 +106,7 @@ def transaction_detail(request: Request, pk: str) -> Response:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     request=AcceptTransactionSerializer,
     responses={
         status.HTTP_200_OK: PhysicalTransactionSerializer,
@@ -141,7 +141,7 @@ def accept_transaction_view(request: Request, pk: str) -> Response:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     request=RejectTransactionSerializer,
     responses={
         status.HTTP_200_OK: PhysicalTransactionSerializer,
@@ -173,7 +173,7 @@ def reject_transaction_view(request: Request, pk: str) -> Response:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     request=None,
     responses={
         status.HTTP_200_OK: PhysicalTransactionSerializer,
@@ -198,7 +198,7 @@ def confirm_transaction_view(request: Request, pk: str) -> Response:
 
 
 @extend_schema(
-    tags=["Transactions — Physical"],
+    tags=["Cash Services"],
     request=CancelTransactionSerializer,
     responses={
         status.HTTP_200_OK: PhysicalTransactionSerializer,

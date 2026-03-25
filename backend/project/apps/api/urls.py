@@ -12,7 +12,9 @@ urlpatterns = [
     path("agents/", include("project.apps.agents.urls")),
     path("staff/agents/", include("project.apps.agents.staff_urls")),
     path("transactions/", include("project.apps.transactions.urls")),
+    path("staff/transactions/", include("project.apps.transactions.staff_urls")),
     path("loans/", include("project.apps.loans.urls")),
+    path("staff/loans/", include("project.apps.loans.staff_urls")),
     # API Documentation
     path(
         "schema/",
