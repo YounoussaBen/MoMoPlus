@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../auth/presentation/auth_view_model.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../data/kyc_repository.dart';
 import '../data/kyc_submission_model.dart';
 
@@ -233,10 +234,7 @@ class KycViewModel extends ChangeNotifier {
       }
     } catch (e) {
       setState(
-        getState()!.copyWith(
-          uploading: false,
-          error: e.toString().replaceFirst('Exception: ', ''),
-        ),
+        getState()!.copyWith(uploading: false, error: friendlyErrorMessage(e)),
       );
     }
     notifyListeners();
@@ -253,8 +251,7 @@ class KycViewModel extends ChangeNotifier {
     try {
       pickedFile = await _picker.pickImage(source: source, imageQuality: 90);
     } catch (e) {
-      _errorMessage =
-          'Could not open image picker: ${e.toString().replaceFirst('Exception: ', '')}';
+      _errorMessage = 'Could not open image picker: ${friendlyErrorMessage(e)}';
       notifyListeners();
       return;
     }
@@ -328,7 +325,7 @@ class KycViewModel extends ChangeNotifier {
       await _clearDraft();
       _screenState = KycScreenState.pending;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _isSubmitting = false;
       notifyListeners();

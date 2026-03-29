@@ -43,7 +43,7 @@ export class AgentsService {
     const [usersPage, certificationsPage] = await Promise.all([
       this.usersRepository.list(
         buildTableQueryParams(input, {
-          staticParams: { role: "agent" },
+          staticParams: { agent_related: "true" },
           excludeFilterKeys: ["certified"],
         }),
       ),

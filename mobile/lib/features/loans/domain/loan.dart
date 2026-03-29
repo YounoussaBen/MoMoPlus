@@ -2,6 +2,9 @@ class LoanPayment {
   final String id;
   final String paymentType;
   final double amount;
+  final double chargeAmount;
+  final double transferAmount;
+  final double platformAmount;
   final String status;
   final String reference;
   final String payerPhone;
@@ -13,6 +16,9 @@ class LoanPayment {
     required this.id,
     required this.paymentType,
     required this.amount,
+    required this.chargeAmount,
+    required this.transferAmount,
+    required this.platformAmount,
     required this.status,
     required this.reference,
     required this.payerPhone,
@@ -26,6 +32,9 @@ class LoanPayment {
       id: json['id'] as String,
       paymentType: json['payment_type'] as String,
       amount: double.parse(json['amount'].toString()),
+      chargeAmount: double.parse(json['charge_amount'].toString()),
+      transferAmount: double.parse(json['transfer_amount'].toString()),
+      platformAmount: double.parse(json['platform_amount'].toString()),
       status: json['status'] as String,
       reference: json['reference'] as String,
       payerPhone: json['payer_phone'] as String,
@@ -42,6 +51,20 @@ class LoanPayment {
   bool get isFailed => status == 'failed';
   bool get isDisbursement => paymentType == 'disbursement';
   bool get isRepayment => paymentType == 'repayment';
+
+  double visibleAmount({required bool isAgent}) {
+    if (isRepayment) {
+      return isAgent ? transferAmount : chargeAmount;
+    }
+    return chargeAmount;
+  }
+
+  String title({required bool isAgent}) {
+    if (isDisbursement) {
+      return isAgent ? 'Funds Sent' : 'Funds Received';
+    }
+    return isAgent ? 'Repayment Received' : 'Repayment Sent';
+  }
 }
 
 class Loan {
@@ -53,6 +76,8 @@ class Loan {
   final double amount;
   final double interestRate;
   final double totalRepayment;
+  final double agentInterestAmount;
+  final double agentReceivableBalance;
   final double penaltyAmount;
   final double outstandingBalance;
   final String status;
@@ -78,6 +103,8 @@ class Loan {
     required this.amount,
     required this.interestRate,
     required this.totalRepayment,
+    required this.agentInterestAmount,
+    required this.agentReceivableBalance,
     required this.penaltyAmount,
     required this.outstandingBalance,
     required this.status,
@@ -105,6 +132,12 @@ class Loan {
       amount: double.parse(json['amount'].toString()),
       interestRate: double.parse(json['interest_rate'].toString()),
       totalRepayment: double.parse(json['total_repayment'].toString()),
+      agentInterestAmount: double.parse(
+        json['agent_interest_amount'].toString(),
+      ),
+      agentReceivableBalance: double.parse(
+        json['agent_receivable_balance'].toString(),
+      ),
       penaltyAmount: double.parse(json['penalty_amount'].toString()),
       outstandingBalance: double.parse(json['outstanding_balance'].toString()),
       status: json['status'] as String,
@@ -154,6 +187,10 @@ class Loan {
 
   bool get isOverdue =>
       isActive && deadlineAt != null && DateTime.now().isAfter(deadlineAt!);
+
+  double get totalInterestAmount => totalRepayment - amount - penaltyAmount;
+
+  double get totalAgentReceipt => amount + agentInterestAmount + penaltyAmount;
 
   String get statusLabel => switch (status) {
     'pending' => 'Pending',

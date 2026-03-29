@@ -89,6 +89,26 @@ class LoanSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class EarningItemSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    borrower_name = serializers.CharField()
+    loan_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    earned = serializers.DecimalField(max_digits=10, decimal_places=2)
+    completed_at = serializers.DateTimeField()
+
+
+class AgentEarningsSerializer(serializers.Serializer):
+    total_earned = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_loans_completed = serializers.IntegerField()
+    today_earned = serializers.DecimalField(max_digits=10, decimal_places=2)
+    today_count = serializers.IntegerField()
+    this_week_earned = serializers.DecimalField(max_digits=10, decimal_places=2)
+    this_week_count = serializers.IntegerField()
+    this_month_earned = serializers.DecimalField(max_digits=10, decimal_places=2)
+    this_month_count = serializers.IntegerField()
+    recent_earnings = EarningItemSerializer(many=True)
+
+
 class RequestLoanSerializer(serializers.Serializer):
     agent_id = serializers.UUIDField()
     amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=1)

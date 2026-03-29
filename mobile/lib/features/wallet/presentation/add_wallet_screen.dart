@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/network_logo.dart';
+import '../../../core/utils/error_helpers.dart';
 import 'wallet_view_model.dart';
 
 class _WalletNetworkOption {
@@ -183,7 +184,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = friendlyErrorMessage(e);
       });
     } finally {
       if (mounted) setState(() => _isAdding = false);

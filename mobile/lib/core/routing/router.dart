@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import '../../features/activity/presentation/activity_screen.dart';
+import '../../features/agent/presentation/earnings/agent_earnings_screen.dart';
 import '../../features/agent/presentation/home/agent_home_screen.dart';
 import '../../features/agent/presentation/more/agent_more_screen.dart';
 import '../../features/agent/presentation/shell/agent_shell.dart';
@@ -55,7 +56,12 @@ class AppRouter {
 
         // Leaving connection error after recovery → continue to normal flow.
         if (path == '/connection-error' && !hasConnectionError) {
-          return isAuthenticated ? null : '/auth/sign-in';
+          if (!isAuthenticated) return '/auth/sign-in';
+          final isKycApproved = authViewModel.isKycApproved;
+          final shouldShowApprovedKycScreen =
+              authViewModel.shouldShowApprovedKycScreen;
+          if (!isKycApproved || shouldShowApprovedKycScreen) return '/kyc';
+          return appUser?.isAgent == true ? '/agent/home' : '/user/home';
         }
 
         final isAuthRoute = path.startsWith('/auth');
@@ -280,7 +286,7 @@ class AppRouter {
           redirect: (context, state) => '/agent/activity?tab=getFunds',
         ),
 
-        // ── Agent shell (3 tabs) ──
+        // ── Agent shell (4 tabs) ──
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) =>
               AgentShell(navigationShell: navigationShell),
@@ -290,6 +296,14 @@ class AppRouter {
                 GoRoute(
                   path: '/agent/home',
                   builder: (context, state) => const AgentHomeScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/agent/earnings',
+                  builder: (context, state) => const AgentEarningsScreen(),
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../../wallet/domain/wallet.dart';
 import '../domain/physical_transaction.dart';
 
@@ -72,7 +73,7 @@ class TransactionViewModel extends ChangeNotifier {
         }
       }
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _hasLoadedTransactions = true;
       _isLoading = false;
@@ -117,7 +118,7 @@ class TransactionViewModel extends ChangeNotifier {
       notifyListeners();
       return txn;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return null;
     } finally {
@@ -137,7 +138,7 @@ class TransactionViewModel extends ChangeNotifier {
         _updateInList(_currentTransaction!);
       }
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -165,7 +166,7 @@ class TransactionViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     } finally {
@@ -185,7 +186,7 @@ class TransactionViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     } finally {
@@ -205,7 +206,7 @@ class TransactionViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     } finally {
@@ -225,7 +226,7 @@ class TransactionViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     } finally {

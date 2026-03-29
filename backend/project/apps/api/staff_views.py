@@ -251,7 +251,7 @@ def dashboard_overview(request: Request) -> Response:
         row["status"]: row["value"] for row in transactions_queryset.values("status").annotate(value=Count("id"))
     }
 
-    network_counts = defaultdict(int)
+    network_counts: defaultdict[str, int] = defaultdict(int)
     for row in loans_queryset.filter(created_at__gte=range_start).values("network").annotate(value=Count("id")):
         network_counts[row["network"]] += row["value"]
     for row in transactions_queryset.filter(created_at__gte=range_start).values("network").annotate(value=Count("id")):

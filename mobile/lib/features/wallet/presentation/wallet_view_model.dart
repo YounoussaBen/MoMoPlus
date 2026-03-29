@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../domain/wallet.dart';
 
 class WalletViewModel extends ChangeNotifier {
@@ -41,7 +42,7 @@ class WalletViewModel extends ChangeNotifier {
           .map((e) => Wallet.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -63,7 +64,7 @@ class WalletViewModel extends ChangeNotifier {
       _pendingWallet = Wallet.fromJson(data);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isAdding = false;
@@ -84,7 +85,7 @@ class WalletViewModel extends ChangeNotifier {
       _pendingWallet = Wallet.fromJson(data);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isVerifying = false;
@@ -100,7 +101,7 @@ class WalletViewModel extends ChangeNotifier {
     try {
       await _api.resendWalletOtp(_pendingWallet!.id);
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _isResending = false;
       notifyListeners();
@@ -114,7 +115,7 @@ class WalletViewModel extends ChangeNotifier {
       await loadWallets();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     }
@@ -127,7 +128,7 @@ class WalletViewModel extends ChangeNotifier {
       await loadWallets();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     }

@@ -1,7 +1,9 @@
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from django.utils import timezone
 
 from project.apps.accounts.models import AgentStatus, KycStatus, User, UserRole
 from project.apps.agents.models import AgentProfile, AgentType
@@ -91,6 +93,36 @@ def _ensure_agent() -> tuple[User, AgentProfile]:
         },
     )
     return user, profile
+
+
+def _create_completed_loan(
+    *,
+    borrower: User,
+    agent_profile: AgentProfile,
+    borrower_wallet: Wallet,
+    agent_wallet: Wallet,
+    completed_at,
+) -> Loan:
+    return Loan.objects.create(
+        borrower=borrower,
+        agent=agent_profile,
+        amount=Decimal("100.00"),
+        interest_rate=Decimal("10.00"),
+        origination_fee=Decimal("0.00"),
+        agent_interest_amount=Decimal("5.00"),
+        platform_interest_amount=Decimal("5.00"),
+        total_repayment=Decimal("110.00"),
+        outstanding_balance=Decimal("0.00"),
+        agent_receivable_balance=Decimal("0.00"),
+        borrower_wallet=borrower_wallet,
+        agent_wallet=agent_wallet,
+        network="mtn",
+        status=LoanStatus.COMPLETED,
+        approved_at=completed_at - timedelta(days=7),
+        disbursed_at=completed_at - timedelta(days=6),
+        deadline_at=completed_at - timedelta(days=1),
+        completed_at=completed_at,
+    )
 
 
 @pytest.fixture
@@ -327,3 +359,145 @@ class TestLoanRejectEndpoint:
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "rejected"
+
+
+@pytest.mark.django_db
+class TestAgentEarningsEndpoint:
+    def test_period_filter_limits_recent_earnings(self, agent_client):
+        agent_client.get("/api/wallets/")
+
+        borrower = _ensure_borrower()
+        agent_user, agent_profile = _ensure_agent()
+        now = timezone.now()
+
+        borrower_wallet, _ = Wallet.objects.get_or_create(
+            user=borrower,
+            phone_number="0551234567",
+            defaults={
+                "network": "mtn",
+                "is_verified": True,
+                "is_default": True,
+                "paystack_recipient_code": "RCP_test_borrower",
+            },
+        )
+        agent_wallet, _ = Wallet.objects.get_or_create(
+            user=agent_user,
+            phone_number="0559876543",
+            defaults={
+                "network": "mtn",
+                "is_verified": True,
+                "is_default": True,
+                "paystack_recipient_code": "RCP_test_agent",
+            },
+        )
+
+        today_loan = _create_completed_loan(
+            borrower=borrower,
+            agent_profile=agent_profile,
+            borrower_wallet=borrower_wallet,
+            agent_wallet=agent_wallet,
+            completed_at=now - timedelta(hours=2),
+        )
+        week_loan = _create_completed_loan(
+            borrower=borrower,
+            agent_profile=agent_profile,
+            borrower_wallet=borrower_wallet,
+            agent_wallet=agent_wallet,
+            completed_at=now - timedelta(days=3),
+        )
+        _create_completed_loan(
+            borrower=borrower,
+            agent_profile=agent_profile,
+            borrower_wallet=borrower_wallet,
+            agent_wallet=agent_wallet,
+            completed_at=now - timedelta(days=35),
+        )
+
+        response = agent_client.get("/api/loans/earnings/", {"period": "week"})
+
+        assert response.status_code == 200
+        assert response.data["total_loans_completed"] == 3
+        returned_ids = {item["id"] for item in response.data["recent_earnings"]}
+        assert returned_ids == {str(today_loan.pk), str(week_loan.pk)}
+
+    def test_custom_range_limits_recent_earnings(self, agent_client):
+        agent_client.get("/api/wallets/")
+
+        borrower = _ensure_borrower()
+        agent_user, agent_profile = _ensure_agent()
+        now = timezone.now()
+
+        borrower_wallet, _ = Wallet.objects.get_or_create(
+            user=borrower,
+            phone_number="0551234567",
+            defaults={
+                "network": "mtn",
+                "is_verified": True,
+                "is_default": True,
+                "paystack_recipient_code": "RCP_test_borrower",
+            },
+        )
+        agent_wallet, _ = Wallet.objects.get_or_create(
+            user=agent_user,
+            phone_number="0559876543",
+            defaults={
+                "network": "mtn",
+                "is_verified": True,
+                "is_default": True,
+                "paystack_recipient_code": "RCP_test_agent",
+            },
+        )
+
+        inside_start = _create_completed_loan(
+            borrower=borrower,
+            agent_profile=agent_profile,
+            borrower_wallet=borrower_wallet,
+            agent_wallet=agent_wallet,
+            completed_at=now - timedelta(days=9),
+        )
+        inside_end = _create_completed_loan(
+            borrower=borrower,
+            agent_profile=agent_profile,
+            borrower_wallet=borrower_wallet,
+            agent_wallet=agent_wallet,
+            completed_at=now - timedelta(days=6),
+        )
+        _create_completed_loan(
+            borrower=borrower,
+            agent_profile=agent_profile,
+            borrower_wallet=borrower_wallet,
+            agent_wallet=agent_wallet,
+            completed_at=now - timedelta(days=2),
+        )
+
+        response = agent_client.get(
+            "/api/loans/earnings/",
+            {
+                "period": "custom",
+                "start_date": (now - timedelta(days=10)).date().isoformat(),
+                "end_date": (now - timedelta(days=5)).date().isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.data["total_loans_completed"] == 3
+        returned_ids = {item["id"] for item in response.data["recent_earnings"]}
+        assert returned_ids == {str(inside_start.pk), str(inside_end.pk)}
+
+    def test_custom_range_requires_start_and_end_date(self, agent_client):
+        agent_client.get("/api/wallets/")
+        _ensure_agent()
+
+        response = agent_client.get("/api/loans/earnings/", {"period": "custom"})
+
+        assert response.status_code == 400
+        assert response.data["detail"] == "Custom period requires start_date and end_date."
+
+    def test_invalid_period_is_rejected(self, agent_client):
+        agent_client.get("/api/wallets/")
+        _ensure_agent()
+
+        response = agent_client.get("/api/loans/earnings/", {"period": "year"})
+
+        assert response.status_code == 400
+        assert response.data["detail"] == "Invalid period. Use today, week, month, or custom."

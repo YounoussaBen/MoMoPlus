@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../core/utils/error_helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/repositories/auth_repository.dart';
 import '../../../core/data/services/backend_api_service.dart';
@@ -68,34 +69,33 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  bool _isNetworkError(Object error) =>
+      error is SocketException || error is http.ClientException;
+
   Future<void> _syncAndLoadProfile() async {
     try {
       await _authRepository.syncWithBackend();
       _hasConnectionError = false;
-    } on SocketException {
-      _hasConnectionError = true;
-      notifyListeners();
-      return;
-    } on http.ClientException {
-      _hasConnectionError = true;
-      notifyListeners();
-      return;
-    } catch (_) {}
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        _hasConnectionError = true;
+        notifyListeners();
+        return;
+      }
+    }
 
     try {
       final profileData = await _authRepository.getBackendProfile();
       if (profileData != null) {
         _appUser = AppUser.fromBackendProfile(profileData);
       }
-    } on SocketException {
-      _hasConnectionError = true;
-      notifyListeners();
-      return;
-    } on http.ClientException {
-      _hasConnectionError = true;
-      notifyListeners();
-      return;
-    } catch (_) {}
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        _hasConnectionError = true;
+        notifyListeners();
+        return;
+      }
+    }
 
     try {
       final kycData = await _authRepository.getKycStatus();
@@ -103,7 +103,12 @@ class AuthViewModel extends ChangeNotifier {
       _resolvedKycStatus = status ?? _appUser?.kycStatus;
       await _hydrateKycApprovalPresentation(kycData);
       await _fetchSelfieUrl(kycData);
-    } catch (_) {
+    } catch (e) {
+      if (_isNetworkError(e)) {
+        _hasConnectionError = true;
+        notifyListeners();
+        return;
+      }
       _resolvedKycStatus ??= _appUser?.kycStatus;
       _kycApprovalToken = null;
       _shouldShowApprovedKycScreen = false;
@@ -122,7 +127,7 @@ class AuthViewModel extends ChangeNotifier {
       }
       _clearError();
     } catch (e) {
-      _setError(e.toString().replaceFirst('Exception: ', ''));
+      _setError(friendlyErrorMessage(e));
     } finally {
       _setLoading(false);
     }
@@ -215,10 +220,16 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reportConnectionError() {
+    if (_hasConnectionError) return;
+    _hasConnectionError = true;
+    notifyListeners();
+  }
+
   Future<void> retryConnection() async {
     _setLoading(true);
     _hasConnectionError = false;
-    notifyListeners();
+    _profileRefreshFuture = null;
     await refreshProfile();
     _setLoading(false);
   }

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
@@ -740,6 +740,93 @@ def flag_defaulted_loans() -> int:
     if updated:
         logger.info("Flagged %d loans as defaulted.", updated)
     return updated
+
+
+# ── Earnings ────────────────────────────────────────────────────────────────
+
+
+def get_agent_earnings(
+    *,
+    user: User,
+    period: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
+    """Aggregate earnings for an agent from completed loans.
+
+    ``period`` may be ``"today"``, ``"week"``, ``"month"``, or ``"custom"``
+    to restrict the recent-earnings list. When ``period == "custom"``,
+    ``start_date`` and ``end_date`` bound the inclusive date window.
+    Aggregates are always returned for all periods regardless of the filter.
+    """
+    from django.db.models import Count, DecimalField, Q, Sum
+    from django.db.models.functions import Coalesce
+
+    now = timezone.now()
+    today = now.date()
+    # ISO week: Monday is start of week
+    start_of_week = today - timedelta(days=today.weekday())
+
+    zero = Decimal("0.00")
+    decimal_field = DecimalField(max_digits=10, decimal_places=2)
+
+    qs = Loan.objects.filter(agent__user=user, status=LoanStatus.COMPLETED)
+
+    agg = qs.aggregate(
+        total_earned=Coalesce(Sum("agent_interest_amount"), zero, output_field=decimal_field),
+        total_loans_completed=Count("id"),
+        today_earned=Coalesce(
+            Sum("agent_interest_amount", filter=Q(completed_at__date=today)),
+            zero,
+            output_field=decimal_field,
+        ),
+        today_count=Count("id", filter=Q(completed_at__date=today)),
+        this_week_earned=Coalesce(
+            Sum("agent_interest_amount", filter=Q(completed_at__date__gte=start_of_week)),
+            zero,
+            output_field=decimal_field,
+        ),
+        this_week_count=Count("id", filter=Q(completed_at__date__gte=start_of_week)),
+        this_month_earned=Coalesce(
+            Sum(
+                "agent_interest_amount",
+                filter=Q(completed_at__year=now.year, completed_at__month=now.month),
+            ),
+            zero,
+            output_field=decimal_field,
+        ),
+        this_month_count=Count(
+            "id",
+            filter=Q(completed_at__year=now.year, completed_at__month=now.month),
+        ),
+    )
+
+    recent_qs = qs.select_related("borrower")
+    if period == "today":
+        recent_qs = recent_qs.filter(completed_at__date=today)
+    elif period == "week":
+        recent_qs = recent_qs.filter(completed_at__date__gte=start_of_week)
+    elif period == "month":
+        recent_qs = recent_qs.filter(completed_at__year=now.year, completed_at__month=now.month)
+    elif period == "custom" and start_date is not None and end_date is not None:
+        recent_qs = recent_qs.filter(completed_at__date__range=(start_date, end_date))
+
+    recent = recent_qs.order_by("-completed_at")[:20].values_list(
+        "id", "borrower__first_name", "borrower__last_name", "amount", "agent_interest_amount", "completed_at"
+    )
+
+    recent_earnings = [
+        {
+            "id": str(row[0]),
+            "borrower_name": f"{row[1]} {row[2]}".strip(),
+            "loan_amount": str(row[3]),
+            "earned": str(row[4]),
+            "completed_at": row[5].isoformat() if row[5] else None,
+        }
+        for row in recent
+    ]
+
+    return {**agg, "recent_earnings": recent_earnings}
 
 
 # ── Query Helpers ────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/data/services/file_upload_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
 import 'agent_profile_view_model.dart';
 
@@ -104,9 +105,7 @@ class _CertificationBodyState extends State<_CertificationBody> {
       if (file == null) return;
       await _uploadPhoto(isAgentId, file);
     } catch (e) {
-      _showError(
-        'Could not open image picker: ${e.toString().replaceFirst('Exception: ', '')}',
-      );
+      _showError('Could not open image picker: ${friendlyErrorMessage(e)}');
     }
   }
 
@@ -148,7 +147,7 @@ class _CertificationBodyState extends State<_CertificationBody> {
         _scheduleDeleteAsset(previous!.assetId!);
       }
     } catch (e) {
-      final message = e.toString().replaceFirst('Exception: ', '');
+      final message = friendlyErrorMessage(e);
       if (!mounted) return;
 
       _setPhotoState(
@@ -226,7 +225,7 @@ class _CertificationBodyState extends State<_CertificationBody> {
         );
       }
     } catch (e) {
-      _showError(e.toString().replaceFirst('Exception: ', ''));
+      _showError(friendlyErrorMessage(e));
     }
   }
 

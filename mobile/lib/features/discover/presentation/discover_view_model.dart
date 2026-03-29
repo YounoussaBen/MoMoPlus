@@ -3,6 +3,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 
@@ -98,7 +99,7 @@ class DiscoverViewModel extends ChangeNotifier {
           .map((j) => NearbyAgent.fromJson(j as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _hasLoadedAgents = true;
       _isLoading = false;

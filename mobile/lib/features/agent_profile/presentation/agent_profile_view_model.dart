@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../domain/agent_profile.dart';
 import '../domain/certification.dart';
 
@@ -64,7 +65,7 @@ class AgentProfileViewModel extends ChangeNotifier {
 
       await refreshWalletEligibility(notify: false);
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -80,7 +81,7 @@ class AgentProfileViewModel extends ChangeNotifier {
       _profile = AgentProfile.fromJson(data);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSaving = false;
@@ -96,7 +97,7 @@ class AgentProfileViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       notifyListeners();
       return false;
     }
@@ -177,7 +178,7 @@ class AgentProfileViewModel extends ChangeNotifier {
       _certification = CertificationApplication.fromJson(data);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSaving = false;

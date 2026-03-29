@@ -1,4 +1,6 @@
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from datetime import date
+
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +12,7 @@ from project.apps.accounts.models import UserRole
 from .models import Loan
 from .serializers import (
     AcceptLoanSerializer,
+    AgentEarningsSerializer,
     CancelLoanSerializer,
     LoanSerializer,
     RejectLoanSerializer,
@@ -19,6 +22,7 @@ from .serializers import (
 from .services import (
     accept_loan,
     cancel_loan,
+    get_agent_earnings,
     get_agent_loans,
     get_borrower_loans,
     get_loan_detail,
@@ -87,6 +91,89 @@ def loan_list(request: Request) -> Response:
         loans = get_borrower_loans(user=request.user, status=status_filter)
 
     return Response(LoanSerializer(loans, many=True).data)
+
+
+@extend_schema(
+    tags=["Loans"],
+    parameters=[
+        OpenApiParameter(
+            name="period",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Filter recent earnings to: today | week | month | custom",
+        ),
+        OpenApiParameter(
+            name="start_date",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Required when period=custom. Format: YYYY-MM-DD.",
+        ),
+        OpenApiParameter(
+            name="end_date",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=False,
+            description="Required when period=custom. Format: YYYY-MM-DD.",
+        ),
+    ],
+    responses={
+        status.HTTP_200_OK: AgentEarningsSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid period or date filter"),
+        status.HTTP_403_FORBIDDEN: OpenApiResponse(description="Not an agent"),
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def agent_earnings(request: Request) -> Response:
+    """Aggregated earnings for the authenticated agent."""
+    if request.user.role != UserRole.AGENT:
+        return Response({"detail": "Only agents can view earnings."}, status=status.HTTP_403_FORBIDDEN)
+
+    period = request.query_params.get("period") or None
+    start_date_raw = request.query_params.get("start_date") or None
+    end_date_raw = request.query_params.get("end_date") or None
+
+    if period not in {None, "today", "week", "month", "custom"}:
+        return Response(
+            {"detail": "Invalid period. Use today, week, month, or custom."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        start_date = date.fromisoformat(start_date_raw) if start_date_raw else None
+        end_date = date.fromisoformat(end_date_raw) if end_date_raw else None
+    except ValueError:
+        return Response(
+            {"detail": "Invalid date format. Use YYYY-MM-DD for start_date and end_date."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if period == "custom":
+        if start_date is None or end_date is None:
+            return Response(
+                {"detail": "Custom period requires start_date and end_date."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if start_date > end_date:
+            return Response(
+                {"detail": "start_date cannot be after end_date."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    elif start_date is not None or end_date is not None:
+        return Response(
+            {"detail": "start_date and end_date can only be used with period=custom."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    data = get_agent_earnings(
+        user=request.user,
+        period=period,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    return Response(AgentEarningsSerializer(data).data)
 
 
 @extend_schema(

@@ -127,7 +127,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
           children: [
             _StatusHeader(loan: loan),
             const SizedBox(height: 20),
-            _AmountCard(loan: loan),
+            _AmountCard(loan: loan, isAgent: isAgent),
             const SizedBox(height: 12),
             if (loan.isActive || loan.isRepaying) ...[
               _TimerCard(loan: loan),
@@ -136,7 +136,7 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
             _DetailsCard(loan: loan, isAgent: isAgent),
             const SizedBox(height: 12),
             if (loan.payments.isNotEmpty) ...[
-              _PaymentsCard(loan: loan),
+              _PaymentsCard(loan: loan, isAgent: isAgent),
               const SizedBox(height: 12),
             ],
             if (context.watch<LoanViewModel>().errorMessage != null) ...[
@@ -265,7 +265,8 @@ class _StatusHeader extends StatelessWidget {
 
 class _AmountCard extends StatelessWidget {
   final Loan loan;
-  const _AmountCard({required this.loan});
+  final bool isAgent;
+  const _AmountCard({required this.loan, required this.isAgent});
 
   @override
   Widget build(BuildContext context) {
@@ -324,29 +325,57 @@ class _AmountCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
-                _amountRow(
-                  'Interest (${loan.interestRate.toStringAsFixed(0)}%)',
-                  'GHS ${(loan.totalRepayment - loan.amount - loan.penaltyAmount).toStringAsFixed(2)}',
-                ),
-                if (loan.penaltyAmount > 0)
+                if (isAgent) ...[
                   _amountRow(
-                    'Penalties',
-                    'GHS ${loan.penaltyAmount.toStringAsFixed(2)}',
-                    valueColor: AppColors.error,
+                    'Your Commission (${(loan.agentInterestAmount / loan.amount * 100).toStringAsFixed(0)}%)',
+                    'GHS ${loan.agentInterestAmount.toStringAsFixed(2)}',
                   ),
-                Divider(height: 20, color: AppColors.divider),
-                _amountRow(
-                  'Total Repayment',
-                  'GHS ${loan.totalRepayment.toStringAsFixed(2)}',
-                  bold: true,
-                ),
-                if (loan.isActive || loan.isRepaying || loan.isDefaulted)
+                  if (loan.penaltyAmount > 0)
+                    _amountRow(
+                      'Penalties',
+                      'GHS ${loan.penaltyAmount.toStringAsFixed(2)}',
+                      valueColor: AppColors.error,
+                    ),
+                  Divider(height: 20, color: AppColors.divider),
                   _amountRow(
-                    'Outstanding',
-                    'GHS ${loan.outstandingBalance.toStringAsFixed(2)}',
+                    loan.isCompleted
+                        ? 'Repayment Received'
+                        : 'Repayment to You',
+                    'GHS ${loan.totalAgentReceipt.toStringAsFixed(2)}',
                     bold: true,
-                    valueColor: AppColors.primary,
                   ),
+                  if (loan.isActive || loan.isRepaying || loan.isDefaulted)
+                    _amountRow(
+                      'Outstanding to You',
+                      'GHS ${loan.agentReceivableBalance.toStringAsFixed(2)}',
+                      bold: true,
+                      valueColor: AppColors.primary,
+                    ),
+                ] else ...[
+                  _amountRow(
+                    'Interest (${loan.interestRate.toStringAsFixed(0)}%)',
+                    'GHS ${loan.totalInterestAmount.toStringAsFixed(2)}',
+                  ),
+                  if (loan.penaltyAmount > 0)
+                    _amountRow(
+                      'Penalties',
+                      'GHS ${loan.penaltyAmount.toStringAsFixed(2)}',
+                      valueColor: AppColors.error,
+                    ),
+                  Divider(height: 20, color: AppColors.divider),
+                  _amountRow(
+                    'Total Repayment',
+                    'GHS ${loan.totalRepayment.toStringAsFixed(2)}',
+                    bold: true,
+                  ),
+                  if (loan.isActive || loan.isRepaying || loan.isDefaulted)
+                    _amountRow(
+                      'Outstanding',
+                      'GHS ${loan.outstandingBalance.toStringAsFixed(2)}',
+                      bold: true,
+                      valueColor: AppColors.primary,
+                    ),
+                ],
               ],
             ),
           ),
@@ -590,7 +619,9 @@ class _DetailRow extends StatelessWidget {
 
 class _PaymentsCard extends StatelessWidget {
   final Loan loan;
-  const _PaymentsCard({required this.loan});
+  final bool isAgent;
+
+  const _PaymentsCard({required this.loan, required this.isAgent});
 
   @override
   Widget build(BuildContext context) {
@@ -637,6 +668,8 @@ class _PaymentsCard extends StatelessWidget {
               'failed' => (Icons.cancel, AppColors.error),
               _ => (Icons.hourglass_top, Colors.orange),
             };
+            final title = p.title(isAgent: isAgent);
+            final visibleAmount = p.visibleAmount(isAgent: isAgent);
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
@@ -648,7 +681,7 @@ class _PaymentsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          p.isDisbursement ? 'Funds Received' : 'Repayment',
+                          title,
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -666,7 +699,7 @@ class _PaymentsCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'GHS ${p.amount.toStringAsFixed(2)}',
+                    'GHS ${visibleAmount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

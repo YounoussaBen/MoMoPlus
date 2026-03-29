@@ -572,6 +572,26 @@ class BackendApiService {
     return [];
   }
 
+  Future<Map<String, dynamic>?> getAgentEarnings({
+    String? period,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    if (_accessToken == null) return null;
+    final params = <String, String>{};
+    if (period != null && period.isNotEmpty) params['period'] = period;
+    if (startDate != null) params['start_date'] = _formatQueryDate(startDate);
+    if (endDate != null) params['end_date'] = _formatQueryDate(endDate);
+    final uri = Uri.parse(
+      '$_baseUrl/api/loans/earnings/',
+    ).replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to load earnings.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   Future<Map<String, dynamic>?> getLoanDetail(String loanId) async {
     if (_accessToken == null) return null;
     final uri = Uri.parse('$_baseUrl/api/loans/$loanId/');
@@ -677,5 +697,12 @@ class BackendApiService {
       }
     } catch (_) {}
     return Exception(fallbackMessage);
+  }
+
+  String _formatQueryDate(DateTime value) {
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 }

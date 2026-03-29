@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/utils/error_helpers.dart';
 import '../domain/loan.dart';
 
 const Duration _loansRefreshInterval = Duration(seconds: 10);
@@ -56,7 +57,7 @@ class LoanViewModel extends ChangeNotifier {
           .map((e) => Loan.fromJson(e as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
     } finally {
       _hasLoadedLoans = true;
       _isLoading = false;
@@ -84,7 +85,7 @@ class LoanViewModel extends ChangeNotifier {
       await loadLoans();
       return loan;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return null;
     } finally {
       _isSubmitting = false;
@@ -104,7 +105,7 @@ class LoanViewModel extends ChangeNotifier {
       await loadLoans();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSubmitting = false;
@@ -121,7 +122,7 @@ class LoanViewModel extends ChangeNotifier {
       await loadLoans();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSubmitting = false;
@@ -138,7 +139,7 @@ class LoanViewModel extends ChangeNotifier {
       await loadLoans();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSubmitting = false;
@@ -155,7 +156,7 @@ class LoanViewModel extends ChangeNotifier {
       await loadLoans();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSubmitting = false;
@@ -172,7 +173,7 @@ class LoanViewModel extends ChangeNotifier {
       await loadLoans();
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = friendlyErrorMessage(e);
       return false;
     } finally {
       _isSubmitting = false;

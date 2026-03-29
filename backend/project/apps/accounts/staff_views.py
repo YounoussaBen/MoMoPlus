@@ -18,9 +18,12 @@ def _get_user_or_404(user_id: str) -> User | None:
 
 
 def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
-    role = params.get("role")
-    if role in UserRole.values:
-        qs = qs.filter(role=role)
+    if params.get("agent_related", "").lower() == "true":
+        qs = qs.filter(Q(role=UserRole.AGENT) | ~Q(agent_status=AgentStatus.NONE))
+    else:
+        role = params.get("role")
+        if role in UserRole.values:
+            qs = qs.filter(role=role)
 
     agent_status = params.get("agent_status")
     if agent_status in AgentStatus.values:
@@ -61,6 +64,11 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
     tags=["Staff — Users"],
     parameters=[
         OpenApiParameter("role", str, description="Filter by role: user | agent"),
+        OpenApiParameter(
+            "agent_related",
+            str,
+            description="If true, return users who are agents or have a pending/rejected application",
+        ),
         OpenApiParameter(
             "agent_status", str, description="Filter by agent_status: none | pending | approved | rejected"
         ),
@@ -150,7 +158,7 @@ def approve_agent(request: Request, user_id: str) -> Response:
 
     from project.apps.agents.models import AgentProfile, AgentType
 
-    AgentProfile.objects.get_or_create(user=user, defaults={"agent_type": AgentType.CERTIFIED})
+    AgentProfile.objects.get_or_create(user=user, defaults={"agent_type": AgentType.SELF_ENROLLED})
 
     return Response(StaffUserDetailSerializer(user).data, status=status.HTTP_200_OK)
 
