@@ -8,4 +8,8 @@ urlpatterns = [
     path("profile/", views.profile, name="profile"),
     path("logout/", views.logout, name="logout"),
     path("request-agent/", views.request_agent, name="request-agent"),
+    # Guarantors
+    path("guarantors/", views.guarantor_list, name="guarantor-list"),
+    path("guarantors/bulk/", views.guarantor_bulk_create, name="guarantor-bulk-create"),
+    path("guarantors/<uuid:guarantor_id>/", views.guarantor_detail, name="guarantor-detail"),
 ]

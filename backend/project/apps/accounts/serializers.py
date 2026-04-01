@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import User
+from .models import LoanGuarantor, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -38,6 +38,7 @@ class StaffUserSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name: serializers.SerializerMethodField = serializers.SerializerMethodField()
+    has_guarantors: serializers.SerializerMethodField = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -52,6 +53,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "role",
             "agent_status",
             "kyc_status",
+            "has_guarantors",
             "created_at",
             "updated_at",
         ]
@@ -63,12 +65,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "role",
             "agent_status",
             "kyc_status",
+            "has_guarantors",
             "created_at",
             "updated_at",
         ]
 
     def get_full_name(self, obj: User) -> str:
         return f"{obj.first_name} {obj.last_name}".strip()
+
+    def get_has_guarantors(self, obj: User) -> bool:
+        return obj.loan_guarantors.count() >= 2
 
 
 class AuthSyncResponseSerializer(serializers.Serializer):
@@ -90,3 +96,32 @@ class StaffLoginResponseSerializer(serializers.Serializer):
 
 class MessageSerializer(serializers.Serializer):
     message = serializers.CharField(read_only=True)
+
+
+# ── Loan Guarantors ─────────────────────────────────────────────────────
+
+
+class GuarantorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LoanGuarantor
+        fields = ["id", "name", "phone_number", "created_at", "updated_at"]
+        read_only_fields = fields
+
+
+class GuarantorCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200)
+    phone_number = serializers.CharField(max_length=20)
+
+
+class GuarantorBulkCreateSerializer(serializers.Serializer):
+    guarantors = GuarantorCreateSerializer(many=True)
+
+    def validate_guarantors(self, value: list[dict]) -> list[dict]:
+        if len(value) < 2:
+            raise serializers.ValidationError("At least 2 guarantors are required.")
+        return value
+
+
+class GuarantorUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200, required=False)
+    phone_number = serializers.CharField(max_length=20, required=False)

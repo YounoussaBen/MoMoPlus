@@ -13,6 +13,7 @@ class AppUser {
   final AgentStatus agentStatus;
   final KycStatus kycStatus;
   final String? selfieId;
+  final bool hasGuarantors;
 
   const AppUser({
     required this.id,
@@ -23,6 +24,7 @@ class AppUser {
     this.agentStatus = AgentStatus.none,
     this.kycStatus = KycStatus.none,
     this.selfieId,
+    this.hasGuarantors = false,
   });
 
   String get fullName => '$firstName $lastName'.trim();
@@ -50,6 +52,7 @@ class AppUser {
       role: _parseRole(data['role'] as String? ?? 'user'),
       agentStatus: _parseAgentStatus(data['agent_status'] as String? ?? 'none'),
       kycStatus: _parseKycStatus(data['kyc_status'] as String? ?? 'none'),
+      hasGuarantors: data['has_guarantors'] as bool? ?? false,
     );
   }
 

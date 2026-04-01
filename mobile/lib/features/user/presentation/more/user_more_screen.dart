@@ -60,6 +60,13 @@ class UserMoreScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
+                      icon: Icons.people_outline,
+                      title: 'Loan Guarantors',
+                      subtitle: 'Manage your guarantors',
+                      onTap: () => context.push('/guarantors/manage'),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    _MoreTile(
                       icon: Icons.receipt_long_outlined,
                       title: 'Activity',
                       subtitle: 'View all your activity',

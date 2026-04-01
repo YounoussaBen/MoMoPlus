@@ -1,7 +1,7 @@
 import pytest
 from rest_framework import status
 
-from project.apps.accounts.models import AgentStatus, UserRole
+from project.apps.accounts.models import AgentStatus, LoanGuarantor, UserRole
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -364,5 +364,50 @@ class TestRejectAgent:
         )
 
         response = authenticated_client.post(f"/api/staff/users/{applicant.id}/reject-agent/")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ---------------------------------------------------------------------------
+# User Guarantors  GET /api/staff/users/{id}/guarantors/
+# ---------------------------------------------------------------------------
+
+
+class TestStaffUserGuarantors:
+    @pytest.mark.django_db
+    def test_returns_user_guarantors(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(email="gtarget@example.com", username="gtarget")
+        LoanGuarantor.objects.create(user=target, name="A", phone_number="024")
+        LoanGuarantor.objects.create(user=target, name="B", phone_number="055")
+
+        response = client.get(f"/api/staff/users/{target.id}/guarantors/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 2
+        names = {g["name"] for g in response.data}
+        assert names == {"A", "B"}
+
+    @pytest.mark.django_db
+    def test_returns_404_for_invalid_user(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+
+        response = client.get("/api/staff/users/00000000-0000-0000-0000-000000000000/guarantors/")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.django_db
+    def test_unauthenticated_rejected(self, api_client, user_factory):
+        target = user_factory(email="gtarget2@example.com", username="gtarget2")
+
+        response = api_client.get(f"/api/staff/users/{target.id}/guarantors/")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    @pytest.mark.django_db
+    def test_non_staff_rejected(self, api_client, user_factory, authenticated_client):
+        target = user_factory(email="gtarget3@example.com", username="gtarget3")
+
+        response = authenticated_client.get(f"/api/staff/users/{target.id}/guarantors/")
 
         assert response.status_code == status.HTTP_403_FORBIDDEN

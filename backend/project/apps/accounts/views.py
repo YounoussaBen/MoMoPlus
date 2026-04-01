@@ -8,15 +8,20 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 
-from .models import AgentStatus, UserRole
+from .models import AgentStatus, LoanGuarantor, UserRole
 from .serializers import (
     AuthSyncResponseSerializer,
+    GuarantorBulkCreateSerializer,
+    GuarantorCreateSerializer,
+    GuarantorSerializer,
+    GuarantorUpdateSerializer,
     MessageSerializer,
     StaffLoginResponseSerializer,
     StaffLoginSerializer,
     StaffUserSerializer,
     UserProfileSerializer,
 )
+from .services import add_guarantor, bulk_create_guarantors, delete_guarantor, update_guarantor
 
 
 @extend_schema(
@@ -164,3 +169,104 @@ def request_agent(request: Request) -> Response:
     user.save(update_fields=["agent_status", "updated_at"])
 
     return Response({"message": "Agent application submitted. Pending admin approval."}, status=status.HTTP_200_OK)
+
+
+# ── Loan Guarantors ─────────────────────────────────────────────────────
+
+
+@extend_schema(
+    methods=["GET"],
+    tags=["Guarantors"],
+    responses={status.HTTP_200_OK: GuarantorSerializer(many=True)},
+)
+@extend_schema(
+    methods=["POST"],
+    tags=["Guarantors"],
+    request=GuarantorCreateSerializer,
+    responses={
+        status.HTTP_201_CREATED: GuarantorSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+    },
+)
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def guarantor_list(request: Request) -> Response:
+    if request.method == "GET":
+        guarantors = request.user.loan_guarantors.order_by("-created_at")
+        return Response(GuarantorSerializer(guarantors, many=True).data)
+
+    serializer = GuarantorCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    guarantor = add_guarantor(
+        user=request.user,
+        name=serializer.validated_data["name"],
+        phone_number=serializer.validated_data["phone_number"],
+    )
+    return Response(GuarantorSerializer(guarantor).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    tags=["Guarantors"],
+    request=GuarantorBulkCreateSerializer,
+    responses={
+        status.HTTP_201_CREATED: GuarantorSerializer(many=True),
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def guarantor_bulk_create(request: Request) -> Response:
+    serializer = GuarantorBulkCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    try:
+        guarantors = bulk_create_guarantors(
+            user=request.user,
+            guarantors_data=serializer.validated_data["guarantors"],
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(GuarantorSerializer(guarantors, many=True).data, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    methods=["PUT"],
+    tags=["Guarantors"],
+    request=GuarantorUpdateSerializer,
+    responses={
+        status.HTTP_200_OK: GuarantorSerializer,
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Guarantor not found"),
+    },
+)
+@extend_schema(
+    methods=["DELETE"],
+    tags=["Guarantors"],
+    responses={
+        status.HTTP_204_NO_CONTENT: OpenApiResponse(description="Deleted"),
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Cannot delete — minimum 2 required"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Guarantor not found"),
+    },
+)
+@api_view(["PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def guarantor_detail(request: Request, guarantor_id: str) -> Response:
+    try:
+        guarantor = request.user.loan_guarantors.get(id=guarantor_id)
+    except LoanGuarantor.DoesNotExist:
+        return Response({"detail": "Guarantor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "PUT":
+        serializer = GuarantorUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        guarantor = update_guarantor(
+            guarantor=guarantor,
+            name=serializer.validated_data.get("name"),
+            phone_number=serializer.validated_data.get("phone_number"),
+        )
+        return Response(GuarantorSerializer(guarantor).data)
+
+    # DELETE
+    try:
+        delete_guarantor(guarantor=guarantor, user=request.user)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(status=status.HTTP_204_NO_CONTENT)

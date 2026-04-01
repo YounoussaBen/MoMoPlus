@@ -191,6 +191,81 @@ class BackendApiService {
     }
   }
 
+  // ── Guarantors ───────────────────────────────────────────────────────────
+
+  Future<List<dynamic>> getGuarantors() async {
+    if (_accessToken == null) return [];
+    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as List<dynamic>;
+    }
+    return [];
+  }
+
+  Future<Map<String, dynamic>> addGuarantor({
+    required String name,
+    required String phoneNumber,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'name': name, 'phone_number': phoneNumber}),
+    );
+    if (response.statusCode != 201) {
+      throw _buildApiException(response, 'Failed to add guarantor.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<List<dynamic>> bulkCreateGuarantors(
+    List<Map<String, String>> guarantors,
+  ) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/bulk/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'guarantors': guarantors}),
+    );
+    if (response.statusCode != 201) {
+      throw _buildApiException(response, 'Failed to save guarantors.');
+    }
+    return jsonDecode(response.body) as List<dynamic>;
+  }
+
+  Future<Map<String, dynamic>> updateGuarantor(
+    String id, {
+    String? name,
+    String? phoneNumber,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/$id/');
+    final body = <String, String>{};
+    if (name != null) body['name'] = name;
+    if (phoneNumber != null) body['phone_number'] = phoneNumber;
+    final response = await http.put(
+      uri,
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to update guarantor.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> deleteGuarantor(String id) async {
+    if (_accessToken == null) return;
+    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/$id/');
+    final response = await http.delete(uri, headers: _headers);
+    if (response.statusCode != 204) {
+      throw _buildApiException(response, 'Cannot remove guarantor.');
+    }
+  }
+
   // ── Wallets ──────────────────────────────────────────────────────────────
 
   Future<List<dynamic>> getWallets() async {

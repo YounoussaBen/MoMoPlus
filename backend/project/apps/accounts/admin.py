@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from .models import User
+from .models import LoanGuarantor, User
 
 
 @admin.register(User)
@@ -33,3 +33,16 @@ class CustomUserAdmin(UserAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         return list(self.readonly_fields)
+
+
+@admin.register(LoanGuarantor)
+class LoanGuarantorAdmin(admin.ModelAdmin):
+    list_display = ("name", "phone_number", "user_email", "created_at")
+    list_filter = ("created_at",)
+    search_fields = ("name", "phone_number", "user__email")
+    ordering = ("-created_at",)
+    readonly_fields = ("id", "created_at", "updated_at")
+
+    @admin.display(description="User Email")
+    def user_email(self, obj: LoanGuarantor) -> str:
+        return obj.user.email

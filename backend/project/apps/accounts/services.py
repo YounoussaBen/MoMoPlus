@@ -5,7 +5,7 @@ from uuid import UUID
 
 from django.db import transaction
 
-from .models import User
+from .models import LoanGuarantor, User
 
 
 def sync_user_from_supabase_claims(claims: dict[str, Any]) -> User:
@@ -98,3 +98,36 @@ def _extract_names(claims: dict[str, Any]) -> tuple[str, str]:
 
 def _build_username(supabase_user_id: UUID) -> str:
     return f"sb_{supabase_user_id.hex[:24]}"
+
+
+# ── Loan Guarantors ─────────────────────────────────────────────────────
+
+
+@transaction.atomic
+def bulk_create_guarantors(*, user: User, guarantors_data: list[dict[str, str]]) -> list[LoanGuarantor]:
+    if len(guarantors_data) < 2:
+        raise ValueError("At least 2 guarantors are required.")
+    guarantors = [LoanGuarantor(user=user, name=g["name"], phone_number=g["phone_number"]) for g in guarantors_data]
+    return LoanGuarantor.objects.bulk_create(guarantors)
+
+
+def add_guarantor(*, user: User, name: str, phone_number: str) -> LoanGuarantor:
+    return LoanGuarantor.objects.create(user=user, name=name, phone_number=phone_number)
+
+
+def update_guarantor(
+    *, guarantor: LoanGuarantor, name: str | None = None, phone_number: str | None = None
+) -> LoanGuarantor:
+    if name is not None:
+        guarantor.name = name
+    if phone_number is not None:
+        guarantor.phone_number = phone_number
+    guarantor.save(update_fields=["name", "phone_number", "updated_at"])
+    return guarantor
+
+
+def delete_guarantor(*, guarantor: LoanGuarantor, user: User) -> None:
+    remaining = user.loan_guarantors.exclude(id=guarantor.id).count()
+    if remaining < 2:
+        raise ValueError("Cannot remove guarantor. At least 2 guarantors are required.")
+    guarantor.delete()

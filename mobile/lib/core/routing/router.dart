@@ -18,6 +18,8 @@ import '../../features/agent_profile/presentation/agent_limits_screen.dart';
 import '../../features/agent_profile/presentation/agent_service_area_screen.dart';
 import '../../features/agent_profile/presentation/certification_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
+import '../../features/guarantors/presentation/guarantors_onboarding_screen.dart';
+import '../../features/guarantors/presentation/guarantors_screen.dart';
 import '../../features/wallet/presentation/add_wallet_screen.dart';
 import '../../features/wallet/presentation/verify_wallet_screen.dart';
 import '../../features/wallet/presentation/wallet_list_screen.dart';
@@ -61,6 +63,7 @@ class AppRouter {
           final shouldShowApprovedKycScreen =
               authViewModel.shouldShowApprovedKycScreen;
           if (!isKycApproved || shouldShowApprovedKycScreen) return '/kyc';
+          if (!(appUser?.hasGuarantors ?? false)) return '/guarantors';
           return appUser?.isAgent == true ? '/agent/home' : '/user/home';
         }
 
@@ -90,6 +93,18 @@ class AppRouter {
         // KYC approved and already acknowledged → skip /kyc.
         if (isKycApproved && !shouldShowApprovedKycScreen && isKycRoute) {
           return appUser?.isAgent == true ? '/agent/home' : '/user/home';
+        }
+
+        // Guarantors gate: require at least 2 guarantors after KYC.
+        final isGuarantorsRoute = path == '/guarantors';
+        if (isKycApproved && !shouldShowApprovedKycScreen) {
+          final hasGuarantors = appUser?.hasGuarantors ?? false;
+          if (!hasGuarantors && !isGuarantorsRoute && !isKycRoute) {
+            return '/guarantors';
+          }
+          if (hasGuarantors && isGuarantorsRoute) {
+            return appUser?.isAgent == true ? '/agent/home' : '/user/home';
+          }
         }
 
         // Role enforcement: agents cannot visit user routes and vice versa.
@@ -124,6 +139,14 @@ class AppRouter {
           builder: (context, state) => const SignUpScreen(),
         ),
         GoRoute(path: '/kyc', builder: (context, state) => const KycScreen()),
+        GoRoute(
+          path: '/guarantors',
+          builder: (context, state) => const GuarantorsOnboardingScreen(),
+        ),
+        GoRoute(
+          path: '/guarantors/manage',
+          builder: (context, state) => const GuarantorsScreen(),
+        ),
         GoRoute(
           path: '/profile',
           builder: (context, state) => const ProfileScreen(),

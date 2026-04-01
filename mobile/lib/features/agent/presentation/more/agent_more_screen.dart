@@ -58,6 +58,13 @@ class AgentMoreScreen extends StatelessWidget {
                     ),
                     const Divider(height: 1, indent: 56),
                     _MoreTile(
+                      icon: Icons.people_outline,
+                      title: 'Loan Guarantors',
+                      subtitle: 'Manage your guarantors',
+                      onTap: () => context.push('/guarantors/manage'),
+                    ),
+                    const Divider(height: 1, indent: 56),
+                    _MoreTile(
                       icon: Icons.tune_outlined,
                       title: 'Limits',
                       subtitle: 'Min amount and max amount',

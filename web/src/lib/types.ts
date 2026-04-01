@@ -73,6 +73,16 @@ export interface AppUserDetail extends AppUser {
   is_superuser: boolean;
 }
 
+// ─── Loan Guarantors ────────────────────────────────────────────────────────
+
+export interface LoanGuarantor {
+  id: string;
+  name: string;
+  phone_number: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Shared (nested user in KYC / file URLs) ────────────────────────────────
 
 export interface EmbeddedUser {

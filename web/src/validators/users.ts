@@ -22,3 +22,13 @@ export const appUserDetailSchema = appUserSchema.extend({
 });
 
 export const appUsersPageSchema = paginatedResponseSchema(appUserSchema);
+
+export const loanGuarantorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  phone_number: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const loanGuarantorsArraySchema = z.array(loanGuarantorSchema);

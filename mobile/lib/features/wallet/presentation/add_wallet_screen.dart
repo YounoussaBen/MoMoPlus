@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/network_logo.dart';
+import '../../../core/ui/formatters/ghana_phone_formatter.dart';
 import '../../../core/utils/error_helpers.dart';
 import 'wallet_view_model.dart';
 
@@ -42,30 +43,6 @@ const _networkOptions = [
     prefixes: {'027', '057', '026', '056'},
   ),
 ];
-
-/// Formats digits as "XX XXX XXXX" (Ghanaian local number without leading 0).
-class _GhanaPhoneFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(' ', '');
-    if (digits.length > 9) {
-      return oldValue;
-    }
-    final buf = StringBuffer();
-    for (var i = 0; i < digits.length; i++) {
-      if (i == 2 || i == 5) buf.write(' ');
-      buf.write(digits[i]);
-    }
-    final formatted = buf.toString();
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
 
 class AddWalletScreen extends StatefulWidget {
   const AddWalletScreen({super.key});
@@ -275,7 +252,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
                   onChanged: (_) => setState(() => _errorMessage = null),
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
-                    _GhanaPhoneFormatter(),
+                    GhanaPhoneFormatter(),
                   ],
                   style: const TextStyle(
                     fontSize: 16,

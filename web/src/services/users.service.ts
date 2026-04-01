@@ -20,4 +20,8 @@ export class UsersService {
   rejectAgent(id: string) {
     return this.usersRepository.rejectAgent(id);
   }
+
+  getUserGuarantors(userId: string) {
+    return this.usersRepository.getGuarantors(userId);
+  }
 }

@@ -34,6 +34,14 @@ export function useApproveAgentApplication() {
   });
 }
 
+export function useUserGuarantors(userId: string) {
+  return useQuery({
+    queryKey: usersKeys.guarantors(userId),
+    queryFn: () => container.usersService.getUserGuarantors(userId),
+    enabled: !!userId,
+  });
+}
+
 export function useRejectAgentApplication() {
   const queryClient = useQueryClient();
 

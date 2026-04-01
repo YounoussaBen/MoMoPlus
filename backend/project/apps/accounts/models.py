@@ -40,3 +40,21 @@ class User(AbstractUser, BaseModel):
 
     def __str__(self) -> str:
         return self.email
+
+
+class LoanGuarantor(BaseModel):
+    user: models.ForeignKey = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.CASCADE,
+        related_name="loan_guarantors",
+    )
+    name: models.CharField = models.CharField(max_length=200)
+    phone_number: models.CharField = models.CharField(max_length=20)
+
+    class Meta(BaseModel.Meta):
+        indexes = [
+            models.Index(fields=["user", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.phone_number})"

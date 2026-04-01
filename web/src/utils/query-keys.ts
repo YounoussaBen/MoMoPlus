@@ -15,6 +15,7 @@ export const usersKeys = {
   lists: () => ["users", "list"] as const,
   list: (input: TableQueryInput) => ["users", "list", input] as const,
   detail: (id: string) => ["users", "detail", id] as const,
+  guarantors: (id: string) => ["users", "guarantors", id] as const,
 };
 
 export const agentsKeys = {

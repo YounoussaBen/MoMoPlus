@@ -391,6 +391,8 @@ class TestAgentEarningsEndpoint:
             },
         )
 
+        # "week" means current calendar week starting Monday, so place
+        # week_loan on Monday of this week and old_loan well before it.
         today_loan = _create_completed_loan(
             borrower=borrower,
             agent_profile=agent_profile,
@@ -398,12 +400,14 @@ class TestAgentEarningsEndpoint:
             agent_wallet=agent_wallet,
             completed_at=now - timedelta(hours=2),
         )
+        # Place on Monday of the current week (always within the week filter)
+        monday = now - timedelta(days=now.weekday())
         week_loan = _create_completed_loan(
             borrower=borrower,
             agent_profile=agent_profile,
             borrower_wallet=borrower_wallet,
             agent_wallet=agent_wallet,
-            completed_at=now - timedelta(days=3),
+            completed_at=monday.replace(hour=6, minute=0, second=0),
         )
         _create_completed_loan(
             borrower=borrower,

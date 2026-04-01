@@ -7,6 +7,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .models import AgentStatus, User, UserRole
+from .serializers import GuarantorSerializer
 from .staff_serializers import AgentRejectSerializer, StaffUserDetailSerializer, StaffUserListSerializer
 
 
@@ -161,6 +162,24 @@ def approve_agent(request: Request, user_id: str) -> Response:
     AgentProfile.objects.get_or_create(user=user, defaults={"agent_type": AgentType.SELF_ENROLLED})
 
     return Response(StaffUserDetailSerializer(user).data, status=status.HTTP_200_OK)
+
+
+@extend_schema(
+    tags=["Staff — Users"],
+    responses={
+        status.HTTP_200_OK: GuarantorSerializer(many=True),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="User not found"),
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def user_guarantors(request: Request, user_id: str) -> Response:
+    """List loan guarantors for a specific user."""
+    user = _get_user_or_404(user_id)
+    if user is None:
+        return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    guarantors = user.loan_guarantors.order_by("-created_at")
+    return Response(GuarantorSerializer(guarantors, many=True).data)
 
 
 @extend_schema(
