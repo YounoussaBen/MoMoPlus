@@ -175,3 +175,124 @@ a {
 ::selection {
   background: color-mix(in srgb, var(--color-primary) 24%, transparent);
 }
+
+.landing-showcase {
+  position: relative;
+  min-height: 660px;
+}
+
+.landing-showcase-panel {
+  position: absolute;
+  inset: 8% 0 4%;
+  border: 1px solid rgba(207, 232, 208, 0.9);
+  border-radius: 32px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(240, 247, 241, 0.72)),
+    linear-gradient(180deg, rgba(30, 86, 49, 0.08), transparent);
+  box-shadow: 0 34px 90px -52px rgba(17, 24, 39, 0.45);
+}
+
+.landing-phone-primary,
+.landing-phone-secondary {
+  position: absolute;
+  overflow: hidden;
+  border: 10px solid #101412;
+  border-radius: 2.65rem;
+  background: #fff;
+  box-shadow: 0 28px 80px -42px rgba(17, 24, 39, 0.68);
+}
+
+.landing-phone-primary {
+  top: 0;
+  left: 50%;
+  z-index: 3;
+  width: min(42vw, 312px);
+  aspect-ratio: 424 / 920;
+  transform: translateX(-50%);
+  animation: landing-float-main 7s ease-in-out infinite;
+}
+
+.landing-phone-secondary {
+  top: 112px;
+  z-index: 2;
+  width: min(34vw, 242px);
+  aspect-ratio: 424 / 920;
+  opacity: 0.95;
+  animation: landing-float-support 8s ease-in-out infinite;
+}
+
+.landing-phone-left {
+  left: 3%;
+  transform: rotate(-7deg);
+}
+
+.landing-phone-right {
+  right: 3%;
+  transform: rotate(7deg);
+  animation-delay: -2.5s;
+}
+
+@keyframes landing-float-main {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(-14px);
+  }
+}
+
+@keyframes landing-float-support {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+
+  50% {
+    translate: 0 12px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .landing-showcase {
+    min-height: 620px;
+  }
+
+  .landing-phone-primary {
+    width: min(62vw, 292px);
+  }
+
+  .landing-phone-secondary {
+    width: min(43vw, 210px);
+  }
+}
+
+@media (max-width: 640px) {
+  .landing-showcase {
+    min-height: 520px;
+  }
+
+  .landing-showcase-panel {
+    inset: 10% -14% 0;
+  }
+
+  .landing-phone-primary {
+    width: min(68vw, 248px);
+  }
+
+  .landing-phone-secondary {
+    top: 112px;
+    width: min(44vw, 164px);
+    border-width: 7px;
+    border-radius: 1.8rem;
+  }
+
+  .landing-phone-left {
+    left: -8%;
+  }
+
+  .landing-phone-right {
+    right: -8%;
+  }
+}
