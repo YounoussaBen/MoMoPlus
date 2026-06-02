@@ -1,7 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Download, MapPin, ShieldCheck, Smartphone, Wallet } from "lucide-react";
+import { ArrowRight, CircleAlert, Clock3, Compass, Download, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FeatureStoryList } from "@/components/landing/feature-story-list";
+import { ScrollStepList } from "@/components/landing/scroll-step-list";
 
 const appScreens = [
   {
@@ -23,19 +25,18 @@ const appScreens = [
 
 const features = [
   {
-    icon: MapPin,
-    title: "Find nearby agents",
-    text: "Find mobile money agents when you are in an area you do not really know and need service.",
+    image: "/landing/request-digital-cash.png",
+    imageAlt: "Digital cash request illustration for urgent mobile money needs",
+    eyebrow: "Emergency access",
+    title: "Convert cash to MoMo when it cannot wait",
+    text: "Start a request when you have physical cash but need digital money for an urgent payment.",
   },
   {
-    icon: Wallet,
-    title: "24/7 Momo service",
-    text: "Access Momo services no matter the day and no matter the time, even when agents are closed.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Tackle your momo emergencies",
-    text: "Get help when you have money on you but no digital cash for an important transaction.",
+    image: "/landing/nearby-agent.png",
+    imageAlt: "Person using MomoPlus to find a nearby mobile money agent",
+    eyebrow: "Nearby matching",
+    title: "Find agents around you in unfamiliar places",
+    text: "Discover nearby mobile money agents and choose the most convenient meetup point.",
   },
 ];
 
@@ -46,31 +47,135 @@ const steps = [
   "Track every request from start to finish",
 ];
 
+const navLinks = [
+  { href: "/", label: "Home" },
+  { href: "#features", label: "Features" },
+  { href: "#how-it-works", label: "How it works" },
+] as const;
+
+const heroBrand = "MomoPlus";
+
+const serviceHighlights = [
+  {
+    icon: Clock3,
+    title: "24/7 Momo service",
+    text: "Access mobile money services no matter the day or no matter the time.",
+  },
+  {
+    icon: CircleAlert,
+    title: "Emergency transactions",
+    text: "Need to pay at night but have no digital cash? MomoPlus is here for you.",
+  },
+  {
+    icon: Compass,
+    title: "Unfamiliar locations",
+    text: "Need mobile money in a new area? MomoPlus helps you find an agent.",
+  },
+] as const;
+
 export default function LandingPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f7faf7] text-[#111827]">
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
-        <Link href="/" className="flex items-center gap-3" aria-label="MomoPlus home">
-          <Image src="/logo.png" alt="MomoPlus" width={150} height={72} className="h-10 w-auto" />
-        </Link>
+    <main className="landing-page min-h-screen overflow-hidden bg-[#f7faf7] text-[#111827]">
+      <header className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-5 py-5 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
+        <div className="flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-3" aria-label="MomoPlus home">
+            <Image src="/logo.png" alt="MomoPlus" width={150} height={72} className="h-10 w-auto" />
+          </Link>
+          <div className="flex items-center gap-2 md:hidden">
+            <Button
+              asChild
+              size="sm"
+              className="rounded-full px-4 text-white shadow-sm shadow-[#1e5631]/15 hover:text-white [&_svg]:text-white"
+            >
+              <a
+                className="text-white"
+                href="/downloads/momoplus.apk"
+                style={{ color: "#ffffff" }}
+                download
+              >
+                <Download className="size-4" />
+                Download
+              </a>
+            </Button>
+          </div>
+        </div>
+        <nav className="hidden rounded-full border border-[#d7e7d8] bg-white/88 px-2 py-2 text-sm font-medium text-[#526070] shadow-sm backdrop-blur md:flex">
+          {navLinks.map((link) => (
+            <Link
+              className="rounded-full px-4 py-2 transition-colors hover:bg-[#f0f7f1] hover:text-[#1e5631]"
+              href={link.href}
+              key={link.href}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <nav className="mx-auto flex max-w-full justify-center gap-2 overflow-x-auto rounded-full bg-white/72 p-1 text-sm font-medium text-[#526070] shadow-sm shadow-[#1e5631]/5 md:hidden">
+          {navLinks.map((link) => (
+            <Link
+              className="shrink-0 rounded-full px-4 py-2 transition-colors hover:bg-[#f0f7f1] hover:text-[#1e5631]"
+              href={link.href}
+              key={link.href}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+        <div className="hidden items-center gap-2 md:flex">
+          <Button
+            asChild
+            size="sm"
+            className="rounded-full px-4 text-white shadow-sm shadow-[#1e5631]/15 hover:text-white [&_svg]:text-white"
+          >
+            <a
+              className="text-white"
+              href="/downloads/momoplus.apk"
+              style={{ color: "#ffffff" }}
+              download
+            >
+              <Download className="size-4" />
+              Download
+            </a>
+          </Button>
+        </div>
       </header>
 
       <section className="relative mx-auto grid w-full max-w-7xl items-center gap-12 px-5 pt-8 pb-20 sm:px-8 lg:grid-cols-[0.94fr_1.06fr] lg:px-10 lg:pt-12 lg:pb-28">
         <div className="max-w-2xl">
-          <h1 className="max-w-3xl text-5xl leading-[1.02] font-semibold tracking-normal text-[#0f172a] sm:text-6xl lg:text-7xl">
-            MomoPlus
+          <h1
+            aria-label={heroBrand}
+            className="landing-hero-title max-w-3xl text-5xl leading-[1.02] font-semibold tracking-normal text-[#0f172a] sm:text-6xl lg:text-7xl"
+          >
+            <span className="landing-hero-word" aria-hidden="true">
+              {heroBrand.split("").map((letter, index) => (
+                <span
+                  className="landing-hero-letter"
+                  key={`${letter}-${index}`}
+                  style={{ animationDelay: `${index * 180 + 240}ms` }}
+                >
+                  {letter}
+                </span>
+              ))}
+            </span>
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-[#526070] sm:text-xl">
-            The app that fills the gap in the mobile money service system by helping you access Momo
-            services 24/7, no matter the day and no matter the time.
+          <p className="landing-hero-copy mt-6 max-w-xl text-lg leading-8 text-[#526070] sm:text-xl">
+            The app that fills the gap in the mobile money service system.
+            <br />
+            The app that helps you access Momo services 24/7.
           </p>
-          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+
+          <div className="landing-hero-actions mt-9 flex flex-col gap-3 sm:flex-row">
             <Button
               asChild
               size="lg"
-              className="h-14 rounded-2xl px-7 text-base shadow-lg shadow-[#1e5631]/20"
+              className="h-14 rounded-2xl px-7 text-base text-white shadow-lg shadow-[#1e5631]/20 hover:text-white [&_svg]:text-white"
             >
-              <a href="/downloads/momoplus.apk" download>
+              <a
+                className="text-white"
+                href="/downloads/momoplus.apk"
+                style={{ color: "#ffffff" }}
+                download
+              >
                 <Download className="size-5" />
                 Download MomoPlus
               </a>
@@ -79,7 +184,7 @@ export default function LandingPage() {
               asChild
               size="lg"
               variant="outline"
-              className="h-14 rounded-2xl border-[#d7e7d8] bg-white px-7 text-base"
+              className="landing-secondary-cta h-14 rounded-2xl border-[#d7e7d8] bg-white px-7 text-base"
             >
               <Link href="#how-it-works">
                 See how it works
@@ -88,7 +193,7 @@ export default function LandingPage() {
             </Button>
           </div>
           <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#667085]">
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full px-2 py-1 active:bg-[#1e5631] active:text-white active:[&_svg]:text-white">
               <Smartphone className="size-4 text-[#1e5631]" />
               Android available now
             </span>
@@ -97,7 +202,6 @@ export default function LandingPage() {
         </div>
 
         <div className="landing-showcase" aria-label="MomoPlus app screenshots">
-          <div className="landing-showcase-panel" />
           {appScreens.map((screen) => (
             <div className={screen.className} key={screen.src}>
               <Image
@@ -113,45 +217,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="border-y border-[#e2ece3] bg-white/78">
-        <div className="mx-auto grid max-w-7xl gap-4 px-5 py-6 sm:grid-cols-3 sm:px-8 lg:px-10">
-          {[
-            ["24/7 Momo service", "Access mobile money services no matter the day or time."],
-            ["Emergency support", "Perform important transactions when agents are closed."],
-            ["Nearby matching", "Find an agent when you are in an area you do not really know."],
-          ].map(([title, text]) => (
-            <div className="rounded-lg border border-[#e2ece3] bg-white p-5 shadow-sm" key={title}>
-              <p className="text-sm font-semibold text-[#1e5631]">{title}</p>
-              <p className="mt-2 text-sm leading-6 text-[#5f6f64]">{text}</p>
+      <section id="services" className="bg-[#eef7ef]">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3 sm:px-8 lg:px-10">
+          {serviceHighlights.map(({ icon: Icon, title, text }) => (
+            <div className="flex gap-4" key={title}>
+              <span className="mt-1 flex size-11 shrink-0 items-center justify-center rounded-full bg-[#d9f1dc] text-[#1e5631]">
+                <Icon className="size-5" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-base font-semibold text-[#102015]">{title}</p>
+                <p className="mt-2 text-sm leading-6 text-[#5f6f64]">{text}</p>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10">
+      <section id="features" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-10">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold tracking-[0.18em] text-[#2f8f52] uppercase">
             Built for everyday transactions
           </p>
           <h2 className="mt-4 text-3xl font-semibold tracking-normal text-[#101828] sm:text-4xl">
-            MomoPlus is here when you need mobile money service and the usual options are not
-            available.
+            Everything you need to access mobile money support when the usual service system leaves
+            a gap.
           </h2>
         </div>
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {features.map((feature) => (
-            <article
-              className="rounded-lg border border-[#dfece1] bg-white p-6 shadow-sm"
-              key={feature.title}
-            >
-              <div className="flex size-11 items-center justify-center rounded-lg bg-[#edf8e9] text-[#1e5631]">
-                <feature.icon className="size-5" />
-              </div>
-              <h3 className="mt-6 text-lg font-semibold text-[#101828]">{feature.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-[#667085]">{feature.text}</p>
-            </article>
-          ))}
-        </div>
+        <FeatureStoryList features={features} />
       </section>
 
       <section id="how-it-works" className="bg-[#102015] py-20 text-white">
@@ -164,19 +256,7 @@ export default function LandingPage() {
               From signup to successful cash service in a few clear steps.
             </h2>
           </div>
-          <div className="grid gap-3">
-            {steps.map((step, index) => (
-              <div
-                className="flex items-center gap-4 rounded-lg border border-white/10 bg-white/6 p-4"
-                key={step}
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#66cc3a] text-sm font-semibold text-[#102015]">
-                  {index + 1}
-                </span>
-                <p className="font-medium text-white/92">{step}</p>
-              </div>
-            ))}
-          </div>
+          <ScrollStepList steps={steps} />
         </div>
       </section>
 
@@ -189,8 +269,17 @@ export default function LandingPage() {
             Download the Android APK now. iOS support will be announced later.
           </p>
         </div>
-        <Button asChild size="lg" className="h-14 rounded-2xl px-7 text-base">
-          <a href="/downloads/momoplus.apk" download>
+        <Button
+          asChild
+          size="lg"
+          className="h-14 rounded-2xl px-7 text-base text-white hover:text-white [&_svg]:text-white"
+        >
+          <a
+            className="text-white"
+            href="/downloads/momoplus.apk"
+            style={{ color: "#ffffff" }}
+            download
+          >
             <Download className="size-5" />
             Download MomoPlus
           </a>
