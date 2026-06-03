@@ -1,6 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CircleAlert, Clock3, Compass, Download, Smartphone } from "lucide-react";
+import {
+  ArrowRight,
+  CircleAlert,
+  Clock3,
+  Compass,
+  Download,
+  Mail,
+  Phone,
+  Smartphone,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeatureStoryList } from "@/components/landing/feature-story-list";
 import { ScrollStepList } from "@/components/landing/scroll-step-list";
@@ -285,6 +294,31 @@ export default function LandingPage() {
           </a>
         </Button>
       </section>
+
+      <footer className="border-t border-[#d7e7d8] bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-8 text-sm text-[#526070] sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
+          <div>
+            <p className="font-semibold text-[#102015]">Dorina Akosua Anani</p>
+            <p className="mt-1">MomoPlus contact</p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+            <a
+              className="inline-flex items-center gap-2 transition-colors hover:text-[#1e5631]"
+              href="tel:+233549700076"
+            >
+              <Phone className="size-4" aria-hidden="true" />
+              +233 54 970 0076
+            </a>
+            <a
+              className="inline-flex items-center gap-2 transition-colors hover:text-[#1e5631]"
+              href="mailto:ananidorina@gmail.com"
+            >
+              <Mail className="size-4" aria-hidden="true" />
+              ananidorina@gmail.com
+            </a>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
