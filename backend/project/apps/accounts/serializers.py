@@ -11,6 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
             "supabase_user_id",
             "username",
             "email",
+            "phone",
             "first_name",
             "last_name",
             "created_at",
@@ -27,6 +28,7 @@ class StaffUserSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "email",
+            "phone",
             "first_name",
             "last_name",
             "is_active",
@@ -39,6 +41,7 @@ class StaffUserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     full_name: serializers.SerializerMethodField = serializers.SerializerMethodField()
     has_guarantors: serializers.SerializerMethodField = serializers.SerializerMethodField()
+    is_onboarded: serializers.BooleanField = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
@@ -47,6 +50,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "supabase_user_id",
             "username",
             "email",
+            "phone",
             "first_name",
             "last_name",
             "full_name",
@@ -54,6 +58,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "agent_status",
             "kyc_status",
             "has_guarantors",
+            "is_onboarded",
             "created_at",
             "updated_at",
         ]
@@ -62,10 +67,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "supabase_user_id",
             "username",
             "email",
+            "phone",
             "role",
             "agent_status",
             "kyc_status",
             "has_guarantors",
+            "is_onboarded",
             "created_at",
             "updated_at",
         ]

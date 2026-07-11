@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/repositories/auth_repository.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/domain/models/app_user.dart';
+import '../../../core/utils/ghana_phone.dart';
 
 enum AuthBootstrapStatus { signedOut, loadingProfile, ready }
 
@@ -16,6 +17,7 @@ class AuthViewModel extends ChangeNotifier {
   BackendApiService? _backendApiService;
 
   StreamSubscription<AuthState>? _authSubscription;
+  Timer? _resendTimer;
   Future<void>? _profileRefreshFuture;
   int _profileRefreshGeneration = 0;
   bool _isAuthenticated = false;
@@ -29,6 +31,8 @@ class AuthViewModel extends ChangeNotifier {
   String? _kycApprovalToken;
   bool _shouldShowApprovedKycScreen = false;
   String? _selfieUrl;
+  String? _pendingPhone;
+  int _resendSeconds = 0;
 
   AuthViewModel(this._authRepository) {
     _isAuthenticated = _authRepository.currentSession != null;
@@ -59,6 +63,10 @@ class AuthViewModel extends ChangeNotifier {
   bool get isKycApproved => kycStatus == KycStatus.approved;
   bool get shouldShowApprovedKycScreen => _shouldShowApprovedKycScreen;
   String? get selfieUrl => _selfieUrl;
+  String? get pendingPhone => _pendingPhone;
+  bool get isAwaitingOtp => _pendingPhone != null;
+  int get resendSeconds => _resendSeconds;
+  bool get canResendOtp => _pendingPhone != null && _resendSeconds == 0;
 
   void setBackendApiService(BackendApiService service) {
     _backendApiService = service;
@@ -118,25 +126,23 @@ class AuthViewModel extends ChangeNotifier {
     try {
       await _authRepository.syncWithBackend();
       if (!_isCurrentProfileRefresh(generation)) return;
+      final profileData = await _authRepository.getBackendProfile();
+      if (!_isCurrentProfileRefresh(generation)) return;
+      if (profileData == null) {
+        throw Exception('Backend profile was not returned.');
+      }
+      _appUser = AppUser.fromBackendProfile(profileData);
       _hasConnectionError = false;
     } catch (e) {
       if (_isNetworkError(e) && _isCurrentProfileRefresh(generation)) {
         _hasConnectionError = true;
         return;
       }
-    }
-
-    try {
-      final profileData = await _authRepository.getBackendProfile();
       if (!_isCurrentProfileRefresh(generation)) return;
-      if (profileData != null) {
-        _appUser = AppUser.fromBackendProfile(profileData);
-      }
-    } catch (e) {
-      if (_isNetworkError(e) && _isCurrentProfileRefresh(generation)) {
-        _hasConnectionError = true;
-        return;
-      }
+      _errorMessage =
+          'We could not securely link this account. Please try again.';
+      await _authRepository.signOut();
+      return;
     }
 
     try {
@@ -175,44 +181,96 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> signIn({required String email, required String password}) async {
+  Future<bool> sendPhoneOtp(String rawPhone) async {
     _setLoading(true);
     try {
-      await _authRepository.signIn(email: email, password: password);
+      final phone = normalizeGhanaPhone(rawPhone);
+      await _authRepository.sendPhoneOtp(phone: phone);
+      _pendingPhone = phone;
+      _startResendCooldown();
       _clearError();
       return true;
-    } on AuthException catch (e) {
+    } on GhanaPhoneException catch (e) {
       _setError(e.message);
       return false;
+    } on AuthException catch (e) {
+      _setError(_friendlyOtpSendError(e));
+      return false;
     } catch (_) {
-      _setError('Something went wrong. Please try again.');
+      _setError('We could not send a code. Please try again.');
       return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  Future<bool> signUp({
-    required String email,
-    required String password,
-    String? firstName,
-    String? lastName,
-  }) async {
+  Future<bool> verifyPhoneOtp(String token) async {
+    final phone = _pendingPhone;
+    if (phone == null) {
+      _setError('Enter your phone number again to request a new code.');
+      return false;
+    }
+    if (!RegExp(r'^\d{6}$').hasMatch(token)) {
+      _setError('Enter the complete 6-digit code.');
+      return false;
+    }
+
     _setLoading(true);
     try {
-      await _authRepository.signUp(
-        email: email,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
-      );
+      await _authRepository.verifyPhoneOtp(phone: phone, token: token);
+      await refreshProfile();
+      if (!_isAuthenticated || _appUser == null) return false;
       _clearError();
       return true;
     } on AuthException catch (e) {
-      _setError(e.message);
+      _setError(_friendlyOtpVerifyError(e));
       return false;
     } catch (_) {
-      _setError('Something went wrong. Please try again.');
+      if (_errorMessage == null) {
+        _setError('We could not verify that code. Please try again.');
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> resendPhoneOtp() async {
+    final phone = _pendingPhone;
+    if (phone == null || !canResendOtp) return false;
+    return sendPhoneOtp(phone);
+  }
+
+  void editPhone() {
+    _pendingPhone = null;
+    _resendTimer?.cancel();
+    _resendSeconds = 0;
+    _clearError();
+  }
+
+  Future<bool> completeProfile({
+    required String firstName,
+    required String lastName,
+  }) async {
+    final resolvedFirstName = firstName.trim();
+    final resolvedLastName = lastName.trim();
+    if (resolvedFirstName.isEmpty || resolvedLastName.isEmpty) {
+      _setError('Enter both your first and last name.');
+      return false;
+    }
+
+    _setLoading(true);
+    try {
+      final profile = await _authRepository.updateProfile(
+        firstName: resolvedFirstName,
+        lastName: resolvedLastName,
+      );
+      _appUser = AppUser.fromBackendProfile(profile);
+      _clearError();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(friendlyErrorMessage(e));
       return false;
     } finally {
       _setLoading(false);
@@ -307,6 +365,36 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    _resendSeconds = 30;
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendSeconds <= 1) {
+        _resendSeconds = 0;
+        timer.cancel();
+      } else {
+        _resendSeconds--;
+      }
+      notifyListeners();
+    });
+  }
+
+  String _friendlyOtpSendError(AuthException error) {
+    final message = error.message.toLowerCase();
+    if (message.contains('rate') || message.contains('seconds')) {
+      return 'Please wait a moment before requesting another code.';
+    }
+    return 'We could not send a code to that number. Please try again.';
+  }
+
+  String _friendlyOtpVerifyError(AuthException error) {
+    final message = error.message.toLowerCase();
+    if (message.contains('expired')) {
+      return 'That code has expired. Request a new one.';
+    }
+    return 'That code is incorrect or no longer valid.';
+  }
+
   KycStatus? _parseKycStatus(String? value) {
     if (value == null || value.isEmpty) return null;
     return KycStatus.values.firstWhere(
@@ -374,6 +462,7 @@ class AuthViewModel extends ChangeNotifier {
   void dispose() {
     _profileRefreshGeneration++;
     _authSubscription?.cancel();
+    _resendTimer?.cancel();
     super.dispose();
   }
 }

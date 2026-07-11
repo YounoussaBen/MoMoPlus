@@ -25,7 +25,8 @@ class KycStatus(models.TextChoices):
 
 class User(AbstractUser, BaseModel):
     supabase_user_id: models.UUIDField = models.UUIDField(unique=True, null=True, blank=True)
-    email: models.EmailField = models.EmailField(unique=True)
+    phone: models.CharField = models.CharField(max_length=16, unique=True, null=True, blank=True)
+    email: models.EmailField = models.EmailField(unique=True, null=True, blank=True)
     first_name: models.CharField = models.CharField(max_length=150)
     last_name: models.CharField = models.CharField(max_length=150)
     role: models.CharField = models.CharField(max_length=10, choices=UserRole.choices, default=UserRole.USER)
@@ -39,7 +40,11 @@ class User(AbstractUser, BaseModel):
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]
 
     def __str__(self) -> str:
-        return self.email
+        return self.email or self.phone or self.username
+
+    @property
+    def is_onboarded(self) -> bool:
+        return bool(self.first_name.strip() and self.last_name.strip())
 
 
 class LoanGuarantor(BaseModel):

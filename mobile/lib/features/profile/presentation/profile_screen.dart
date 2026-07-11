@@ -30,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
 
     final displayName = appUser.fullName.isNotEmpty
         ? appUser.fullName
-        : appUser.email.split('@').first;
+        : appUser.contactLabel;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -94,9 +94,11 @@ class ProfileScreen extends StatelessWidget {
               ),
               const Divider(height: 1, indent: 56),
               _InfoRow(
-                icon: Icons.email_outlined,
-                label: 'Email',
-                value: appUser.email,
+                icon: appUser.phone.isNotEmpty
+                    ? Icons.phone_outlined
+                    : Icons.email_outlined,
+                label: appUser.phone.isNotEmpty ? 'Phone' : 'Email',
+                value: appUser.contactLabel,
               ),
             ],
           ),

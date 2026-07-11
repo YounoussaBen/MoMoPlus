@@ -143,21 +143,22 @@ class _FakeAuthRepository implements AuthRepository {
   Future<void> saveKycDraft(Map<String, dynamic> draft) async {}
 
   @override
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {}
+  Future<void> sendPhoneOtp({required String phone}) async {}
 
   @override
   Future<void> signOut() async {}
 
   @override
-  Future<void> signUp({
-    required String email,
-    required String password,
-    String? firstName,
-    String? lastName,
+  Future<void> verifyPhoneOtp({
+    required String phone,
+    required String token,
   }) async {}
+
+  @override
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+  }) async => {};
 
   @override
   Future<void> submitKyc({

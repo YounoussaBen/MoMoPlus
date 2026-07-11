@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pytest
+from django.db import IntegrityError
 
 from project.apps.accounts.models import LoanGuarantor, User
 from project.apps.accounts.services import (
@@ -14,9 +15,73 @@ from project.apps.accounts.services import (
 
 class TestSupabaseUserSync:
     @pytest.mark.django_db
+    def test_sync_creates_phone_only_user_with_nullable_email(self):
+        claims = {"sub": str(uuid4()), "phone": "+233241234567", "user_metadata": {}}
+
+        user = sync_user_from_supabase_claims(claims)
+
+        assert user.phone == "+233241234567"
+        assert user.email is None
+        assert user.is_onboarded is False
+        assert user.has_usable_password() is False
+
+    @pytest.mark.django_db
+    def test_sync_is_idempotent_for_phone_identity(self):
+        supabase_id = uuid4()
+        claims = {"sub": str(supabase_id), "phone": "+233241234567", "user_metadata": {}}
+
+        first = sync_user_from_supabase_claims(claims)
+        second = sync_user_from_supabase_claims(claims)
+
+        assert first.pk == second.pk
+        assert User.objects.filter(phone="+233241234567").count() == 1
+
+    @pytest.mark.django_db
+    def test_sync_links_unique_unclaimed_phone(self, user_factory):
+        existing = user_factory(phone="+233241234567", supabase_user_id=None)
+        claims = {"sub": str(uuid4()), "phone": "+233241234567", "user_metadata": {}}
+
+        synced = sync_user_from_supabase_claims(claims)
+
+        assert synced.pk == existing.pk
+        assert synced.supabase_user_id is not None
+
+    @pytest.mark.django_db
+    def test_sync_rejects_phone_linked_to_different_supabase_identity(self, user_factory):
+        existing = user_factory(phone="+233241234567")
+        claims = {"sub": str(uuid4()), "phone": existing.phone, "user_metadata": {}}
+
+        with pytest.raises(ValueError, match="does not match"):
+            sync_user_from_supabase_claims(claims)
+
+    @pytest.mark.django_db
+    def test_sync_rejects_existing_supabase_identity_changing_to_another_phone(self, user_factory):
+        user = user_factory(phone="+233241234567")
+        claims = {
+            "sub": str(user.supabase_user_id),
+            "phone": "+233551234567",
+            "user_metadata": {},
+        }
+
+        with pytest.raises(ValueError, match="phone does not match"):
+            sync_user_from_supabase_claims(claims)
+
+    @pytest.mark.django_db
+    def test_sync_converts_unique_identity_race_to_closed_conflict(self, mocker):
+        claims = {"sub": str(uuid4()), "phone": "+233241234567", "user_metadata": {}}
+        mocker.patch(
+            "project.apps.accounts.models.User.save",
+            side_effect=IntegrityError("duplicate phone"),
+        )
+
+        with pytest.raises(ValueError, match="conflicts"):
+            sync_user_from_supabase_claims(claims)
+
+    @pytest.mark.django_db
     def test_sync_creates_new_user_from_supabase_claims(self):
         claims = {
             "sub": str(uuid4()),
+            "phone": "+233241234567",
             "email": "new-user@example.com",
             "user_metadata": {"full_name": "New User"},
         }
@@ -30,32 +95,18 @@ class TestSupabaseUserSync:
         assert user.has_usable_password() is False
 
     @pytest.mark.django_db
-    def test_sync_attaches_existing_email_match(self, user_factory):
-        existing_user = user_factory(email="existing@example.com", supabase_user_id=None)
-        claims = {
-            "sub": str(uuid4()),
-            "email": existing_user.email,
-            "user_metadata": {"first_name": "Existing", "last_name": "User"},
-        }
-
-        synced_user = sync_user_from_supabase_claims(claims)
-
-        assert synced_user.pk == existing_user.pk
-        assert synced_user.supabase_user_id is not None
-
-    @pytest.mark.django_db
-    def test_sync_rejects_claims_without_email(self):
+    def test_sync_rejects_claims_without_phone(self):
         claims = {"sub": str(uuid4()), "user_metadata": {}}
 
-        with pytest.raises(ValueError, match="email"):
+        with pytest.raises(ValueError, match="phone"):
             sync_user_from_supabase_claims(claims)
 
     @pytest.mark.django_db
     def test_sync_rejects_mismatched_supabase_identity(self, user_factory):
-        user = user_factory()
+        user = user_factory(phone="+233241234567")
         claims = {
             "sub": str(uuid4()),
-            "email": user.email,
+            "phone": user.phone,
             "user_metadata": {"first_name": "Mismatch"},
         }
 

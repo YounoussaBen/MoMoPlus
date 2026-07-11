@@ -6,8 +6,8 @@ import '../../features/agent/presentation/home/agent_home_screen.dart';
 import '../../features/agent/presentation/more/agent_more_screen.dart';
 import '../../features/agent/presentation/shell/agent_shell.dart';
 import '../../features/auth/presentation/auth_view_model.dart';
+import '../../features/auth/presentation/profile_setup_screen.dart';
 import '../../features/auth/presentation/sign_in_screen.dart';
-import '../../features/auth/presentation/sign_up_screen.dart';
 import '../../features/connection_error/presentation/connection_error_screen.dart';
 import '../../features/kyc/presentation/kyc_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
@@ -149,6 +149,9 @@ String _authenticatedDestination(
   AuthViewModel authViewModel, {
   String? returnLocation,
 }) {
+  if (authViewModel.appUser?.isOnboarded != true) {
+    return '/auth/profile-setup';
+  }
   final needsKyc =
       !authViewModel.isKycApproved || authViewModel.shouldShowApprovedKycScreen;
   if (needsKyc) {
@@ -200,6 +203,7 @@ class AppRouter {
         }
 
         final isAuthRoute = path.startsWith('/auth');
+        final isProfileSetupRoute = path == '/auth/profile-setup';
         final isKycRoute = path.startsWith('/kyc');
 
         // Onboarding is only available before authentication.
@@ -211,7 +215,14 @@ class AppRouter {
 
         // Not authenticated → send to sign-in (unless already on an auth route).
         if (!isAuthenticated) {
+          if (isProfileSetupRoute) return '/auth/sign-in';
           return isAuthRoute ? null : _signInLocation(state);
+        }
+
+        if (isProfileSetupRoute) {
+          return appUser?.isOnboarded == true
+              ? _authenticatedDestination(authViewModel)
+              : null;
         }
 
         final isKycApproved = authViewModel.isKycApproved;
@@ -280,7 +291,11 @@ class AppRouter {
         ),
         GoRoute(
           path: '/auth/sign-up',
-          builder: (context, state) => const SignUpScreen(),
+          redirect: (context, state) => '/auth/sign-in',
+        ),
+        GoRoute(
+          path: '/auth/profile-setup',
+          builder: (context, state) => const ProfileSetupScreen(),
         ),
         GoRoute(path: '/kyc', builder: (context, state) => const KycScreen()),
         GoRoute(

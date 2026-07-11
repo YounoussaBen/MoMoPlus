@@ -6,6 +6,37 @@ import 'package:momoplus/features/auth/presentation/auth_view_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  test('phone OTP request normalizes input and starts cooldown', () async {
+    final repository = _FakeAuthRepository(session: null);
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
+
+    final sent = await viewModel.sendPhoneOtp('024 123 4567');
+
+    expect(sent, isTrue);
+    expect(repository.sentPhone, '+233241234567');
+    expect(viewModel.pendingPhone, '+233241234567');
+    expect(viewModel.resendSeconds, 30);
+    expect(viewModel.canResendOtp, isFalse);
+  });
+
+  test(
+    'phone OTP request rejects invalid input before repository call',
+    () async {
+      final repository = _FakeAuthRepository(session: null);
+      final viewModel = AuthViewModel(repository);
+      addTearDown(viewModel.dispose);
+      addTearDown(repository.close);
+
+      final sent = await viewModel.sendPhoneOtp('not a phone');
+
+      expect(sent, isFalse);
+      expect(repository.sentPhone, isNull);
+      expect(viewModel.errorMessage, isNotEmpty);
+    },
+  );
+
   test(
     'authenticated startup stays loading until the profile is hydrated',
     () async {
@@ -59,6 +90,26 @@ void main() {
     expect(viewModel.bootstrapStatus, AuthBootstrapStatus.signedOut);
     expect(viewModel.appUser, isNull);
   });
+
+  test(
+    'unsafe local profile link failure signs out the Supabase session',
+    () async {
+      final repository = _FakeAuthRepository(
+        session: _session('user-1'),
+        syncError: Exception('identity conflict'),
+      );
+      final viewModel = AuthViewModel(repository);
+      addTearDown(viewModel.dispose);
+      addTearDown(repository.close);
+
+      await viewModel.refreshProfile();
+
+      expect(repository.signOutCalls, 1);
+      expect(viewModel.isAuthenticated, isFalse);
+      expect(viewModel.appUser, isNull);
+      expect(viewModel.errorMessage, contains('securely link'));
+    },
+  );
 }
 
 Session _session(String userId) {
@@ -79,15 +130,18 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository({
     required Session? session,
     Completer<void>? syncCompleter,
+    this.syncError,
   }) : _session = session,
        _syncCompleter = syncCompleter;
 
   final StreamController<AuthState> _authStates =
       StreamController<AuthState>.broadcast(sync: true);
   final Completer<void>? _syncCompleter;
+  final Object? syncError;
   Session? _session;
   int syncCalls = 0;
   int profileCalls = 0;
+  int signOutCalls = 0;
 
   void emit(AuthState state) {
     _session = state.session;
@@ -117,6 +171,7 @@ class _FakeAuthRepository implements AuthRepository {
       'agent_status': 'approved',
       'kyc_status': 'approved',
       'has_guarantors': true,
+      'is_onboarded': true,
     };
   }
 
@@ -126,25 +181,41 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> syncWithBackend() {
     syncCalls++;
+    if (syncError case final error?) return Future<void>.error(error);
     return _syncCompleter?.future ?? Future<void>.value();
   }
 
+  String? sentPhone;
+
   @override
-  Future<void> signIn({
-    required String email,
-    required String password,
+  Future<void> sendPhoneOtp({required String phone}) async {
+    sentPhone = phone;
+  }
+
+  @override
+  Future<void> verifyPhoneOtp({
+    required String phone,
+    required String token,
   }) async {}
 
   @override
-  Future<void> signUp({
-    required String email,
-    required String password,
-    String? firstName,
-    String? lastName,
-  }) async {}
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+  }) async => {
+    'id': _session?.user.id ?? 'user-1',
+    'email': 'agent@example.com',
+    'phone': '+233241234567',
+    'first_name': firstName,
+    'last_name': lastName,
+    'is_onboarded': true,
+  };
 
   @override
-  Future<void> signOut() async {}
+  Future<void> signOut() async {
+    signOutCalls++;
+    emit(const AuthState(AuthChangeEvent.signedOut, null));
+  }
 
   @override
   Future<void> requestAgent() async {}

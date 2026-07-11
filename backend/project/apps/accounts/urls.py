@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path("hooks/send-sms/", views.supabase_send_sms_hook, name="supabase-send-sms-hook"),
     path("staff/login/", views.staff_login, name="staff-login"),
     path("sync/", views.sync_profile, name="sync"),
     path("profile/", views.profile, name="profile"),
