@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
@@ -36,6 +35,9 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
   void initState() {
     super.initState();
     _amountController.addListener(_onAmountChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<TransactionViewModel>().loadWallets();
+    });
   }
 
   void _onAmountChanged() {
@@ -54,272 +56,262 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) =>
-          TransactionViewModel(ctx.read<BackendApiService>())..loadWallets(),
-      child: Consumer<TransactionViewModel>(
-        builder: (context, vm, _) {
-          // Auto-select default wallet
-          if (_selectedWallet == null && vm.verifiedWallets.isNotEmpty) {
-            _selectedWallet = vm.verifiedWallets.firstWhere(
-              (w) => w.isDefault,
-              orElse: () => vm.verifiedWallets.first,
-            );
-          }
+    final vm = context.watch<TransactionViewModel>();
 
-          return Scaffold(
-            backgroundColor: AppColors.surface,
-            appBar: AppBar(
-              title: const Text('Cash Services'),
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.textPrimary,
-              elevation: 0,
-            ),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    // Auto-select default wallet
+    if (_selectedWallet == null && vm.verifiedWallets.isNotEmpty) {
+      _selectedWallet = vm.verifiedWallets.firstWhere(
+        (w) => w.isDefault,
+        orElse: () => vm.verifiedWallets.first,
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(
+        title: const Text('Cash Services'),
+        backgroundColor: Colors.white,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Agent info
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.divider),
+              ),
+              child: Row(
                 children: [
-                  // Agent info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.divider),
-                    ),
-                    child: Row(
-                      children: [
-                        ProfileAvatar(
-                          imageUrl: widget.agentSelfieUrl,
-                          fallbackLetter: widget.agentName.isNotEmpty
-                              ? widget.agentName[0]
-                              : '?',
-                          radius: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            widget.agentName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  ProfileAvatar(
+                    imageUrl: widget.agentSelfieUrl,
+                    fallbackLetter: widget.agentName.isNotEmpty
+                        ? widget.agentName[0]
+                        : '?',
+                    radius: 24,
                   ),
-                  const SizedBox(height: 24),
-
-                  // Transaction type
-                  const Text(
-                    'Service Type',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _TypeCard(
-                          icon: Icons.money_off_outlined,
-                          label: 'Cash Out',
-                          subtitle: 'Wallet → Cash',
-                          selected: _transactionType == 'cash_out',
-                          onTap: () =>
-                              setState(() => _transactionType = 'cash_out'),
-                        ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.agentName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _TypeCard(
-                          icon: Icons.account_balance_wallet_outlined,
-                          label: 'Deposit',
-                          subtitle: 'Cash → Wallet',
-                          selected: _transactionType == 'deposit',
-                          onTap: () =>
-                              setState(() => _transactionType = 'deposit'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Amount
-                  const Text(
-                    'Amount (GHS)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _amountController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: 'Enter amount',
-                      prefixText: 'GHS ',
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.divider),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.divider),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Wallet selection
-                  const Text(
-                    'Select Wallet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (vm.isLoadingWallets)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    )
-                  else if (vm.verifiedWallets.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.divider),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                color: AppColors.error.withValues(alpha: 0.7),
-                              ),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  'No verified wallets. Add and verify a wallet first.',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: () => _handleAddWallet(vm),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Wallet'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    ...vm.verifiedWallets.map(
-                      (wallet) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _WalletOption(
-                          wallet: wallet,
-                          selected: _selectedWallet?.id == wallet.id,
-                          onTap: () => setState(() => _selectedWallet = wallet),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 32),
-
-                  // Error message
-                  if (vm.errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            color: AppColors.error,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              vm.errorMessage!,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: AppColors.error,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Submit button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed:
-                          vm.isSubmitting ||
-                              _selectedWallet == null ||
-                              !_hasAmount
-                          ? null
-                          : () => _submit(vm),
-                      child: vm.isSubmitting
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Submit',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
                     ),
                   ),
                 ],
               ),
             ),
-          );
-        },
+            const SizedBox(height: 24),
+
+            // Transaction type
+            const Text(
+              'Service Type',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _TypeCard(
+                    icon: Icons.money_off_outlined,
+                    label: 'Cash Out',
+                    subtitle: 'Wallet → Cash',
+                    selected: _transactionType == 'cash_out',
+                    onTap: () => setState(() => _transactionType = 'cash_out'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TypeCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Deposit',
+                    subtitle: 'Cash → Wallet',
+                    selected: _transactionType == 'deposit',
+                    onTap: () => setState(() => _transactionType = 'deposit'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Amount
+            const Text(
+              'Amount (GHS)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _amountController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Enter amount',
+                prefixText: 'GHS ',
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Wallet selection
+            const Text(
+              'Select Wallet',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (vm.isLoadingWallets)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                    strokeWidth: 2,
+                  ),
+                ),
+              )
+            else if (vm.verifiedWallets.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: AppColors.error.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'No verified wallets. Add and verify a wallet first.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _handleAddWallet(vm),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Wallet'),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...vm.verifiedWallets.map(
+                (wallet) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _WalletOption(
+                    wallet: wallet,
+                    selected: _selectedWallet?.id == wallet.id,
+                    onTap: () => setState(() => _selectedWallet = wallet),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 32),
+
+            // Error message
+            if (vm.errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        vm.errorMessage!,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Submit button
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed:
+                    vm.isSubmitting || _selectedWallet == null || !_hasAmount
+                    ? null
+                    : () => _submit(vm),
+                child: vm.isSubmitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Submit',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -333,8 +325,6 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
       walletId: _selectedWallet!.id,
     );
     if (txn != null && mounted) {
-      await context.read<TransactionViewModel>().loadTransactions();
-      if (!mounted) return;
       context.replace('/transactions/${txn.id}');
     }
   }

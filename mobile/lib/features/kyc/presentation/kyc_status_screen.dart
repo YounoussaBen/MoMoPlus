@@ -12,12 +12,22 @@ class KycStatusScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<KycViewModel>();
-    return switch (vm.screenState) {
+    final content = switch (vm.screenState) {
       KycScreenState.pending => const _PendingView(),
       KycScreenState.rejected => const _RejectedView(),
       KycScreenState.approved => const _ApprovedView(),
+      KycScreenState.error => const _ErrorView(),
       _ => const SizedBox.shrink(),
     };
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: content,
+        ),
+      ),
+    );
   }
 }
 
@@ -26,6 +36,9 @@ class _PendingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final vm = context.watch<KycViewModel>();
+    final authVm = context.read<AuthViewModel>();
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -49,6 +62,99 @@ class _PendingView extends StatelessWidget {
           'Your documents are being reviewed. We\'ll let you know once the process is complete.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        if (vm.errorMessage != null) ...[
+          const SizedBox(height: 20),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.error.withAlpha(20),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              vm.errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.error),
+            ),
+          ),
+        ],
+        const SizedBox(height: 28),
+        AppButton(
+          label: 'Check status',
+          isLoading: vm.isRefreshing,
+          onPressed: vm.refreshStatus,
+        ),
+        const SizedBox(height: 8),
+        AppButton(
+          label: 'Get help',
+          variant: AppButtonVariant.secondary,
+          onPressed: () => context.push('/support'),
+        ),
+        const SizedBox(height: 8),
+        AppButton(
+          label: 'Sign out',
+          variant: AppButtonVariant.ghost,
+          onPressed: authVm.isLoading ? null : authVm.signOut,
+        ),
+      ],
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView();
+
+  @override
+  Widget build(BuildContext context) {
+    final vm = context.watch<KycViewModel>();
+    final authVm = context.read<AuthViewModel>();
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: AppColors.error.withAlpha(20),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.cloud_off_rounded,
+            size: 40,
+            color: AppColors.error,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'Could not load your status',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          vm.errorMessage ?? 'Check your connection and try again.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 28),
+        AppButton(
+          label: 'Try again',
+          isLoading: vm.isRefreshing,
+          onPressed: () => vm.refreshStatus(showLoading: true),
+        ),
+        const SizedBox(height: 8),
+        AppButton(
+          label: 'Get help',
+          variant: AppButtonVariant.secondary,
+          onPressed: () => context.push('/support'),
+        ),
+        const SizedBox(height: 8),
+        AppButton(
+          label: 'Sign out',
+          variant: AppButtonVariant.ghost,
+          onPressed: authVm.isLoading ? null : authVm.signOut,
         ),
       ],
     );

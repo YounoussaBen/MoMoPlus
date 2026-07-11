@@ -30,8 +30,33 @@ class KycScreen extends StatelessWidget {
   }
 }
 
-class _KycView extends StatelessWidget {
+class _KycView extends StatefulWidget {
   const _KycView();
+
+  @override
+  State<_KycView> createState() => _KycViewState();
+}
+
+class _KycViewState extends State<_KycView> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        context.read<KycViewModel>().screenState == KycScreenState.pending) {
+      context.read<KycViewModel>().refreshStatus();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

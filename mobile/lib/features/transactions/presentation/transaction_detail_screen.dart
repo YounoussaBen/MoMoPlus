@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/widgets/network_logo.dart';
@@ -30,7 +29,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      _vm = TransactionViewModel(context.read<BackendApiService>());
+      _vm = context.read<TransactionViewModel>();
       _vm.loadTransactionDetail(widget.transactionId);
       _vm.startPolling(widget.transactionId);
     }
@@ -39,7 +38,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   @override
   void dispose() {
     _vm.stopPolling();
-    _vm.dispose();
     super.dispose();
   }
 

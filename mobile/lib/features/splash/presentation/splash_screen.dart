@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/ui/widgets/app_logo.dart';
+import '../../../core/ui/theme/app_motion.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../auth/presentation/auth_view_model.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -21,10 +23,10 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: AppMotion.emphasized,
       vsync: this,
     );
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _opacity = CurvedAnimation(parent: _controller, curve: AppMotion.enter);
     _controller.forward();
     _navigate();
   }
@@ -32,18 +34,20 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigate() async {
     final authVm = context.read<AuthViewModel>();
 
-    await Future.delayed(const Duration(milliseconds: 1600));
-    if (!mounted) return;
+    final minimumDisplay = Future<void>.delayed(AppMotion.emphasized);
+    final preferencesFuture = SharedPreferences.getInstance();
 
-    final prefs = await SharedPreferences.getInstance();
+    if (authVm.isAuthenticated) {
+      await Future.wait([minimumDisplay, authVm.refreshProfile()]);
+    } else {
+      await minimumDisplay;
+    }
+    final prefs = await preferencesFuture;
     final onboardingSeen = prefs.getBool('onboarding_seen') ?? false;
 
     if (!mounted) return;
 
     if (authVm.isAuthenticated) {
-      await authVm.refreshProfile();
-      if (!mounted) return;
-
       if (authVm.hasConnectionError) {
         context.go('/connection-error');
         return;
@@ -71,12 +75,20 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.appColors.canvas,
       body: Center(
-        child: FadeTransition(
-          opacity: _opacity,
-          child: const AppLogo(size: 140),
-        ),
+        child: MediaQuery.disableAnimationsOf(context)
+            ? AppLogo(
+                size: 140,
+                useWhite: Theme.of(context).brightness == Brightness.dark,
+              )
+            : FadeTransition(
+                opacity: _opacity,
+                child: AppLogo(
+                  size: 140,
+                  useWhite: Theme.of(context).brightness == Brightness.dark,
+                ),
+              ),
       ),
     );
   }

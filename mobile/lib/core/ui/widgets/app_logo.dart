@@ -9,9 +9,10 @@ class AppLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Image.asset(
-      useWhite ? 'assets/logo.png' : 'assets/logo.png',
+      useWhite ? 'assets/logo-white.png' : 'assets/logo.png',
       width: size,
       height: size,
+      semanticLabel: 'MoMo Plus',
     );
   }
 }

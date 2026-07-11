@@ -10,7 +10,9 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_map_style.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
+import '../../auth/presentation/auth_view_model.dart';
 import '../../loans/domain/loan.dart';
 import '../../loans/presentation/loan_view_model.dart';
 import '../../transactions/domain/physical_transaction.dart';
@@ -26,8 +28,15 @@ class DiscoverScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (ctx) =>
-          DiscoverViewModel(ctx.read<BackendApiService>())..locateAndLoad(),
+      create: (ctx) {
+        final viewModel = DiscoverViewModel(
+          ctx.read<BackendApiService>(),
+          autoStart: false,
+        );
+        viewModel.setSession(ctx.read<AuthViewModel>().currentUser?.id);
+        viewModel.locateAndLoad();
+        return viewModel;
+      },
       child: const _DiscoverBody(),
     );
   }
@@ -193,11 +202,15 @@ class _DiscoverBodyState extends State<_DiscoverBody>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed || !mounted) return;
+    if (!mounted) return;
     final vm = context.read<DiscoverViewModel>();
-    if (vm.hasLocation) {
+    if (state == AppLifecycleState.resumed) {
+      vm.startAutoRefresh();
+      if (!vm.hasLocation) return;
       vm.loadAgents();
+      return;
     }
+    vm.stopAutoRefresh();
   }
 
   @override
@@ -490,6 +503,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
       children: [
         Positioned.fill(
           child: GoogleMap(
+            style: AppMapStyle.forBrightness(Theme.of(context).brightness),
             initialCameraPosition: CameraPosition(
               target: LatLng(vm.userLat!, vm.userLon!),
               zoom: 13,
