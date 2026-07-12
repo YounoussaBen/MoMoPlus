@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
-import '../../../core/ui/formatters/ghana_phone_formatter.dart';
 import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/ghana_phone_field.dart';
 import '../../../core/utils/error_helpers.dart';
+import '../../../core/utils/ghana_phone.dart';
 import '../data/guarantor_model.dart';
+
+String _nationalPhoneForInput(String? value) {
+  if (value == null || value.isEmpty) return '';
+  try {
+    return formatGhanaPhone(value).replaceFirst('+233 ', '');
+  } on GhanaPhoneException {
+    return value;
+  }
+}
 
 class GuarantorsScreen extends StatefulWidget {
   const GuarantorsScreen({super.key});
@@ -292,7 +301,9 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.initialName ?? '');
-    _phoneCtrl = TextEditingController(text: widget.initialPhone ?? '');
+    _phoneCtrl = TextEditingController(
+      text: _nationalPhoneForInput(widget.initialPhone),
+    );
   }
 
   @override
@@ -302,9 +313,15 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
     super.dispose();
   }
 
-  bool get _isValid =>
-      _nameCtrl.text.trim().isNotEmpty &&
-      _phoneCtrl.text.replaceAll(' ', '').length >= 9;
+  bool get _isValid {
+    if (_nameCtrl.text.trim().isEmpty) return false;
+    try {
+      normalizeGhanaPhone(_phoneCtrl.text);
+      return true;
+    } on GhanaPhoneException {
+      return false;
+    }
+  }
 
   Future<void> _save() async {
     if (!_isValid) return;
@@ -313,7 +330,7 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
       _error = null;
     });
     try {
-      final phone = '0${_phoneCtrl.text.replaceAll(' ', '')}';
+      final phone = normalizeGhanaPhone(_phoneCtrl.text);
       await widget.onSave(_nameCtrl.text.trim(), phone);
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -362,39 +379,10 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
             ),
           ),
           const SizedBox(height: 12),
-          TextFormField(
+          GhanaPhoneField(
             controller: _phoneCtrl,
-            keyboardType: TextInputType.phone,
             onChanged: (_) => setState(() {}),
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              GhanaPhoneFormatter(),
-            ],
-            decoration: InputDecoration(
-              hintText: '24 XXX XXXX',
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '+233',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: context.appColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 1,
-                      height: 20,
-                      color: context.appColors.surfaceSubtle,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

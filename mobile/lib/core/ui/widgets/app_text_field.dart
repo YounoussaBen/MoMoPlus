@@ -21,6 +21,7 @@ class AppTextField extends StatelessWidget {
   final int? maxLength;
   final ValueChanged<String>? onFieldSubmitted;
   final List<TextInputFormatter>? inputFormatters;
+  final AutovalidateMode? autovalidateMode;
 
   const AppTextField({
     super.key,
@@ -43,6 +44,7 @@ class AppTextField extends StatelessWidget {
     this.maxLength,
     this.onFieldSubmitted,
     this.inputFormatters,
+    this.autovalidateMode,
   });
 
   @override
@@ -62,6 +64,7 @@ class AppTextField extends StatelessWidget {
       maxLength: maxLength,
       onFieldSubmitted: onFieldSubmitted,
       inputFormatters: inputFormatters,
+      autovalidateMode: autovalidateMode,
       style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
         labelText: label,

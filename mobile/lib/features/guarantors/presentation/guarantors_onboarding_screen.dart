@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
-import '../../../core/ui/formatters/ghana_phone_formatter.dart';
 import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/ghana_phone_field.dart';
 import '../../../core/utils/error_helpers.dart';
+import '../../../core/utils/ghana_phone.dart';
 import '../../auth/presentation/auth_view_model.dart';
 
 class _GuarantorEntry {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
 
-  bool get isValid =>
-      nameController.text.trim().isNotEmpty &&
-      phoneController.text.replaceAll(' ', '').length >= 9;
+  bool get isValid {
+    if (nameController.text.trim().isEmpty) return false;
+    try {
+      normalizeGhanaPhone(phoneController.text);
+      return true;
+    } on GhanaPhoneException {
+      return false;
+    }
+  }
 
   Map<String, String> toJson() => {
     'name': nameController.text.trim(),
-    'phone_number': '0${phoneController.text.replaceAll(' ', '')}',
+    'phone_number': normalizeGhanaPhone(phoneController.text),
   };
 
   void dispose() {
@@ -293,39 +299,10 @@ class _GuarantorCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          TextFormField(
+          GhanaPhoneField(
             controller: entry.phoneController,
             onChanged: (_) => onChanged(),
-            keyboardType: TextInputType.phone,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              GhanaPhoneFormatter(),
-            ],
-            decoration: InputDecoration(
-              hintText: '24 XXX XXXX',
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 12, right: 4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '+233',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: context.appColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 1,
-                      height: 20,
-                      color: context.appColors.surfaceSubtle,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            autovalidateMode: AutovalidateMode.onUserInteraction,
           ),
         ],
       ),

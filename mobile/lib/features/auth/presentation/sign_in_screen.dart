@@ -9,9 +9,7 @@ import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
 import '../../../core/ui/widgets/app_logo.dart';
 import '../../../core/ui/widgets/app_screen.dart';
-import '../../../core/ui/widgets/app_text_field.dart';
-import '../../../core/utils/ghana_phone.dart';
-import '../../../core/utils/ghana_phone_input_formatter.dart';
+import '../../../core/ui/widgets/ghana_phone_field.dart';
 import 'auth_view_model.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -181,32 +179,9 @@ class _PhoneStep extends StatelessWidget {
           children: [
             Text('Mobile number', style: context.appTextTheme.titleSmall),
             const SizedBox(height: AppSpacing.space3),
-            AppTextField(
-              hint: '24 123 4567',
+            GhanaPhoneField(
               controller: controller,
-              keyboardType: TextInputType.phone,
               textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.telephoneNumber],
-              inputFormatters: const [GhanaNationalPhoneInputFormatter()],
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 16, right: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('🇬🇭', style: context.appTextTheme.titleMedium),
-                    const SizedBox(width: 8),
-                    Text('+233', style: context.appTextTheme.titleSmall),
-                  ],
-                ),
-              ),
-              validator: (value) {
-                try {
-                  normalizeGhanaPhone(value ?? '');
-                  return null;
-                } on GhanaPhoneException catch (error) {
-                  return error.message;
-                }
-              },
               onFieldSubmitted: (_) => onContinue(),
             ),
             if (viewModel.errorMessage != null) ...[
@@ -218,6 +193,7 @@ class _PhoneStep extends StatelessWidget {
               label: 'Continue',
               onPressed: onContinue,
               isLoading: viewModel.isLoading,
+              trailingIcon: const Icon(Icons.arrow_forward_rounded),
             ),
             const SizedBox(height: AppSpacing.space3),
             const _AgreementNotice(),
