@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_spacing.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
+import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/app_screen.dart';
+import '../../../core/ui/widgets/app_section.dart';
+import '../../../core/ui/widgets/ghana_phone_field.dart';
 import '../../../core/ui/widgets/network_logo.dart';
-import '../../../core/ui/formatters/ghana_phone_formatter.dart';
 import '../../../core/utils/error_helpers.dart';
 import 'wallet_view_model.dart';
 
@@ -63,7 +66,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     super.dispose();
   }
 
-  String get _rawDigits => _phoneController.text.replaceAll(' ', '');
+  String get _rawDigits => _phoneController.text.replaceAll(RegExp(r'\D'), '');
   String get _fullNumber => '0$_rawDigits';
   _WalletNetworkOption get _selectedOption =>
       _networkOptions.firstWhere((option) => option.value == _selectedNetwork);
@@ -170,151 +173,70 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Add Wallet'),
-        backgroundColor: AppColors.background,
-      ),
+    return AppScreen(
+      title: 'Add wallet',
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
         children: [
-          const Text(
+          Text(
             'Enter your mobile money number',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.3,
-            ),
+            style: context.appTextTheme.headlineMedium,
           ),
           const SizedBox(height: 4),
-          const Text(
-            'We\'ll send an OTP to verify this number',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 28),
-          const Text(
-            'Network',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+          Text(
+            'Choose a network and enter the number linked to your wallet.',
+            style: context.appTextTheme.bodyMedium?.copyWith(
+              color: context.appColors.textSecondary,
             ),
           ),
-          const SizedBox(height: 8),
-          _NetworkSelectorField(
-            option: _selectedOption,
-            onTap: _showNetworkPicker,
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'Phone Number',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.divider),
+          const SizedBox(height: AppSpacing.space6),
+          AppSection(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Network', style: context.appTextTheme.titleSmall),
+                const SizedBox(height: AppSpacing.space2),
+                _NetworkSelectorField(
+                  option: _selectedOption,
+                  onTap: _showNetworkPicker,
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('\u{1F1EC}\u{1F1ED}', style: TextStyle(fontSize: 20)),
-                    SizedBox(width: 6),
-                    Text(
-                      '+233',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
+                const SizedBox(height: AppSpacing.space4),
+                Text('Phone number', style: context.appTextTheme.titleSmall),
+                const SizedBox(height: AppSpacing.space2),
+                GhanaPhoneField(
                   controller: _phoneController,
-                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.done,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   onChanged: (_) => setState(() => _errorMessage = null),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    GhanaPhoneFormatter(),
-                  ],
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                    letterSpacing: 0.5,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: '53 827 2768',
-                    hintStyle: TextStyle(
-                      color: AppColors.textSecondary.withValues(alpha: 0.5),
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 0.5,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 15,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.divider),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.divider),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
+                  onFieldSubmitted: (_) {
+                    if (_canSubmit && !_isAdding) _submit();
+                  },
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           if (_validationMessage != null || _errorMessage != null) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.08),
+                color: context.appColors.errorContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
-                    color: AppColors.error,
+                    color: context.appColors.error,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _errorMessage ?? _validationMessage!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.error,
+                        color: context.appColors.error,
                       ),
                     ),
                   ),
@@ -323,18 +245,10 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
             ),
           ],
           const SizedBox(height: 32),
-          ElevatedButton(
+          AppButton(
+            label: 'Send verification code',
             onPressed: _canSubmit && !_isAdding ? _submit : null,
-            child: _isAdding
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Send OTP'),
+            isLoading: _isAdding,
           ),
         ],
       ),
@@ -356,9 +270,8 @@ class _NetworkSelectorField extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
         ),
         child: Row(
           children: [
@@ -367,16 +280,16 @@ class _NetworkSelectorField extends StatelessWidget {
             Expanded(
               child: Text(
                 option.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: context.appColors.textPrimary,
                 ),
               ),
             ),
             Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: AppColors.textSecondary.withValues(alpha: 0.8),
+              color: context.appColors.textSecondary,
             ),
           ],
         ),
@@ -397,9 +310,9 @@ class _NetworkPickerSheet extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: context.appColors.surfaceSection,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomPadding),
         child: Column(
@@ -409,19 +322,19 @@ class _NetworkPickerSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.textSecondary.withValues(alpha: 0.25),
+                color: context.appColors.textMuted.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
             const SizedBox(height: 16),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'Select Network',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: context.appColors.textPrimary,
                 ),
               ),
             ),
@@ -463,10 +376,14 @@ class _NetworkTile extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isSelected
+              ? context.appColors.brandSoft
+              : context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? option.accentColor : AppColors.divider,
+            color: isSelected
+                ? option.accentColor
+                : context.appColors.surfaceInteractive,
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: isSelected
@@ -486,10 +403,10 @@ class _NetworkTile extends StatelessWidget {
             Expanded(
               child: Text(
                 option.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: context.appColors.textPrimary,
                 ),
               ),
             ),
@@ -499,7 +416,7 @@ class _NetworkTile extends StatelessWidget {
                   : Icons.radio_button_off_rounded,
               color: isSelected
                   ? option.accentColor
-                  : AppColors.textSecondary.withValues(alpha: 0.5),
+                  : context.appColors.textMuted,
             ),
           ],
         ),

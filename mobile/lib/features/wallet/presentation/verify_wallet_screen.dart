@@ -3,7 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_spacing.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
+import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/app_screen.dart';
+import '../../../core/ui/widgets/app_section.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../../auth/presentation/auth_view_model.dart';
 import 'wallet_view_model.dart';
@@ -49,6 +53,10 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
     (_) => TextEditingController(),
   );
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<FocusNode> _keyboardFocusNodes = List.generate(
+    6,
+    (_) => FocusNode(),
+  );
   bool _isRedirectingToWallets = false;
 
   @override
@@ -57,6 +65,9 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
       c.dispose();
     }
     for (final f in _focusNodes) {
+      f.dispose();
+    }
+    for (final f in _keyboardFocusNodes) {
       f.dispose();
     }
     super.dispose();
@@ -90,64 +101,60 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
 
     if (wallet == null) {
       if (_isRedirectingToWallets) {
-        return const Scaffold(
-          backgroundColor: AppColors.surface,
+        return Scaffold(
+          backgroundColor: context.appColors.canvas,
           body: Center(
             child: CircularProgressIndicator(
-              color: AppColors.primary,
+              color: context.appColors.brandAccent,
               strokeWidth: 2,
             ),
           ),
         );
       }
-      return Scaffold(
-        backgroundColor: AppColors.surface,
-        appBar: AppBar(backgroundColor: AppColors.background),
-        body: const Center(child: Text('No wallet to verify')),
+      return AppScreen(
+        title: 'Verify wallet',
+        body: Center(
+          child: Text(
+            'No wallet to verify',
+            style: context.appTextTheme.bodyLarge,
+          ),
+        ),
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Verify Wallet'),
-        backgroundColor: AppColors.background,
-      ),
+    return AppScreen(
+      title: 'Verify wallet',
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
         children: [
           const SizedBox(height: 16),
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.sms_outlined,
-              size: 32,
-              color: AppColors.primary,
+          Center(
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: context.appColors.brandSoft,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.sms_outlined,
+                size: 30,
+                color: context.appColors.brandStrong,
+              ),
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Enter verification code',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              letterSpacing: -0.3,
-            ),
+            style: context.appTextTheme.headlineMedium,
           ),
           const SizedBox(height: 8),
           Text(
             'We sent a 6-digit code to\n${wallet.phoneNumber}',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
+            style: context.appTextTheme.bodyMedium?.copyWith(
+              color: context.appColors.textSecondary,
               height: 1.4,
             ),
           ),
@@ -159,85 +166,95 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
               const SizedBox(width: 6),
               Text(
                 wallet.networkLabel,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
+                style: context.appTextTheme.bodyMedium?.copyWith(
+                  color: context.appColors.textSecondary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 32),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(6, (i) {
-              return Container(
-                width: 48,
-                margin: EdgeInsets.only(left: i > 0 ? 8 : 0),
-                child: KeyboardListener(
-                  focusNode: FocusNode(),
-                  onKeyEvent: (event) => _onKeyDown(i, event),
-                  child: TextField(
-                    controller: _controllers[i],
-                    focusNode: _focusNodes[i],
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    maxLength: 1,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.divider),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.divider),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: AppColors.primary,
-                          width: 2,
+          AppSection(
+            padding: const EdgeInsets.all(AppSpacing.space4),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final fieldWidth = ((constraints.maxWidth - 40) / 6)
+                    .clamp(36.0, 48.0)
+                    .toDouble();
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(6, (i) {
+                    return SizedBox(
+                      width: fieldWidth,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: i > 0 ? 8 : 0),
+                        child: KeyboardListener(
+                          focusNode: _keyboardFocusNodes[i],
+                          onKeyEvent: (event) => _onKeyDown(i, event),
+                          child: TextField(
+                            controller: _controllers[i],
+                            focusNode: _focusNodes[i],
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            maxLength: 1,
+                            style: context.appTextTheme.titleLarge,
+                            decoration: InputDecoration(
+                              counterText: '',
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                              ),
+                              filled: true,
+                              fillColor: context.appColors.surfaceInteractive,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(
+                                  color: context.appColors.brandStrong,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
+                            onChanged: (v) => _onChanged(i, v),
+                          ),
                         ),
                       ),
-                    ),
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (v) => _onChanged(i, v),
-                  ),
-                ),
-              );
-            }),
+                    );
+                  }),
+                );
+              },
+            ),
           ),
           if (vm.errorMessage != null) ...[
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.08),
+                color: context.appColors.errorContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
-                    color: AppColors.error,
+                    color: context.appColors.error,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       vm.errorMessage!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.error,
+                        color: context.appColors.error,
                       ),
                     ),
                   ),
@@ -246,7 +263,8 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
             ),
           ],
           const SizedBox(height: 32),
-          ElevatedButton(
+          AppButton(
+            label: 'Verify',
             onPressed: _isComplete && !vm.isVerifying
                 ? () async {
                     setState(() => _isRedirectingToWallets = true);
@@ -267,16 +285,7 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
                     setState(() => _isRedirectingToWallets = false);
                   }
                 : null,
-            child: vm.isVerifying
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : const Text('Verify'),
+            isLoading: vm.isVerifying,
           ),
           const SizedBox(height: 16),
           Center(
@@ -291,15 +300,15 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
                       setState(() {});
                     },
               child: vm.isResending
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppColors.primary,
+                        color: context.appColors.brandStrong,
                       ),
                     )
-                  : const Text('Resend Code'),
+                  : const Text('Resend code'),
             ),
           ),
         ],

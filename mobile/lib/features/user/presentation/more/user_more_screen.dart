@@ -2,13 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/domain/models/app_user.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_spacing.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
+import '../../../../core/ui/widgets/app_button.dart';
+import '../../../../core/ui/widgets/app_icon_button.dart';
+import '../../../../core/ui/widgets/app_list_row.dart';
+import '../../../../core/ui/widgets/app_section.dart';
 import '../../../../core/ui/widgets/profile_avatar.dart';
 import '../../../../core/ui/widgets/sign_out_sheet.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 
-class UserMoreScreen extends StatelessWidget {
+class UserMoreScreen extends StatefulWidget {
   const UserMoreScreen({super.key});
+
+  @override
+  State<UserMoreScreen> createState() => _UserMoreScreenState();
+}
+
+class _UserMoreScreenState extends State<UserMoreScreen> {
+  static const _titleRevealOffset = 32.0;
+  final _scrollController = ScrollController();
+  bool _showTitle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    final shouldShow = _scrollController.offset > _titleRevealOffset;
+    if (shouldShow != _showTitle) {
+      setState(() => _showTitle = shouldShow);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,16 +51,24 @@ class UserMoreScreen extends StatelessWidget {
     final appUser = authVm.appUser;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(backgroundColor: AppColors.primary, toolbarHeight: 12),
+      backgroundColor: context.appColors.canvas,
+      appBar: AppBar(
+        centerTitle: true,
+        title: AnimatedOpacity(
+          opacity: _showTitle ? 1 : 0,
+          duration: const Duration(milliseconds: 180),
+          child: const Text('More'),
+        ),
+      ),
       body: appUser == null
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.primary,
+                color: context.appColors.brandAccent,
                 strokeWidth: 2,
               ),
             )
           : ListView(
+              controller: _scrollController,
               padding: const EdgeInsets.only(
                 left: 16,
                 right: 16,
@@ -58,14 +101,12 @@ class UserMoreScreen extends StatelessWidget {
                       subtitle: 'Manage your wallet',
                       onTap: () => context.push('/wallet'),
                     ),
-                    const Divider(height: 1, indent: 56),
                     _MoreTile(
                       icon: Icons.people_outline,
                       title: 'Loan Guarantors',
                       subtitle: 'Manage your guarantors',
                       onTap: () => context.push('/guarantors/manage'),
                     ),
-                    const Divider(height: 1, indent: 56),
                     _MoreTile(
                       icon: Icons.receipt_long_outlined,
                       title: 'Activity',
@@ -85,7 +126,6 @@ class UserMoreScreen extends StatelessWidget {
                       subtitle: 'App preferences',
                       onTap: () => context.push('/settings'),
                     ),
-                    const Divider(height: 1, indent: 56),
                     _MoreTile(
                       icon: Icons.help_outline,
                       title: 'Support',
@@ -95,32 +135,12 @@ class UserMoreScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      await showSignOutDialog(
-                        context,
-                        onConfirm: authVm.signOut,
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
-                      backgroundColor: AppColors.error.withValues(alpha: 0.06),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Sign Out',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                AppButton(
+                  label: 'Sign out',
+                  variant: AppButtonVariant.destructive,
+                  onPressed: () async {
+                    await showSignOutDialog(context, onConfirm: authVm.signOut);
+                  },
                 ),
                 const SizedBox(height: 32),
               ],
@@ -135,13 +155,18 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+    return AppSection(
+      padding: const EdgeInsets.all(AppSpacing.space2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1)
+              const SizedBox(height: AppSpacing.space2),
+          ],
+        ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }
@@ -165,19 +190,13 @@ class _ProfileHeader extends StatelessWidget {
           radius: 36,
         ),
         const SizedBox(height: 12),
-        Text(
-          displayName,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
+        Text(displayName, style: context.appTextTheme.headlineMedium),
         const SizedBox(height: 2),
         Text(
           appUser.contactLabel,
-          style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
+          style: context.appTextTheme.bodyMedium?.copyWith(
+            color: context.appColors.textSecondary,
+          ),
         ),
       ],
     );
@@ -192,20 +211,19 @@ class _AgentApplicationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (appUser.agentStatus == AgentStatus.pending) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
+      return AppSection(
         child: Row(
           children: [
             Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: context.appColors.warningContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 Icons.hourglass_top_rounded,
-                color: Colors.orange.shade700,
+                color: context.appColors.warning,
                 size: 20,
               ),
             ),
@@ -219,7 +237,7 @@ class _AgentApplicationSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -227,7 +245,7 @@ class _AgentApplicationSection extends StatelessWidget {
                     'Application pending review',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.orange.shade700,
+                      color: context.appColors.warning,
                     ),
                   ),
                 ],
@@ -247,7 +265,7 @@ class _AgentApplicationSection extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.primary,
+          color: context.appColors.brandAccent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -256,12 +274,12 @@ class _AgentApplicationSection extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: context.appColors.onBrandAccent.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.badge_rounded,
-                color: Colors.white,
+                color: context.appColors.onBrandAccent,
                 size: 20,
               ),
             ),
@@ -275,7 +293,7 @@ class _AgentApplicationSection extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: context.appColors.onBrandAccent,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -285,24 +303,26 @@ class _AgentApplicationSection extends StatelessWidget {
                         : 'Start earning by helping others',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withValues(alpha: 0.8),
+                      color: context.appColors.onBrandAccent.withValues(
+                        alpha: 0.78,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             authVm.isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 20,
                     height: 20,
                     child: CircularProgressIndicator(
-                      color: Colors.white,
+                      color: context.appColors.onBrandAccent,
                       strokeWidth: 2,
                     ),
                   )
-                : const Icon(
+                : Icon(
                     Icons.arrow_forward_rounded,
-                    color: Colors.white,
+                    color: context.appColors.onBrandAccent,
                     size: 20,
                   ),
           ],
@@ -318,18 +338,7 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        title.toUpperCase(),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-          letterSpacing: 0.8,
-        ),
-      ),
-    );
+    return AppSectionHeader(title: title);
   }
 }
 
@@ -347,14 +356,11 @@ class _MoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.textSecondary),
-      title: Text(title),
-      subtitle: Text(subtitle),
-      trailing: onTap != null
-          ? const Icon(Icons.chevron_right, color: AppColors.textSecondary)
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+    return AppListRow(
+      leading: AppIconTile(icon: icon),
+      title: title,
+      subtitle: subtitle,
+      showChevron: onTap != null,
       onTap: onTap,
     );
   }

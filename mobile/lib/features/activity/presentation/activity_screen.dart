@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../../loans/domain/loan.dart';
 import '../../loans/presentation/loan_view_model.dart';
@@ -75,9 +75,9 @@ class _ActivityScreenState extends State<ActivityScreen>
     final txnVm = context.watch<TransactionViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.appColors.canvas,
         surfaceTintColor: Colors.transparent,
         title: const Text(
           'Activity',
@@ -86,9 +86,9 @@ class _ActivityScreenState extends State<ActivityScreen>
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: context.appColors.brandStrong,
+          labelColor: context.appColors.textPrimary,
+          unselectedLabelColor: context.appColors.textSecondary,
           tabs: [
             Tab(text: 'Get Funds (${loanVm.loans.length})'),
             Tab(text: 'Cash Services (${txnVm.transactions.length})'),
@@ -134,9 +134,9 @@ class _GetFundsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading && loans.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.primary,
+          color: context.appColors.brandAccent,
           strokeWidth: 2,
         ),
       );
@@ -160,7 +160,7 @@ class _GetFundsTab extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: AppColors.primary,
+      color: context.appColors.brandAccent,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: sorted.length,
@@ -180,17 +180,20 @@ class _LoanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusColor, statusIcon) = switch (loan.status) {
-      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
-      'approved' => (AppColors.primary, Icons.check_circle_outline),
-      'disbursing' => (Colors.blue, Icons.sync_rounded),
-      'active' => (AppColors.primary, Icons.account_balance_wallet_rounded),
-      'repaying' => (Colors.blue, Icons.sync_rounded),
-      'completed' => (AppColors.primary, Icons.check_circle_rounded),
-      'defaulted' => (AppColors.error, Icons.warning_amber_rounded),
-      'rejected' => (AppColors.error, Icons.block_rounded),
-      'cancelled' => (AppColors.textSecondary, Icons.cancel_outlined),
-      'failed' => (AppColors.error, Icons.error_outline_rounded),
-      _ => (AppColors.textSecondary, Icons.info_outline),
+      'pending' => (context.appColors.warning, Icons.hourglass_top_rounded),
+      'approved' => (context.appColors.success, Icons.check_circle_outline),
+      'disbursing' => (context.appColors.info, Icons.sync_rounded),
+      'active' => (
+        context.appColors.brandStrong,
+        Icons.account_balance_wallet_rounded,
+      ),
+      'repaying' => (context.appColors.info, Icons.sync_rounded),
+      'completed' => (context.appColors.success, Icons.check_circle_rounded),
+      'defaulted' => (context.appColors.error, Icons.warning_amber_rounded),
+      'rejected' => (context.appColors.error, Icons.block_rounded),
+      'cancelled' => (context.appColors.textSecondary, Icons.cancel_outlined),
+      'failed' => (context.appColors.error, Icons.error_outline_rounded),
+      _ => (context.appColors.textSecondary, Icons.info_outline),
     };
 
     final displayStatus = loan.status == 'disbursing'
@@ -202,7 +205,7 @@ class _LoanCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceSection,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -223,10 +226,10 @@ class _LoanCard extends StatelessWidget {
                 children: [
                   Text(
                     isAgent ? loan.borrowerName : loan.agentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -234,18 +237,18 @@ class _LoanCard extends StatelessWidget {
                     children: [
                       Text(
                         '$displayStatus · ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                       NetworkLogo(network: loan.network, size: 14),
                       const SizedBox(width: 3),
                       Text(
                         loan.networkLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                     ],
@@ -258,28 +261,28 @@ class _LoanCard extends StatelessWidget {
               children: [
                 Text(
                   'GHS ${loan.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: context.appColors.textPrimary,
                   ),
                 ),
                 if (loan.isActive && loan.isOverdue)
-                  const Text(
+                  Text(
                     'OVERDUE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.error,
+                      color: context.appColors.error,
                     ),
                   ),
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 20,
-              color: AppColors.textSecondary,
+              color: context.appColors.textMuted,
             ),
           ],
         ),
@@ -306,9 +309,9 @@ class _CashServicesTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading && transactions.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.primary,
+          color: context.appColors.brandAccent,
           strokeWidth: 2,
         ),
       );
@@ -332,7 +335,7 @@ class _CashServicesTab extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: AppColors.primary,
+      color: context.appColors.brandAccent,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: sorted.length,
@@ -361,7 +364,7 @@ class _RefreshableEmptyState extends StatelessWidget {
       builder: (context, constraints) {
         return RefreshIndicator(
           onRefresh: onRefresh,
-          color: AppColors.primary,
+          color: context.appColors.brandAccent,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: ConstrainedBox(
@@ -370,17 +373,13 @@ class _RefreshableEmptyState extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      icon,
-                      size: 48,
-                      color: AppColors.textSecondary.withValues(alpha: 0.3),
-                    ),
+                    Icon(icon, size: 48, color: context.appColors.textMuted),
                     const SizedBox(height: 12),
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                       ),
                     ),
                   ],
@@ -402,12 +401,12 @@ class _TransactionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusColor, statusIcon) = switch (txn.status) {
-      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
-      'accepted' => (AppColors.primary, Icons.handshake_outlined),
-      'completed' => (AppColors.primary, Icons.check_circle_outlined),
-      'cancelled' => (AppColors.error, Icons.cancel_outlined),
-      'rejected' => (AppColors.error, Icons.block_outlined),
-      _ => (AppColors.textSecondary, Icons.info_outline),
+      'pending' => (context.appColors.warning, Icons.hourglass_top_rounded),
+      'accepted' => (context.appColors.brandStrong, Icons.handshake_outlined),
+      'completed' => (context.appColors.success, Icons.check_circle_outlined),
+      'cancelled' => (context.appColors.error, Icons.cancel_outlined),
+      'rejected' => (context.appColors.error, Icons.block_outlined),
+      _ => (context.appColors.textSecondary, Icons.info_outline),
     };
 
     return GestureDetector(
@@ -415,7 +414,7 @@ class _TransactionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceSection,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -436,10 +435,10 @@ class _TransactionCard extends StatelessWidget {
                 children: [
                   Text(
                     '${txn.typeLabel} · ${isAgent ? txn.userName : txn.agentName}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -447,18 +446,18 @@ class _TransactionCard extends StatelessWidget {
                     children: [
                       Text(
                         '${txn.statusLabel} · ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                       NetworkLogo(network: txn.network, size: 14),
                       const SizedBox(width: 3),
                       Text(
                         txn.networkLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                     ],
@@ -468,17 +467,17 @@ class _TransactionCard extends StatelessWidget {
             ),
             Text(
               'GHS ${txn.amount.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 20,
-              color: AppColors.textSecondary,
+              color: context.appColors.textMuted,
             ),
           ],
         ),

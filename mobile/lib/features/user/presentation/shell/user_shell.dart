@@ -25,8 +25,8 @@ class UserShell extends StatelessWidget {
       label: 'Activity',
     ),
     AppNavigationItem(
-      icon: Icons.more_horiz_rounded,
-      selectedIcon: Icons.more_rounded,
+      icon: Icons.menu_rounded,
+      selectedIcon: Icons.menu_rounded,
       label: 'More',
     ),
   ];

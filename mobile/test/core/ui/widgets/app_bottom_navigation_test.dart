@@ -55,6 +55,17 @@ void main() {
     expect(find.text('Discover'), findsOneWidget);
     expect(find.text('Activity'), findsOneWidget);
     expect(find.text('More'), findsOneWidget);
+    expect(
+      AppTheme.light.navigationBarTheme.indicatorColor,
+      Colors.transparent,
+    );
+    final activityDestination = tester.widget<NavigationDestination>(
+      find.byType(NavigationDestination).at(2),
+    );
+    expect(
+      (activityDestination.selectedIcon as Icon).icon,
+      (activityDestination.icon as Icon).icon,
+    );
     expect(tester.takeException(), isNull);
   });
 }

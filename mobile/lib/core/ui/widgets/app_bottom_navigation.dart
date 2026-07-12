@@ -41,7 +41,9 @@ class AppBottomNavigation extends StatelessWidget {
               NavigationDestination(
                 label: item.label,
                 icon: Icon(item.icon),
-                selectedIcon: Icon(item.selectedIcon),
+                // Selection is communicated only through the theme's brighter
+                // icon color and size—there is no filled icon or indicator.
+                selectedIcon: Icon(item.icon),
                 tooltip: item.label,
               ),
           ],

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/data/services/backend_api_service.dart';
@@ -87,14 +86,11 @@ class _AgentHomeScreenState extends State<AgentHomeScreen>
         centerTitle: false,
         actions: [
           IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/bell-notification.svg',
-              width: 26,
-              height: 26,
-              colorFilter: const ColorFilter.mode(
-                AppColors.textPrimary,
-                BlendMode.srcIn,
-              ),
+            tooltip: 'Notifications',
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              size: 26,
+              color: AppColors.textPrimary,
             ),
             onPressed: () => _showNotifications(context),
           ),

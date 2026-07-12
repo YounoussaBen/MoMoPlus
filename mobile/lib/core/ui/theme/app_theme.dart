@@ -247,16 +247,16 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
-        indicatorColor: colors.brandAccent,
-        indicatorShape: const StadiumBorder(),
+        indicatorColor: Colors.transparent,
+        indicatorShape: const StadiumBorder(side: BorderSide.none),
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected
-                ? colors.onBrandAccent
-                : colors.onNavigation.withValues(alpha: 0.72),
-            size: selected ? 24 : 22,
+                ? colors.onNavigation
+                : colors.onNavigation.withValues(alpha: 0.5),
+            size: selected ? 25 : 22,
           );
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -264,7 +264,7 @@ abstract final class AppTheme {
           return textTheme.labelMedium?.copyWith(
             color: selected
                 ? colors.onNavigation
-                : colors.onNavigation.withValues(alpha: 0.72),
+                : colors.onNavigation.withValues(alpha: 0.5),
           );
         }),
       ),

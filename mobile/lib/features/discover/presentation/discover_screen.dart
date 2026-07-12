@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/theme/app_map_style.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
 import '../../auth/presentation/auth_view_model.dart';
@@ -89,7 +89,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final results = await Future.wait([
       _paintMarkerIcon(
-        color: AppColors.primary,
+        color: context.appColors.brandAccent,
         badgeIcon: Icons.verified,
         dpr: dpr,
       ),
@@ -225,7 +225,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
     );
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       body: vm.isLocating
           ? _buildLocatingState()
           : !vm.hasLocation
@@ -244,14 +244,14 @@ class _DiscoverBodyState extends State<_DiscoverBody>
       children: [
         Positioned.fill(
           child: DecoratedBox(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFEAF4E2),
-                  Color(0xFFF9FBF6),
-                  Color(0xFFDDEAD2),
+                  context.appColors.canvas,
+                  context.appColors.surfaceSubtle,
+                  context.appColors.brandSoft,
                 ],
               ),
             ),
@@ -262,7 +262,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                   left: -40,
                   child: _BackdropOrb(
                     size: 180,
-                    color: AppColors.primary.withValues(alpha: 0.08),
+                    color: context.appColors.brandSoft,
                   ),
                 ),
                 Positioned(
@@ -278,7 +278,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                   left: 28,
                   child: _MapGhostMarker(
                     animation: _skeletonPulse,
-                    color: AppColors.primary,
+                    color: context.appColors.brandAccent,
                   ),
                 ),
                 Positioned(
@@ -315,11 +315,11 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                     vertical: 14,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.96),
+                    color: context.appColors.surfaceSection,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
+                        color: context.appColors.scrim.withValues(alpha: 0.08),
                         blurRadius: 16,
                         offset: const Offset(0, 8),
                       ),
@@ -328,20 +328,20 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Finding Agents Nearby',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: context.appColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         'Preparing your location and loading live availability.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -370,13 +370,13 @@ class _DiscoverBodyState extends State<_DiscoverBody>
             height: size.height * 0.54,
             padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPadding + 110),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.appColors.surfaceSection,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(28),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
+                  color: context.appColors.scrim.withValues(alpha: 0.1),
                   blurRadius: 20,
                   offset: const Offset(0, -6),
                 ),
@@ -390,7 +390,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.textSecondary.withValues(alpha: 0.2),
+                      color: context.appColors.surfaceInteractive,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -404,12 +404,12 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Nearby Agents',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: context.appColors.textPrimary,
                       ),
                     ),
                     const Spacer(),
@@ -422,11 +422,11 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                   ],
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'We are warming up your map and nearby agent list.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary,
+                    color: context.appColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -458,24 +458,24 @@ class _DiscoverBodyState extends State<_DiscoverBody>
             Icon(
               Icons.location_off_outlined,
               size: 56,
-              color: AppColors.textSecondary.withValues(alpha: 0.4),
+              color: context.appColors.textMuted,
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Location Required',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               vm.errorMessage ?? 'Enable location to find agents near you.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
               ),
             ),
             const SizedBox(height: 24),
@@ -563,13 +563,13 @@ class _DiscoverBodyState extends State<_DiscoverBody>
           builder: (context, scrollController) {
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.appColors.surfaceSection,
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(28),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: context.appColors.scrim.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, -6),
                   ),
@@ -584,7 +584,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withValues(alpha: 0.24),
+                        color: context.appColors.surfaceInteractive,
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -598,24 +598,24 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: context.appColors.surfaceInteractive,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.tune,
                             size: 16,
-                            color: AppColors.textSecondary,
+                            color: context.appColors.textSecondary,
                           ),
                           const SizedBox(width: 6),
                           Text(
                             '${vm.radius.toStringAsFixed(0)} km',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
+                              color: context.appColors.textSecondary,
                             ),
                           ),
                         ],
@@ -642,21 +642,21 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'Nearby Agents',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: context.appColors.textPrimary,
                         ),
                       ),
                       const Spacer(),
                       Text(
                         '${vm.agents.length}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                     ],
@@ -675,25 +675,23 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                           Icon(
                             Icons.person_search_outlined,
                             size: 48,
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.35,
-                            ),
+                            color: context.appColors.textMuted,
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'No agents found nearby',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
+                              color: context.appColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'Try increasing the search radius',
                             style: TextStyle(
                               fontSize: 14,
-                              color: AppColors.textSecondary,
+                              color: context.appColors.textSecondary,
                             ),
                           ),
                         ],
@@ -1040,8 +1038,8 @@ class _DiscoverBodyState extends State<_DiscoverBody>
         circleId: const CircleId('search_radius'),
         center: LatLng(vm.userLat!, vm.userLon!),
         radius: vm.radius * 1000,
-        fillColor: AppColors.primary.withValues(alpha: 0.08),
-        strokeColor: AppColors.primary.withValues(alpha: 0.24),
+        fillColor: context.appColors.brandAccent.withValues(alpha: 0.08),
+        strokeColor: context.appColors.brandStrong.withValues(alpha: 0.3),
         strokeWidth: 1,
       ),
     };
@@ -1065,8 +1063,8 @@ class _DiscoverBodyState extends State<_DiscoverBody>
         polylineId: const PolylineId('route_main'),
         points: route.points,
         color: route.isApproximate
-            ? AppColors.textSecondary
-            : AppColors.primary,
+            ? context.appColors.textSecondary
+            : context.appColors.brandStrong,
         width: 6,
         startCap: Cap.roundCap,
         endCap: Cap.roundCap,
@@ -1226,7 +1224,7 @@ class _MapGhostMarker extends StatelessWidget {
                 color: markerColor,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: context.appColors.surfaceSection,
                   width: 2,
                 ),
                 boxShadow: [
@@ -1264,21 +1262,17 @@ class _LoadingActionButton extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.appColors.surfaceSection,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: context.appColors.scrim.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Icon(
-        icon,
-        color: AppColors.primary.withValues(alpha: 0.55),
-        size: 22,
-      ),
+      child: Icon(icon, color: context.appColors.brandStrong, size: 22),
     );
   }
 }
@@ -1293,15 +1287,15 @@ class _StaticLoadingChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
+          color: context.appColors.textSecondary,
         ),
       ),
     );
@@ -1337,9 +1331,8 @@ class _LoadingAgentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.divider.withValues(alpha: 0.45)),
       ),
       child: Row(
         children: [
@@ -1444,11 +1437,11 @@ class _MapInfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.appColors.surfaceSection,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: context.appColors.scrim.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -1462,18 +1455,18 @@ class _MapInfoCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: context.appColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.appColors.textSecondary,
                   ),
                 ),
               ],
@@ -1481,12 +1474,12 @@ class _MapInfoCard extends StatelessWidget {
           ),
           if (isLoading) ...[
             const SizedBox(width: 12),
-            const SizedBox(
+            SizedBox(
               width: 18,
               height: 18,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: AppColors.primary,
+                color: context.appColors.brandAccent,
               ),
             ),
           ],
@@ -1505,7 +1498,7 @@ class _MapActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.96),
+      color: context.appColors.surfaceSection,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -1513,7 +1506,7 @@ class _MapActionButton extends StatelessWidget {
         child: SizedBox(
           width: 52,
           height: 52,
-          child: Icon(icon, color: AppColors.primary, size: 22),
+          child: Icon(icon, color: context.appColors.brandStrong, size: 22),
         ),
       ),
     );
@@ -1546,21 +1539,20 @@ class _SelectedAgentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
+        color: context.appColors.brandSoft,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 'Selected On Map',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary,
+                  color: context.appColors.brandStrong,
                   letterSpacing: 0.6,
                 ),
               ),
@@ -1589,19 +1581,19 @@ class _SelectedAgentCard extends StatelessWidget {
                             agent.fullName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: context.appColors.textPrimary,
                             ),
                           ),
                         ),
                         if (agent.isCertified) ...[
                           const SizedBox(width: 4),
-                          const Icon(
+                          Icon(
                             Icons.verified,
                             size: 16,
-                            color: AppColors.primary,
+                            color: context.appColors.brandStrong,
                           ),
                         ],
                       ],
@@ -1610,9 +1602,9 @@ class _SelectedAgentCard extends StatelessWidget {
                     Text(
                       routePreview?.summaryLabel ??
                           '${agent.distanceLabel} away',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                       ),
                     ),
                   ],
@@ -1622,9 +1614,9 @@ class _SelectedAgentCard extends StatelessWidget {
               OutlinedButton(
                 onPressed: onViewDetails,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
+                  foregroundColor: context.appColors.brandStrong,
                   side: BorderSide(
-                    color: AppColors.primary.withValues(alpha: 0.25),
+                    color: context.appColors.brandStrong.withValues(alpha: 0.4),
                   ),
                 ),
                 child: const Text('Details'),
@@ -1694,20 +1686,20 @@ class _RouteInfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.primary),
+          Icon(icon, size: 14, color: context.appColors.brandStrong),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: context.appColors.textPrimary,
             ),
           ),
         ],
@@ -1732,17 +1724,17 @@ class _AgentCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: selected
-                ? AppColors.primary.withValues(alpha: 0.32)
-                : AppColors.divider,
+                ? context.appColors.brandStrong.withValues(alpha: 0.42)
+                : Colors.transparent,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: context.appColors.brandSoft,
                     blurRadius: 16,
                     offset: const Offset(0, 8),
                   ),
@@ -1769,20 +1761,20 @@ class _AgentCard extends StatelessWidget {
                       Flexible(
                         child: Text(
                           agent.fullName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: context.appColors.textPrimary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (agent.isCertified) ...[
                         const SizedBox(width: 4),
-                        const Icon(
+                        Icon(
                           Icons.verified,
                           size: 16,
-                          color: AppColors.primary,
+                          color: context.appColors.brandStrong,
                         ),
                       ],
                     ],
@@ -1793,14 +1785,14 @@ class _AgentCard extends StatelessWidget {
                       Icon(
                         Icons.location_on,
                         size: 14,
-                        color: AppColors.textSecondary.withValues(alpha: 0.6),
+                        color: context.appColors.textMuted,
                       ),
                       const SizedBox(width: 2),
                       Text(
                         agent.distanceLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                       if (agent.rating > 0) ...[
@@ -1813,9 +1805,9 @@ class _AgentCard extends StatelessWidget {
                         const SizedBox(width: 2),
                         Text(
                           agent.rating.toStringAsFixed(1),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: context.appColors.textSecondary,
                           ),
                         ),
                       ],
@@ -1823,9 +1815,9 @@ class _AgentCard extends StatelessWidget {
                         const SizedBox(width: 12),
                         Text(
                           'Up to GHS ${agent.maxAmount!.toStringAsFixed(0)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: context.appColors.textSecondary,
                           ),
                         ),
                       ],
@@ -1836,7 +1828,9 @@ class _AgentCard extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected
+                  ? context.appColors.brandStrong
+                  : context.appColors.textMuted,
               size: 20,
             ),
           ],

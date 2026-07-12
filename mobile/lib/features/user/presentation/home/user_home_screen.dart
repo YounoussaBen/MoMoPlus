@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 import '../../../../core/ui/widgets/app_logo.dart';
+import '../../../../core/ui/widgets/app_section.dart';
 import '../../../../core/ui/widgets/network_logo.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 import '../../../loans/domain/loan.dart';
@@ -56,11 +57,11 @@ class _UserHomeScreenState extends State<UserHomeScreen>
     final loanVm = context.watch<LoanViewModel>();
 
     if (appUser == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.surface,
+      return Scaffold(
+        backgroundColor: context.appColors.canvas,
         body: Center(
           child: CircularProgressIndicator(
-            color: AppColors.primary,
+            color: context.appColors.brandAccent,
             strokeWidth: 2,
           ),
         ),
@@ -76,22 +77,19 @@ class _UserHomeScreenState extends State<UserHomeScreen>
         .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
+        backgroundColor: context.appColors.canvas,
         toolbarHeight: 56,
         title: const AppLogo(size: 100),
         centerTitle: false,
         actions: [
           IconButton(
-            icon: SvgPicture.asset(
-              'assets/icons/bell-notification.svg',
-              width: 26,
-              height: 26,
-              colorFilter: const ColorFilter.mode(
-                AppColors.textPrimary,
-                BlendMode.srcIn,
-              ),
+            tooltip: 'Notifications',
+            icon: Icon(
+              Icons.notifications_none_rounded,
+              size: 26,
+              color: context.appColors.textPrimary,
             ),
             onPressed: () => _showNotifications(context),
           ),
@@ -626,8 +624,8 @@ class _SwipeableSpotlight extends StatelessWidget {
               height: 6,
               decoration: BoxDecoration(
                 color: currentPage == i
-                    ? AppColors.primary
-                    : AppColors.textSecondary.withValues(alpha: 0.25),
+                    ? context.appColors.brandStrong
+                    : context.appColors.textMuted,
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -643,8 +641,7 @@ class _SwipeableSpotlight extends StatelessWidget {
 class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+    return AppSection(
       child: Row(
         children: [
           Expanded(
@@ -685,7 +682,7 @@ class _ActionTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -695,18 +692,18 @@ class _ActionTile extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.10),
+                color: context.appColors.brandSoft,
               ),
-              child: Icon(icon, color: AppColors.primary, size: 24),
+              child: Icon(icon, color: context.appColors.brandStrong, size: 24),
             ),
             const SizedBox(height: 10),
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
               ),
             ),
           ],
@@ -727,48 +724,50 @@ class _GetFundsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final basePath = isAgent ? '/agent' : '/user';
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Get Funds${loans.isNotEmpty ? ' (${loans.length})' : ''}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => context.go('$basePath/activity?tab=getFunds'),
-              child: const Text(
-                'View All',
+    return AppSection(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Get Funds${loans.isNotEmpty ? ' (${loans.length})' : ''}',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: context.appColors.textPrimary,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (loans.isEmpty)
-          _EmptySection(
-            icon: Icons.account_balance_wallet_outlined,
-            message: 'No activity yet',
-          )
-        else
-          ...loans
-              .take(_homePreviewLimit)
-              .map(
-                (loan) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _CompactLoanCard(loan: loan, isAgent: isAgent),
+              GestureDetector(
+                onTap: () => context.go('$basePath/activity?tab=getFunds'),
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.appColors.brandStrong,
+                  ),
                 ),
               ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (loans.isEmpty)
+            _EmptySection(
+              icon: Icons.account_balance_wallet_outlined,
+              message: 'No activity yet',
+            )
+          else
+            ...loans
+                .take(_homePreviewLimit)
+                .map(
+                  (loan) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _CompactLoanCard(loan: loan, isAgent: isAgent),
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }
@@ -781,12 +780,15 @@ class _CompactLoanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (statusColor, statusIcon) = switch (loan.status) {
-      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
-      'approved' => (AppColors.primary, Icons.check_circle_outline),
-      'disbursing' => (Colors.blue, Icons.sync_rounded),
-      'active' => (AppColors.primary, Icons.account_balance_wallet_rounded),
-      'repaying' => (Colors.blue, Icons.sync_rounded),
-      _ => (AppColors.textSecondary, Icons.info_outline),
+      'pending' => (context.appColors.warning, Icons.hourglass_top_rounded),
+      'approved' => (context.appColors.success, Icons.check_circle_outline),
+      'disbursing' => (context.appColors.info, Icons.sync_rounded),
+      'active' => (
+        context.appColors.brandStrong,
+        Icons.account_balance_wallet_rounded,
+      ),
+      'repaying' => (context.appColors.info, Icons.sync_rounded),
+      _ => (context.appColors.textSecondary, Icons.info_outline),
     };
 
     final displayStatus = loan.status == 'disbursing'
@@ -798,7 +800,7 @@ class _CompactLoanCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -819,18 +821,18 @@ class _CompactLoanCard extends StatelessWidget {
                 children: [
                   Text(
                     isAgent ? loan.borrowerName : loan.agentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     '$displayStatus · ${loan.networkLabel}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                     ),
                   ),
                 ],
@@ -841,28 +843,28 @@ class _CompactLoanCard extends StatelessWidget {
               children: [
                 Text(
                   'GHS ${loan.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: context.appColors.textPrimary,
                   ),
                 ),
                 if (loan.isActive && loan.isOverdue)
-                  const Text(
+                  Text(
                     'OVERDUE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.error,
+                      color: context.appColors.error,
                     ),
                   ),
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 20,
-              color: AppColors.textSecondary,
+              color: context.appColors.textMuted,
             ),
           ],
         ),
@@ -885,48 +887,50 @@ class _CashServicesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final basePath = isAgent ? '/agent' : '/user';
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Cash Services${transactions.isNotEmpty ? ' (${transactions.length})' : ''}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => context.go('$basePath/activity?tab=cashServices'),
-              child: const Text(
-                'View All',
+    return AppSection(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Cash Services${transactions.isNotEmpty ? ' (${transactions.length})' : ''}',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: context.appColors.textPrimary,
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (transactions.isEmpty)
-          _EmptySection(
-            icon: Icons.swap_horiz_outlined,
-            message: 'No active cash services',
-          )
-        else
-          ...transactions
-              .take(_homePreviewLimit)
-              .map(
-                (txn) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _CompactTransactionCard(txn: txn, isAgent: isAgent),
+              GestureDetector(
+                onTap: () => context.go('$basePath/activity?tab=cashServices'),
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: context.appColors.brandStrong,
+                  ),
                 ),
               ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (transactions.isEmpty)
+            _EmptySection(
+              icon: Icons.swap_horiz_outlined,
+              message: 'No active cash services',
+            )
+          else
+            ...transactions
+                .take(_homePreviewLimit)
+                .map(
+                  (txn) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _CompactTransactionCard(txn: txn, isAgent: isAgent),
+                  ),
+                ),
+        ],
+      ),
     );
   }
 }
@@ -940,11 +944,11 @@ class _CompactTransactionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (statusColor, statusIcon) = switch (txn.status) {
       'pending' => (Colors.orange, Icons.hourglass_top_rounded),
-      'accepted' => (AppColors.primary, Icons.handshake_outlined),
-      'completed' => (AppColors.primary, Icons.check_circle_outlined),
-      'cancelled' => (AppColors.error, Icons.cancel_outlined),
-      'rejected' => (AppColors.error, Icons.block_outlined),
-      _ => (AppColors.textSecondary, Icons.info_outline),
+      'accepted' => (context.appColors.brandStrong, Icons.handshake_outlined),
+      'completed' => (context.appColors.success, Icons.check_circle_outlined),
+      'cancelled' => (context.appColors.error, Icons.cancel_outlined),
+      'rejected' => (context.appColors.error, Icons.block_outlined),
+      _ => (context.appColors.textSecondary, Icons.info_outline),
     };
 
     return GestureDetector(
@@ -952,7 +956,7 @@ class _CompactTransactionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -973,10 +977,10 @@ class _CompactTransactionCard extends StatelessWidget {
                 children: [
                   Text(
                     '${txn.typeLabel} · ${isAgent ? txn.userName : txn.agentName}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -984,18 +988,18 @@ class _CompactTransactionCard extends StatelessWidget {
                     children: [
                       Text(
                         '${txn.statusLabel} · ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                       NetworkLogo(network: txn.network, size: 14),
                       const SizedBox(width: 3),
                       Text(
                         txn.networkLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1005,17 +1009,17 @@ class _CompactTransactionCard extends StatelessWidget {
             ),
             Text(
               'GHS ${txn.amount.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: context.appColors.textPrimary,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               size: 20,
-              color: AppColors.textSecondary,
+              color: context.appColors.textMuted,
             ),
           ],
         ),
@@ -1036,24 +1040,20 @@ class _EmptySection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 32),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Center(
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 40,
-              color: AppColors.textSecondary.withValues(alpha: 0.4),
-            ),
+            Icon(icon, size: 40, color: context.appColors.textMuted),
             const SizedBox(height: 10),
             Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
               ),
             ),
           ],
@@ -1091,9 +1091,9 @@ class _NotificationsPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: context.appColors.canvas,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -1114,7 +1114,7 @@ class _NotificationsPage extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.appColors.surfaceSection,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -1124,10 +1124,14 @@ class _NotificationsPage extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: context.appColors.brandSoft,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(n.icon, color: AppColors.primary, size: 20),
+                  child: Icon(
+                    n.icon,
+                    color: context.appColors.brandStrong,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1136,18 +1140,18 @@ class _NotificationsPage extends StatelessWidget {
                     children: [
                       Text(
                         n.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: context.appColors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         n.subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1156,9 +1160,9 @@ class _NotificationsPage extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   n.time,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppColors.textSecondary,
+                    color: context.appColors.textSecondary,
                   ),
                 ),
               ],

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
 import '../../loans/domain/loan.dart';
 import '../../transactions/domain/physical_transaction.dart';
@@ -37,9 +37,9 @@ class AgentDetailSheet extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceSection,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(24, 12, 24, 24 + bottomPadding),
@@ -50,7 +50,7 @@ class AgentDetailSheet extends StatelessWidget {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.textSecondary.withValues(alpha: 0.3),
+                color: context.appColors.surfaceInteractive,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -69,20 +69,20 @@ class AgentDetailSheet extends StatelessWidget {
                 Flexible(
                   child: Text(
                     agent.fullName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                       letterSpacing: -0.3,
                     ),
                   ),
                 ),
                 if (agent.isCertified) ...[
                   const SizedBox(width: 6),
-                  const Icon(
+                  Icon(
                     Icons.verified,
                     size: 20,
-                    color: AppColors.primary,
+                    color: context.appColors.brandStrong,
                   ),
                 ],
               ],
@@ -90,15 +90,15 @@ class AgentDetailSheet extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               agent.isCertified ? 'Certified Agent' : 'Agent',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
               ),
             ),
             const SizedBox(height: 24),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: context.appColors.surfaceInteractive,
                 borderRadius: BorderRadius.circular(12),
               ),
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -109,7 +109,7 @@ class AgentDetailSheet extends StatelessWidget {
                     value: routePreview?.distanceLabel ?? agent.distanceLabel,
                     label: 'Distance',
                   ),
-                  _divider(),
+                  _divider(context),
                   _StatItem(
                     icon: Icons.route_rounded,
                     value: isRouteLoading
@@ -119,7 +119,7 @@ class AgentDetailSheet extends StatelessWidget {
                         ? 'Approximate'
                         : 'Route preview',
                   ),
-                  _divider(),
+                  _divider(context),
                   _StatItem(
                     icon: Icons.account_balance_wallet_outlined,
                     value: agent.maxAmount != null
@@ -135,19 +135,18 @@ class AgentDetailSheet extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.appColors.surfaceInteractive,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Map Preview',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -180,9 +179,9 @@ class AgentDetailSheet extends StatelessWidget {
                     const SizedBox(height: 10),
                     Text(
                       routeErrorMessage!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: context.appColors.textSecondary,
                       ),
                     ),
                   ],
@@ -195,18 +194,18 @@ class AgentDetailSheet extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 16),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
                       size: 16,
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Minimum amount: GHS ${agent.minAmount.toStringAsFixed(0)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: AppColors.textSecondary,
+                          color: context.appColors.textSecondary,
                         ),
                       ),
                     ),
@@ -244,7 +243,7 @@ class AgentDetailSheet extends StatelessWidget {
                 label: 'Get Funds',
                 statusText:
                     '${activeLoan!.statusLabel} · GHS ${activeLoan!.amount.toStringAsFixed(2)}',
-                color: AppColors.primary,
+                color: context.appColors.brandStrong,
                 icon: Icons.account_balance_wallet_rounded,
                 onTap: () {
                   Navigator.pop(context);
@@ -313,11 +312,11 @@ class AgentDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _divider() {
+  Widget _divider(BuildContext context) {
     return Container(
       width: 1,
       height: 32,
-      color: AppColors.textSecondary.withValues(alpha: 0.15),
+      color: context.appColors.surfaceSubtle,
     );
   }
 }
@@ -333,20 +332,20 @@ class _RouteChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.primary),
+          Icon(icon, size: 14, color: context.appColors.brandStrong),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: context.appColors.textPrimary,
             ),
           ),
         ],
@@ -399,26 +398,26 @@ class _ActiveItemCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: context.appColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '$statusText · Tap to view',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textSecondary,
+                      color: context.appColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
-              color: AppColors.textSecondary,
+              color: context.appColors.textMuted,
               size: 20,
             ),
           ],
@@ -443,23 +442,23 @@ class _StatItem extends StatelessWidget {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, size: 18, color: AppColors.primary),
+          Icon(icon, size: 18, color: context.appColors.brandStrong),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: context.appColors.textPrimary,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.textSecondary,
+              color: context.appColors.textSecondary,
             ),
             textAlign: TextAlign.center,
           ),

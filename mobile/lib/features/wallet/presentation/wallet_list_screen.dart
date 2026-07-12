@@ -2,7 +2,11 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_spacing.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
+import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/app_section.dart';
+import '../../../core/ui/widgets/app_status.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../domain/wallet.dart';
 import 'wallet_view_model.dart';
@@ -35,10 +39,9 @@ class _WalletListBody extends StatelessWidget {
     final vm = context.watch<WalletViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
         title: const Text('Wallets'),
-        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -46,21 +49,22 @@ class _WalletListBody extends StatelessWidget {
         actions: vm.wallets.isNotEmpty
             ? [
                 IconButton(
-                  icon: const Icon(Icons.add, color: AppColors.primary),
+                  tooltip: 'Add wallet',
+                  icon: Icon(Icons.add, color: context.appColors.brandStrong),
                   onPressed: () => _pushAndReload(context, '/wallet/add'),
                 ),
               ]
             : null,
       ),
       body: vm.isLoading && vm.wallets.isEmpty
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.primary,
+                color: context.appColors.brandAccent,
                 strokeWidth: 2,
               ),
             )
           : RefreshIndicator(
-              color: AppColors.primary,
+              color: context.appColors.brandAccent,
               onRefresh: vm.loadWallets,
               child: vm.wallets.isEmpty
                   ? ListView(
@@ -74,35 +78,32 @@ class _WalletListBody extends StatelessWidget {
                                 Icon(
                                   Icons.account_balance_wallet_outlined,
                                   size: 64,
-                                  color: AppColors.textSecondary.withValues(
+                                  color: context.appColors.textMuted.withValues(
                                     alpha: 0.4,
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
+                                Text(
                                   'No wallets yet',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
+                                  style: context.appTextTheme.titleLarge,
                                 ),
                                 const SizedBox(height: 4),
-                                const Text(
+                                Text(
                                   'Add a mobile money number to get started',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppColors.textSecondary,
-                                  ),
+                                  textAlign: TextAlign.center,
+                                  style: context.appTextTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: context.appColors.textSecondary,
+                                      ),
                                 ),
                                 const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  onPressed: () =>
-                                      _pushAndReload(context, '/wallet/add'),
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Add Wallet'),
-                                  style: ElevatedButton.styleFrom(
-                                    minimumSize: const Size(200, 48),
+                                SizedBox(
+                                  width: 220,
+                                  child: AppButton(
+                                    label: 'Add wallet',
+                                    onPressed: () =>
+                                        _pushAndReload(context, '/wallet/add'),
+                                    icon: const Icon(Icons.add_rounded),
                                   ),
                                 ),
                               ],
@@ -114,17 +115,14 @@ class _WalletListBody extends StatelessWidget {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
                       children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          clipBehavior: Clip.antiAlias,
+                        AppSection(
+                          padding: const EdgeInsets.all(AppSpacing.space2),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               for (int i = 0; i < vm.wallets.length; i++) ...[
-                                if (i > 0) const Divider(height: 1, indent: 72),
+                                if (i > 0)
+                                  const SizedBox(height: AppSpacing.space2),
                                 _WalletTile(
                                   wallet: vm.wallets[i],
                                   onPushAndReload: _pushAndReload,
@@ -148,66 +146,46 @@ class _WalletTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      onTap: () => _showActions(context),
-      leading: NetworkLogo(network: wallet.network, size: 36),
-      title: Text(
-        wallet.phoneNumber,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+    return Material(
+      color: context.appColors.surfaceInteractive,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        onTap: () => _showActions(context),
+        leading: NetworkLogo(network: wallet.network, size: 36),
+        title: Text(wallet.phoneNumber, style: context.appTextTheme.titleSmall),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Text(
+                wallet.networkLabel,
+                style: context.appTextTheme.bodySmall?.copyWith(
+                  color: context.appColors.textSecondary,
+                ),
+              ),
+              if (wallet.isDefault)
+                const AppStatusBadge(
+                  label: 'Default',
+                  tone: AppStatusTone.brand,
+                ),
+              if (!wallet.isVerified)
+                const AppStatusBadge(
+                  label: 'Unverified',
+                  tone: AppStatusTone.warning,
+                ),
+            ],
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: context.appColors.textMuted,
         ),
       ),
-      subtitle: Row(
-        children: [
-          Text(
-            wallet.networkLabel,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          if (wallet.isDefault) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Default',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ],
-          if (!wallet.isVerified) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Unverified',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.orange,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
     );
   }
 
