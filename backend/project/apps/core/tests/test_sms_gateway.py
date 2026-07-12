@@ -1,5 +1,7 @@
 import json
+import logging
 from email.message import Message
+from io import BytesIO
 from urllib.error import HTTPError
 
 import pytest
@@ -20,6 +22,22 @@ class _Response:
 
     def read(self):
         return json.dumps(self.payload).encode()
+
+
+@override_settings(
+    ARKESEL_API_KEY="",
+    ARKESEL_SENDER_ID="KargoMan",
+    ARKESEL_API_URL="https://sms.example.test/api/v2/sms/send",
+)
+def test_logs_missing_configuration_without_values(caplog):
+    caplog.set_level(logging.WARNING, logger="project.integrations.sms_gateway")
+
+    with pytest.raises(SmsDeliveryError, match="not configured"):
+        send_sms(phone="+233241234567", message="Test")
+
+    assert "ARKESEL_API_KEY" in caplog.text
+    assert "KargoMan" not in caplog.text
+    assert "233241234567" not in caplog.text
 
 
 @override_settings(
@@ -84,7 +102,8 @@ def test_rejects_non_success_provider_payload(mocker, provider_payload):
     ARKESEL_API_URL="https://sms.example.test/api/v2/sms/send",
     ARKESEL_HTTP_TIMEOUT=4,
 )
-def test_converts_http_failure_to_stable_exception(mocker):
+def test_converts_http_failure_to_stable_exception_with_safe_diagnostic(mocker, caplog):
+    caplog.set_level(logging.WARNING, logger="project.integrations.sms_gateway")
     mocker.patch(
         "project.integrations.sms_gateway.urlopen",
         side_effect=HTTPError(
@@ -92,8 +111,23 @@ def test_converts_http_failure_to_stable_exception(mocker):
             422,
             "invalid",
             Message(),
-            None,
+            BytesIO(
+                json.dumps(
+                    {
+                        "status": "error",
+                        "message": "Sender ID is not approved",
+                        "recipients": ["233241234567"],
+                        "api-key": "provider-secret",
+                    }
+                ).encode()
+            ),
         ),
     )
     with pytest.raises(SmsDeliveryError, match="provider rejected"):
         send_sms(phone="+233241234567", message="Test")
+
+    assert "http_status=422" in caplog.text
+    assert "sender_id='MoMoPlus'" in caplog.text
+    assert "Sender ID is not approved" in caplog.text
+    assert "233241234567" not in caplog.text
+    assert "provider-secret" not in caplog.text
