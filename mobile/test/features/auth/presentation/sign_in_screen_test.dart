@@ -61,8 +61,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(repository.sentPhone, '+233241234567');
-    expect(find.text('Check your\nmessages.'), findsOneWidget);
+    expect(find.text('Code sent'), findsNothing);
+    expect(find.text('Verification'), findsOneWidget);
+    expect(find.text('Enter your 6-digit code to continue.'), findsOneWidget);
     expect(find.text('Verification code'), findsOneWidget);
+    expect(find.byIcon(Icons.verified_user_outlined), findsNothing);
 
     await tester.enterText(find.byKey(const ValueKey('otp-input')), '123456');
     await tester.tap(find.text('Verify and continue'));
@@ -95,6 +98,11 @@ class _PhoneAuthRepository implements AuthRepository {
 
   @override
   Future<void> sendPhoneOtp({required String phone}) async {
+    sentPhone = phone;
+  }
+
+  @override
+  Future<void> resendPhoneOtp({required String phone}) async {
     sentPhone = phone;
   }
 

@@ -11,7 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 
-from project.integrations.sms_gateway import SmsDeliveryError, send_login_otp
+from project.integrations.sms_dispatcher import SmsDispatchError, dispatch_login_otp
 
 from .models import AgentStatus, LoanGuarantor, UserRole
 from .phone_numbers import InvalidPhoneNumber, normalize_ghana_phone
@@ -36,10 +36,10 @@ from .webhooks import WebhookSignatureError, verify_standard_webhook
     auth=[],
     request=None,
     responses={
-        status.HTTP_200_OK: OpenApiResponse(description="SMS accepted by provider"),
+        status.HTTP_200_OK: OpenApiResponse(description="SMS dispatched for delivery"),
         status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid hook payload"),
         status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Invalid hook signature"),
-        status.HTTP_502_BAD_GATEWAY: OpenApiResponse(description="SMS provider failure"),
+        status.HTTP_503_SERVICE_UNAVAILABLE: OpenApiResponse(description="SMS dispatch unavailable"),
     },
 )
 @api_view(["POST"])
@@ -80,11 +80,11 @@ def supabase_send_sms_hook(request: Request) -> Response:
         )
 
     try:
-        send_login_otp(phone=phone, otp_code=otp_code)
-    except SmsDeliveryError:
+        dispatch_login_otp(phone=phone, otp_code=otp_code)
+    except SmsDispatchError:
         return Response(
-            {"error": {"http_code": 502, "message": "Unable to deliver the verification code."}},
-            status=status.HTTP_502_BAD_GATEWAY,
+            {"error": {"http_code": 503, "message": "Unable to dispatch the verification code."}},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     return Response({}, status=status.HTTP_200_OK)

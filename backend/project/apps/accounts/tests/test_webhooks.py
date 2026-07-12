@@ -7,7 +7,7 @@ import time
 import pytest
 from rest_framework import status
 
-from project.integrations.sms_gateway import SmsDeliveryError
+from project.integrations.sms_dispatcher import SmsDispatchError
 
 SECRET_BYTES = b"test-hook-secret"
 HOOK_SECRET = f"v1,whsec_{base64.b64encode(SECRET_BYTES).decode()}"
@@ -39,7 +39,7 @@ class TestSupabaseSendSmsHook:
 
     def test_accepts_valid_signature_and_sends_supabase_code(self, api_client, mocker):
         raw_body = _payload()
-        send = mocker.patch("project.apps.accounts.views.send_login_otp")
+        dispatch = mocker.patch("project.apps.accounts.views.dispatch_login_otp")
 
         response = api_client.generic(
             "POST",
@@ -51,12 +51,12 @@ class TestSupabaseSendSmsHook:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {}
-        send.assert_called_once_with(phone="+233241234567", otp_code="123456")
+        dispatch.assert_called_once_with(phone="+233241234567", otp_code="123456")
 
     def test_rejects_altered_raw_body(self, api_client, mocker):
         original = _payload()
         altered = original.replace(b"123456", b"654321")
-        send = mocker.patch("project.apps.accounts.views.send_login_otp")
+        dispatch = mocker.patch("project.apps.accounts.views.dispatch_login_otp")
 
         response = api_client.generic(
             "POST",
@@ -67,7 +67,7 @@ class TestSupabaseSendSmsHook:
         )
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
-        send.assert_not_called()
+        dispatch.assert_not_called()
 
     @pytest.mark.parametrize(
         "headers",
@@ -134,11 +134,11 @@ class TestSupabaseSendSmsHook:
         )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_surfaces_provider_failure_without_exposing_provider_details(self, api_client, mocker):
+    def test_surfaces_dispatch_failure_without_exposing_details(self, api_client, mocker):
         raw_body = _payload()
         mocker.patch(
-            "project.apps.accounts.views.send_login_otp",
-            side_effect=SmsDeliveryError("secret provider response"),
+            "project.apps.accounts.views.dispatch_login_otp",
+            side_effect=SmsDispatchError("secret dispatch response"),
         )
 
         response = api_client.generic(
@@ -149,5 +149,5 @@ class TestSupabaseSendSmsHook:
             **_signed_headers(raw_body),
         )
 
-        assert response.status_code == status.HTTP_502_BAD_GATEWAY
-        assert "secret provider response" not in str(response.data)
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+        assert "secret dispatch response" not in str(response.data)

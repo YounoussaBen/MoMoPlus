@@ -15,7 +15,7 @@ void main() {
     );
 
     expect(find.text('Cash help,\nwithout the scramble.'), findsOneWidget);
-    expect(find.text('Nearby and verified'), findsOneWidget);
+    expect(find.text('Nearby'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('01'), findsNothing);
     expect(find.text('Know the cost\nbefore you commit.'), findsNothing);

@@ -7,10 +7,8 @@ import '../../../core/ui/theme/app_radii.dart';
 import '../../../core/ui/theme/app_spacing.dart';
 import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
-import '../../../core/ui/widgets/app_icon_button.dart';
 import '../../../core/ui/widgets/app_logo.dart';
 import '../../../core/ui/widgets/app_screen.dart';
-import '../../../core/ui/widgets/app_section.dart';
 import '../../../core/ui/widgets/app_text_field.dart';
 import '../../../core/utils/ghana_phone.dart';
 import '../../../core/utils/ghana_phone_input_formatter.dart';
@@ -109,15 +107,11 @@ class _AuthLayout extends StatelessWidget {
     required this.title,
     required this.body,
     required this.content,
-    this.eyebrow,
-    this.leading,
   });
 
-  final String? eyebrow;
   final String title;
   final String body;
   final Widget content;
-  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -137,35 +131,12 @@ class _AuthLayout extends StatelessWidget {
           children: [
             SizedBox(
               height: 88,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  leading ?? const SizedBox.shrink(),
-                  const Spacer(),
-                  const AppLogo(size: 84),
-                ],
+              child: const Align(
+                alignment: Alignment.topRight,
+                child: AppLogo(size: 84),
               ),
             ),
             const SizedBox(height: AppSpacing.space8),
-            if (eyebrow != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.space3,
-                  vertical: AppSpacing.space2,
-                ),
-                decoration: BoxDecoration(
-                  color: context.appColors.brandSoft,
-                  borderRadius: AppRadii.pillBorderRadius,
-                ),
-                child: Text(
-                  eyebrow!,
-                  style: context.appTextTheme.labelMedium?.copyWith(
-                    color: context.appColors.brandStrong,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.space4),
-            ],
             Text(title, style: context.appTextTheme.displaySmall),
             const SizedBox(height: AppSpacing.space3),
             Text(
@@ -545,69 +516,61 @@ class _OtpStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final phone = viewModel.pendingPhone!;
+    final resendMinutes = viewModel.resendSeconds ~/ 60;
+    final resendRemainingSeconds = viewModel.resendSeconds % 60;
     return _AuthLayout(
-      eyebrow: 'Code sent',
-      title: 'Check your\nmessages.',
-      body: 'Enter the 6-digit code sent to ${maskGhanaPhone(phone)}.',
-      leading: AppIconButton(
-        icon: Icons.arrow_back_rounded,
-        label: 'Change phone number',
-        onPressed: onEditPhone,
-      ),
-      content: AppSection(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Verification code',
-                    style: context.appTextTheme.titleSmall,
-                  ),
+      title: 'Verification',
+      body: 'Enter your 6-digit code to continue.',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Verification code',
+                  style: context.appTextTheme.titleSmall,
                 ),
-                TextButton(
-                  onPressed: onEditPhone,
-                  child: const Text('Edit number'),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.space3),
-            _OtpEntry(
-              controller: controller,
-              focusNode: focusNode,
-              onComplete: onVerify,
-            ),
-            if (viewModel.errorMessage != null) ...[
-              const SizedBox(height: AppSpacing.space4),
-              _ErrorNotice(message: viewModel.errorMessage!),
+              ),
+              TextButton(
+                onPressed: onEditPhone,
+                child: const Text('Edit number'),
+              ),
             ],
-            const SizedBox(height: AppSpacing.space5),
-            AppButton(
-              label: 'Verify and continue',
-              onPressed: onVerify,
-              isLoading: viewModel.isLoading,
-              icon: const Icon(Icons.verified_user_outlined),
-            ),
-            const SizedBox(height: AppSpacing.space3),
-            Center(
-              child: viewModel.canResendOtp
-                  ? TextButton(
-                      onPressed: viewModel.isLoading
-                          ? null
-                          : viewModel.resendPhoneOtp,
-                      child: const Text('Send a new code'),
-                    )
-                  : Text(
-                      'New code available in 0:${viewModel.resendSeconds.toString().padLeft(2, '0')}',
-                      style: context.appTextTheme.bodyMedium?.copyWith(
-                        color: context.appColors.textSecondary,
-                      ),
-                    ),
-            ),
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          _OtpEntry(
+            controller: controller,
+            focusNode: focusNode,
+            onComplete: onVerify,
+          ),
+          if (viewModel.errorMessage != null) ...[
+            const SizedBox(height: AppSpacing.space4),
+            _ErrorNotice(message: viewModel.errorMessage!),
           ],
-        ),
+          const SizedBox(height: AppSpacing.space5),
+          AppButton(
+            label: 'Verify and continue',
+            onPressed: onVerify,
+            isLoading: viewModel.isLoading,
+          ),
+          const SizedBox(height: AppSpacing.space3),
+          Center(
+            child: viewModel.canResendOtp
+                ? TextButton(
+                    onPressed: viewModel.isLoading
+                        ? null
+                        : viewModel.resendPhoneOtp,
+                    child: const Text('Send a new code'),
+                  )
+                : Text(
+                    '${resendMinutes.toString().padLeft(2, '0')}:${resendRemainingSeconds.toString().padLeft(2, '0')}',
+                    style: context.appTextTheme.bodyMedium?.copyWith(
+                      color: context.appColors.textSecondary,
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }

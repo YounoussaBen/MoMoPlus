@@ -19,6 +19,10 @@ class SupabaseAuthService {
     );
   }
 
+  Future<void> resendPhoneOtp({required String phone}) async {
+    await _client.auth.resend(phone: phone, type: OtpType.sms);
+  }
+
   Future<void> verifyPhoneOtp({
     required String phone,
     required String token,

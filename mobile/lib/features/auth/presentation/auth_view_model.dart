@@ -238,7 +238,22 @@ class AuthViewModel extends ChangeNotifier {
   Future<bool> resendPhoneOtp() async {
     final phone = _pendingPhone;
     if (phone == null || !canResendOtp) return false;
-    return sendPhoneOtp(phone);
+
+    _setLoading(true);
+    try {
+      await _authRepository.resendPhoneOtp(phone: phone);
+      _startResendCooldown();
+      _clearError();
+      return true;
+    } on AuthException catch (e) {
+      _setError(_friendlyOtpSendError(e));
+      return false;
+    } catch (_) {
+      _setError('We could not send a new code. Please try again.');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   void editPhone() {
@@ -367,7 +382,7 @@ class AuthViewModel extends ChangeNotifier {
 
   void _startResendCooldown() {
     _resendTimer?.cancel();
-    _resendSeconds = 30;
+    _resendSeconds = 60;
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_resendSeconds <= 1) {
         _resendSeconds = 0;
@@ -381,7 +396,10 @@ class AuthViewModel extends ChangeNotifier {
 
   String _friendlyOtpSendError(AuthException error) {
     final message = error.message.toLowerCase();
-    if (message.contains('rate') || message.contains('seconds')) {
+    final code = error.code?.toLowerCase() ?? '';
+    if (message.contains('rate') ||
+        message.contains('seconds') ||
+        code.contains('rate_limit')) {
       return 'Please wait a moment before requesting another code.';
     }
     return 'We could not send a code to that number. Please try again.';

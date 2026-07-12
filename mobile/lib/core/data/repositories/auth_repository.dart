@@ -8,6 +8,7 @@ abstract class AuthRepository {
   User? get currentUser;
 
   Future<void> sendPhoneOtp({required String phone});
+  Future<void> resendPhoneOtp({required String phone});
   Future<void> verifyPhoneOtp({required String phone, required String token});
   Future<void> signOut();
   Future<void> syncWithBackend();
@@ -52,6 +53,10 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> sendPhoneOtp({required String phone}) =>
       _authService.sendPhoneOtp(phone: phone);
+
+  @override
+  Future<void> resendPhoneOtp({required String phone}) =>
+      _authService.resendPhoneOtp(phone: phone);
 
   @override
   Future<void> verifyPhoneOtp({required String phone, required String token}) =>

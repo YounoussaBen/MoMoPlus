@@ -17,7 +17,7 @@ void main() {
     expect(sent, isTrue);
     expect(repository.sentPhone, '+233241234567');
     expect(viewModel.pendingPhone, '+233241234567');
-    expect(viewModel.resendSeconds, 30);
+    expect(viewModel.resendSeconds, 60);
     expect(viewModel.canResendOtp, isFalse);
   });
 
@@ -36,6 +36,26 @@ void main() {
       expect(viewModel.errorMessage, isNotEmpty);
     },
   );
+
+  testWidgets('phone OTP resend uses the dedicated resend API', (tester) async {
+    final repository = _FakeAuthRepository(session: null);
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
+
+    expect(await viewModel.sendPhoneOtp('0241234567'), isTrue);
+    await tester.pump(const Duration(seconds: 60));
+    expect(viewModel.canResendOtp, isTrue);
+
+    final resent = await viewModel.resendPhoneOtp();
+
+    expect(resent, isTrue);
+    expect(repository.resentPhone, '+233241234567');
+    expect(viewModel.resendSeconds, 60);
+    expect(viewModel.errorMessage, isNull);
+    viewModel.editPhone();
+    await tester.pump();
+  });
 
   test(
     'authenticated startup stays loading until the profile is hydrated',
@@ -186,10 +206,16 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   String? sentPhone;
+  String? resentPhone;
 
   @override
   Future<void> sendPhoneOtp({required String phone}) async {
     sentPhone = phone;
+  }
+
+  @override
+  Future<void> resendPhoneOtp({required String phone}) async {
+    resentPhone = phone;
   }
 
   @override
