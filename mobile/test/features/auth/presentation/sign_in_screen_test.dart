@@ -36,6 +36,23 @@ void main() {
       ),
       findsNothing,
     );
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
+    expect(find.text('Terms'), findsOneWidget);
+    expect(find.text('Privacy Policy'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('terms-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('Terms of Use'), findsOneWidget);
+    expect(find.text('Account and access'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('privacy-policy-link')));
+    await tester.pumpAndSettle();
+    expect(find.text('Privacy Policy'), findsNWidgets(2));
+    expect(find.text('Information we collect'), findsOneWidget);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField), '0241234567');
     final phoneField = tester.widget<TextFormField>(find.byType(TextFormField));

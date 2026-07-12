@@ -247,13 +247,285 @@ class _PhoneStep extends StatelessWidget {
               label: 'Continue',
               onPressed: onContinue,
               isLoading: viewModel.isLoading,
+              trailingIcon: const Icon(Icons.arrow_forward_rounded),
             ),
+            const SizedBox(height: AppSpacing.space3),
+            const _AgreementNotice(),
           ],
         ),
       ),
     );
   }
 }
+
+class _AgreementNotice extends StatelessWidget {
+  const _AgreementNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final bodyStyle = context.appTextTheme.bodySmall?.copyWith(
+      color: context.appColors.textSecondary,
+      height: 1.45,
+    );
+    final linkStyle = bodyStyle?.copyWith(
+      color: context.appColors.brandStrong,
+      fontWeight: FontWeight.w700,
+      decoration: TextDecoration.underline,
+      decorationColor: context.appColors.brandStrong,
+    );
+
+    return Center(
+      child: Text.rich(
+        TextSpan(
+          text: 'By continuing, you agree to our ',
+          children: [
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: _LegalLink(
+                key: const ValueKey('terms-link'),
+                label: 'Terms',
+                style: linkStyle,
+                onTap: () => _showLegalDocument(context, _termsDocument),
+              ),
+            ),
+            const TextSpan(text: ' and '),
+            WidgetSpan(
+              alignment: PlaceholderAlignment.baseline,
+              baseline: TextBaseline.alphabetic,
+              child: _LegalLink(
+                key: const ValueKey('privacy-policy-link'),
+                label: 'Privacy Policy',
+                style: linkStyle,
+                onTap: () => _showLegalDocument(context, _privacyDocument),
+              ),
+            ),
+            const TextSpan(text: '.'),
+          ],
+        ),
+        textAlign: TextAlign.center,
+        style: bodyStyle,
+      ),
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({
+    super.key,
+    required this.label,
+    required this.style,
+    required this.onTap,
+  });
+
+  final String label;
+  final TextStyle? style;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      link: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadii.smallBorderRadius,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.space1),
+          child: Text(label, style: style),
+        ),
+      ),
+    );
+  }
+}
+
+Future<void> _showLegalDocument(BuildContext context, _LegalDocument document) {
+  return showDialog<void>(
+    context: context,
+    useRootNavigator: true,
+    barrierColor: context.appColors.scrim,
+    builder: (dialogContext) {
+      final screenHeight = MediaQuery.sizeOf(dialogContext).height;
+      return Dialog(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 520,
+            maxHeight: screenHeight * 0.82,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.space5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        document.title,
+                        style: context.appTextTheme.titleLarge,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close ${document.title}',
+                      onPressed: () => Navigator.of(
+                        dialogContext,
+                        rootNavigator: true,
+                      ).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                Text(
+                  document.updatedAt,
+                  style: context.appTextTheme.bodySmall?.copyWith(
+                    color: context.appColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.space4),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          document.introduction,
+                          style: context.appTextTheme.bodyMedium?.copyWith(
+                            color: context.appColors.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                        for (final section in document.sections) ...[
+                          const SizedBox(height: AppSpacing.space5),
+                          Text(
+                            section.title,
+                            style: context.appTextTheme.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.space2),
+                          Text(
+                            section.body,
+                            style: context.appTextTheme.bodyMedium?.copyWith(
+                              color: context.appColors.textSecondary,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.space4),
+                AppButton(
+                  label: 'Close',
+                  variant: AppButtonVariant.secondary,
+                  onPressed: () =>
+                      Navigator.of(dialogContext, rootNavigator: true).pop(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _LegalDocument {
+  const _LegalDocument({
+    required this.title,
+    required this.updatedAt,
+    required this.introduction,
+    required this.sections,
+  });
+
+  final String title;
+  final String updatedAt;
+  final String introduction;
+  final List<_LegalSection> sections;
+}
+
+class _LegalSection {
+  const _LegalSection({required this.title, required this.body});
+
+  final String title;
+  final String body;
+}
+
+const _termsDocument = _LegalDocument(
+  title: 'Terms of Use',
+  updatedAt: 'Last updated: 12 July 2026',
+  introduction:
+      'These Terms govern your access to and use of MoMo Plus. By continuing, you confirm that you have read and accepted them.',
+  sections: [
+    _LegalSection(
+      title: 'Account and access',
+      body:
+          'Provide accurate information and use a mobile number you control. Keep verification codes private. You are responsible for activity completed through your account unless you promptly report unauthorized access.',
+    ),
+    _LegalSection(
+      title: 'Using MoMo Plus',
+      body:
+          'MoMo Plus helps you access money services and connect with participating agents. Service availability, agent availability and eligibility decisions are not guaranteed. Follow all instructions and verify transaction details before confirming.',
+    ),
+    _LegalSection(
+      title: 'Fees and repayment',
+      body:
+          'Review the amount, fees, repayment terms and timing shown before accepting a service. When you confirm, you authorize the transaction and agree to meet any repayment obligation displayed to you.',
+    ),
+    _LegalSection(
+      title: 'Acceptable use',
+      body:
+          'Do not use MoMo Plus for fraud, impersonation, unlawful activity, interference with the service or attempts to access another person’s account. We may restrict or suspend access to protect users and the platform.',
+    ),
+    _LegalSection(
+      title: 'Availability and changes',
+      body:
+          'Mobile networks, payment providers and other third parties can affect availability. We may update the service or these Terms when necessary. Material changes will be communicated through the app or another appropriate channel.',
+    ),
+    _LegalSection(
+      title: 'Support',
+      body:
+          'If you have a question, dispute or believe your account is being misused, contact MoMo Plus through the support option provided in the app.',
+    ),
+  ],
+);
+
+const _privacyDocument = _LegalDocument(
+  title: 'Privacy Policy',
+  updatedAt: 'Last updated: 12 July 2026',
+  introduction:
+      'This policy explains the information MoMo Plus handles, why we use it and the choices available to you.',
+  sections: [
+    _LegalSection(
+      title: 'Information we collect',
+      body:
+          'We may collect your phone number, profile details, identity-verification information, wallet and transaction information, device data, diagnostic logs and location when you grant permission for a location-based feature.',
+    ),
+    _LegalSection(
+      title: 'How we use information',
+      body:
+          'We use information to authenticate you, provide and personalize services, verify identity, connect you with agents, process transactions, prevent fraud, provide support and meet legal or regulatory obligations.',
+    ),
+    _LegalSection(
+      title: 'When information is shared',
+      body:
+          'Information may be shared with service providers, payment or mobile-money partners, participating agents when needed to fulfil your request, and authorities when required by law. Partners receive only the information needed for their role.',
+    ),
+    _LegalSection(
+      title: 'Security and retention',
+      body:
+          'We use reasonable safeguards designed to protect personal information. We keep information only as long as needed to provide the service, resolve disputes and satisfy legal, accounting or security requirements.',
+    ),
+    _LegalSection(
+      title: 'Your choices',
+      body:
+          'You can manage device permissions in your phone settings. You may also ask to access or correct your information, or request deletion where applicable, using the support option in the app.',
+    ),
+    _LegalSection(
+      title: 'Policy updates',
+      body:
+          'We may update this policy as the service or legal requirements change. We will communicate material updates through the app or another appropriate channel.',
+    ),
+  ],
+);
 
 class _OtpStep extends StatelessWidget {
   const _OtpStep({

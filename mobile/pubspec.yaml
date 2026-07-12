@@ -79,7 +79,7 @@ flutter:
 
   assets:
     - assets/logo.png
-    - assets/logo-white.png
+    - assets/logo-light.png
     - assets/icons/
     - assets/images/
     - assets/animations/

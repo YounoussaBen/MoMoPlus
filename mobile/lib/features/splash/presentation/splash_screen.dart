@@ -18,6 +18,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
+  static const _minimumDisplayDuration = Duration(milliseconds: 1320);
+
   late final AnimationController _controller;
   late final Animation<double> _opacity;
   late final Animation<double> _scale;
@@ -40,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _navigate() async {
     final authViewModel = context.read<AuthViewModel>();
-    final minimumDisplay = Future<void>.delayed(AppMotion.emphasized);
+    final minimumDisplay = Future<void>.delayed(_minimumDisplayDuration);
     final preferences = SharedPreferences.getInstance();
 
     if (authViewModel.isAuthenticated) {
@@ -84,7 +86,7 @@ class _SplashScreenState extends State<SplashScreen>
     final logo = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const AppLogo(size: 132, useWhite: true),
+        const AppLogo(size: 132),
         const SizedBox(height: 20),
         Text(
           'Money help, close by.',

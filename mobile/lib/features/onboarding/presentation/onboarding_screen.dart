@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/ui/theme/app_motion.dart';
 import '../../../core/ui/theme/app_radii.dart';
 import '../../../core/ui/theme/app_spacing.dart';
 import '../../../core/ui/theme/app_theme_extension.dart';
@@ -19,39 +18,17 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _viewModel = OnboardingViewModel();
-  final _pageController = PageController();
-  int _page = 0;
 
-  static const _pages = [
-    _OnboardingPageData(
-      title: 'Cash help,\nwithout the scramble.',
-      body:
-          'Find verified MoMo agents nearby when you need cash services or short-term help.',
-      icon: Icons.near_me_rounded,
-      supportingIcon: Icons.location_on_outlined,
-      label: 'Nearby and verified',
-    ),
-    _OnboardingPageData(
-      title: 'Know the cost\nbefore you commit.',
-      body:
-          'Amounts, fees, repayment and timing stay clear at every step—no hidden surprises.',
-      icon: Icons.receipt_long_rounded,
-      supportingIcon: Icons.visibility_outlined,
-      label: 'Clear from the start',
-    ),
-    _OnboardingPageData(
-      title: 'Your number.\nYour secure access.',
-      body:
-          'Sign in with a private SMS code. No password to remember, and no code should ever be shared.',
-      icon: Icons.sms_rounded,
-      supportingIcon: Icons.lock_outline_rounded,
-      label: 'Simple and protected',
-    ),
-  ];
+  static const _page = _OnboardingPageData(
+    title: 'Cash help,\nwithout the scramble.',
+    body: '',
+    icon: Icons.near_me_rounded,
+    supportingIcon: Icons.location_on_outlined,
+    label: 'Nearby',
+  );
 
   @override
   void dispose() {
-    _pageController.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -59,19 +36,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _finish() async {
     await _viewModel.complete();
     if (mounted) context.go('/auth/sign-in');
-  }
-
-  void _next() {
-    if (_page == _pages.length - 1) {
-      _finish();
-      return;
-    }
-    _pageController.nextPage(
-      duration: MediaQuery.disableAnimationsOf(context)
-          ? Duration.zero
-          : AppMotion.emphasized,
-      curve: AppMotion.shared,
-    );
   }
 
   @override
@@ -89,21 +53,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               child: Row(
                 children: [
-                  const AppLogo(size: 44),
+                  const AppLogo(size: 84),
                   const Spacer(),
                   TextButton(onPressed: _finish, child: const Text('Skip')),
                 ],
               ),
             ),
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _pages.length,
-                onPageChanged: (value) => setState(() => _page = value),
-                itemBuilder: (context, index) =>
-                    _OnboardingPage(data: _pages[index], pageNumber: index + 1),
-              ),
-            ),
+            Expanded(child: _OnboardingPage(data: _page)),
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenGutter,
@@ -111,35 +67,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 AppSpacing.screenGutter,
                 AppSpacing.space6,
               ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _pages.length,
-                      (index) => AnimatedContainer(
-                        duration: AppMotion.fast,
-                        width: index == _page ? 24 : 8,
-                        height: 8,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: index == _page
-                              ? context.appColors.brandAccent
-                              : context.appColors.surfaceInteractive,
-                          borderRadius: AppRadii.pillBorderRadius,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.space5),
-                  AppButton(
-                    label: _page == _pages.length - 1
-                        ? 'Continue with phone'
-                        : 'Continue',
-                    onPressed: _next,
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                  ),
-                ],
+              child: AppButton(
+                label: 'Continue',
+                onPressed: _finish,
+                trailingIcon: const Icon(Icons.arrow_forward_rounded),
               ),
             ),
           ],
@@ -150,10 +81,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class _OnboardingPage extends StatelessWidget {
-  const _OnboardingPage({required this.data, required this.pageNumber});
+  const _OnboardingPage({required this.data});
 
   final _OnboardingPageData data;
-  final int pageNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +93,7 @@ class _OnboardingPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Center(
-              child: _OnboardingVisual(data: data, pageNumber: pageNumber),
-            ),
+            child: Center(child: _OnboardingVisual(data: data)),
           ),
           const SizedBox(height: AppSpacing.space6),
           Text(data.title, style: context.appTextTheme.displaySmall),
@@ -184,10 +112,9 @@ class _OnboardingPage extends StatelessWidget {
 }
 
 class _OnboardingVisual extends StatelessWidget {
-  const _OnboardingVisual({required this.data, required this.pageNumber});
+  const _OnboardingVisual({required this.data});
 
   final _OnboardingPageData data;
-  final int pageNumber;
 
   @override
   Widget build(BuildContext context) {
@@ -205,17 +132,6 @@ class _OnboardingVisual extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                Align(
-                  alignment: Alignment.topRight,
-                  child: Text(
-                    '0$pageNumber',
-                    style: context.appTextTheme.displaySmall?.copyWith(
-                      color: context.appColors.brandStrong.withValues(
-                        alpha: 0.3,
-                      ),
-                    ),
-                  ),
-                ),
                 Align(
                   alignment: const Alignment(-0.45, -0.15),
                   child: Container(

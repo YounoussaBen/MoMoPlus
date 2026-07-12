@@ -14,6 +14,7 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.variant = AppButtonVariant.primary,
     this.icon,
+    this.trailingIcon,
   });
 
   final String label;
@@ -21,6 +22,7 @@ class AppButton extends StatelessWidget {
   final bool isLoading;
   final AppButtonVariant variant;
   final Widget? icon;
+  final Widget? trailingIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +30,7 @@ class AppButton extends StatelessWidget {
     final content = _ButtonContent(
       label: label,
       icon: icon,
+      trailingIcon: trailingIcon,
       isLoading: isLoading,
       progressColor: _progressColor(context),
       constrainLabel: variant != AppButtonVariant.ghost,
@@ -83,6 +86,7 @@ class _ButtonContent extends StatelessWidget {
   const _ButtonContent({
     required this.label,
     required this.icon,
+    required this.trailingIcon,
     required this.isLoading,
     required this.progressColor,
     required this.constrainLabel,
@@ -90,6 +94,7 @@ class _ButtonContent extends StatelessWidget {
 
   final String label;
   final Widget? icon;
+  final Widget? trailingIcon;
   final bool isLoading;
   final Color progressColor;
   final bool constrainLabel;
@@ -123,6 +128,10 @@ class _ButtonContent extends StatelessWidget {
       children: [
         if (icon != null) ...[icon!, const SizedBox(width: AppSpacing.space2)],
         if (constrainLabel) Flexible(child: labelWidget) else labelWidget,
+        if (trailingIcon != null) ...[
+          const SizedBox(width: AppSpacing.space2),
+          trailingIcon!,
+        ],
       ],
     );
   }

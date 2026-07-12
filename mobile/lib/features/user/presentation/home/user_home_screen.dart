@@ -80,7 +80,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         toolbarHeight: 56,
-        title: const AppLogo(size: 100, useWhite: true),
+        title: const AppLogo(size: 100),
         centerTitle: false,
         actions: [
           IconButton(
