@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 import '../../../../core/ui/widgets/app_button.dart';
 import '../kyc_view_model.dart';
 import '../widgets/photo_picker_tile.dart';
@@ -22,24 +22,19 @@ class Step1IdTypeScreen extends StatelessWidget {
       children: [
         Text(
           'Verify your identity',
-          style: Theme.of(context).textTheme.headlineMedium,
+          style: context.appTextTheme.headlineMedium,
         ),
         const SizedBox(height: 6),
         Text(
           'Select an ID type and upload photos of both sides.',
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: context.appTextTheme.bodyMedium?.copyWith(
+            color: context.appColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 24),
         _IdTypeDropdown(selectedType: vm.idType, options: _options),
         const SizedBox(height: 28),
-        Text(
-          'Document photos',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        Text('Document photos', style: context.appTextTheme.titleSmall),
         const SizedBox(height: 12),
         PhotoPickerTile(
           label: 'Front',
@@ -86,11 +81,11 @@ class _IdTypeDropdown extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.appColors.surfaceSection,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selectedType != null
-                ? AppColors.primary
+                ? context.appColors.brandStrong
                 : Colors.transparent,
             width: 1.5,
           ),
@@ -106,16 +101,16 @@ class _IdTypeDropdown extends StatelessWidget {
                       ? FontWeight.w500
                       : FontWeight.w400,
                   color: selectedType != null
-                      ? AppColors.textPrimary
-                      : AppColors.textSecondary,
+                      ? context.appColors.textPrimary
+                      : context.appColors.textSecondary,
                 ),
               ),
             ),
             Icon(
               Icons.keyboard_arrow_down_rounded,
               color: selectedType != null
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
+                  ? context.appColors.brandStrong
+                  : context.appColors.textSecondary,
               size: 22,
             ),
           ],
@@ -127,7 +122,7 @@ class _IdTypeDropdown extends StatelessWidget {
   void _showPicker(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.appColors.surfaceSection,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -142,7 +137,7 @@ class _IdTypeDropdown extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: context.appColors.surfaceInteractive,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -156,14 +151,14 @@ class _IdTypeDropdown extends StatelessWidget {
                           ? FontWeight.w600
                           : FontWeight.w400,
                       color: selectedType == opt.$1
-                          ? AppColors.primary
-                          : AppColors.textPrimary,
+                          ? context.appColors.brandStrong
+                          : context.appColors.textPrimary,
                     ),
                   ),
                   trailing: selectedType == opt.$1
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_circle,
-                          color: AppColors.primary,
+                          color: context.appColors.brandStrong,
                           size: 20,
                         )
                       : null,

@@ -67,11 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 AppSpacing.screenGutter,
                 AppSpacing.space6,
               ),
-              child: AppButton(
-                label: 'Continue',
-                onPressed: _finish,
-                trailingIcon: const Icon(Icons.arrow_forward_rounded),
-              ),
+              child: AppButton(label: 'Continue', onPressed: _finish),
             ),
           ],
         ),

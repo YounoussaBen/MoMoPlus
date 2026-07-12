@@ -37,6 +37,7 @@ def borrower(user_factory):
         username="cash-user",
         first_name="Ama",
         last_name="Customer",
+        phone="+233241234567",
         role=UserRole.USER,
     )
 
@@ -48,6 +49,7 @@ def agent_user(user_factory):
         username="cash-agent",
         first_name="Yaw",
         last_name="Operator",
+        phone="+233551234567",
         role=UserRole.AGENT,
         agent_status=AgentStatus.APPROVED,
     )
@@ -159,11 +161,11 @@ class TestStaffPhysicalTransactionList:
         client, _ = staff_client
         _make_transaction(borrower=borrower, agent_profile=agent_profile, wallet=wallet)
 
-        response = client.get("/api/staff/transactions/physical/", {"search": "cash-user"})
+        response = client.get("/api/staff/transactions/physical/", {"search": "241234567"})
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["count"] == 1
-        assert response.data["results"][0]["user_email"] == borrower.email
+        assert response.data["results"][0]["user_phone"] == borrower.phone
 
     def test_filters_transactions_with_meetings(self, staff_client, borrower, agent_profile, wallet):
         client, _ = staff_client

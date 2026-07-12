@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Mail, Calendar, Users, ImageIcon } from "lucide-react";
+import { ArrowLeft, Phone, Calendar, Users, ImageIcon } from "lucide-react";
 import { useUserDetail as useUserDetailQuery } from "@/hooks/use-users";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPhone } from "@/lib/format";
 import type { AppUserDetail } from "@/lib/types";
 import type { FileUrl } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -109,10 +109,10 @@ export function ProfileSection({ user }: { user: AppUserDetail }) {
         <InfoRow label="Full Name">
           {user.first_name} {user.last_name}
         </InfoRow>
-        <InfoRow label="Email">
+        <InfoRow label="Phone">
           <span className="flex items-center gap-1.5">
-            <Mail size={14} className="text-muted-foreground" />
-            {user.email}
+            <Phone size={14} className="text-muted-foreground" />
+            {formatPhone(user.phone)}
           </span>
         </InfoRow>
         <InfoRow label="Role">
@@ -143,7 +143,7 @@ export function DetailHeader({ user, backHref }: { user: AppUserDetail; backHref
         <h1 className="text-foreground text-2xl font-bold">
           {user.first_name} {user.last_name}
         </h1>
-        <p className="text-muted-foreground text-sm">{user.email}</p>
+        <p className="text-muted-foreground text-sm">{formatPhone(user.phone)}</p>
       </div>
       <div className="flex items-center gap-2">
         <Badge variant={user.role === "agent" ? "info" : "muted"}>{user.role}</Badge>

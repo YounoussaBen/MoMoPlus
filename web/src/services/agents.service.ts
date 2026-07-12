@@ -12,13 +12,13 @@ export class AgentsService {
     private readonly agentsRepository: AgentsRepository,
   ) {}
 
-  private buildVisibleCertMap(certs: AgentCertification[], emails: string[]) {
-    const emailSet = new Set(emails);
+  private buildVisibleCertMap(certs: AgentCertification[], phones: Array<string | null>) {
+    const phoneSet = new Set(phones.filter((phone): phone is string => !!phone));
 
     return Object.fromEntries(
       certs
-        .filter((cert) => emailSet.has(cert.agent_email))
-        .map((cert) => [cert.agent_email, cert]),
+        .filter((cert) => !!cert.agent_phone && phoneSet.has(cert.agent_phone))
+        .map((cert) => [cert.agent_phone!, cert]),
     ) as Record<string, AgentCertification>;
   }
 
@@ -29,7 +29,9 @@ export class AgentsService {
   ) {
     let rows: AgentRow[] = users.map((user) => ({
       ...user,
-      cert_status: (certMap[user.email]?.status ?? "none") as CertificationStatus | "none",
+      cert_status: (user.phone ? certMap[user.phone]?.status : "none") as
+        | CertificationStatus
+        | "none",
     }));
 
     if (certFilter) {
@@ -52,7 +54,7 @@ export class AgentsService {
 
     const certMap = this.buildVisibleCertMap(
       certificationsPage.results,
-      usersPage.results.map((user) => user.email),
+      usersPage.results.map((user) => user.phone),
     );
     const rows = this.buildAgentRows(usersPage.results, certMap, input.activeFilters.certified);
 
@@ -74,8 +76,16 @@ export class AgentsService {
       };
     }
 
+    if (!user.phone) {
+      return {
+        user,
+        certification: null as AgentCertification | null,
+        certPhotoUrls: {} as Record<string, FileUrl>,
+      };
+    }
+
     const certificationPage = await this.agentsRepository.listCertifications({
-      search: user.email,
+      search: user.phone,
       page_size: 1,
     });
 

@@ -29,7 +29,7 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     search = params.get("search", "").strip()
     if search:
         qs = qs.filter(
-            Q(user__email__icontains=search)
+            Q(user__phone__icontains=search)
             | Q(user__first_name__icontains=search)
             | Q(user__last_name__icontains=search)
         )
@@ -41,7 +41,7 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     tags=["Staff — KYC"],
     parameters=[
         OpenApiParameter("status", str, description="Filter by status: pending | approved | rejected"),
-        OpenApiParameter("search", str, description="Search by user email or name"),
+        OpenApiParameter("search", str, description="Search by user phone number or name"),
         OpenApiParameter("page", int, description="Page number"),
     ],
     responses={

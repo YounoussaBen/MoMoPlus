@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 import '../../../../core/ui/widgets/app_button.dart';
 import '../kyc_view_model.dart';
 import '../widgets/photo_picker_tile.dart';
@@ -14,14 +14,13 @@ class Step3AddressScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Proof of address',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+        Text('Proof of address', style: context.appTextTheme.headlineMedium),
         const SizedBox(height: 6),
         Text(
           'Upload a utility bill, bank statement, or government letter dated within the last 3 months.',
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: context.appTextTheme.bodyMedium?.copyWith(
+            color: context.appColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 28),
         PhotoPickerTile(
@@ -36,28 +35,30 @@ class Step3AddressScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.error.withAlpha(20),
+              color: context.appColors.errorContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.error_outline,
-                  color: AppColors.error,
+                  color: context.appColors.error,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     vm.errorMessage!,
-                    style: TextStyle(color: AppColors.error, fontSize: 13),
+                    style: context.appTextTheme.bodySmall?.copyWith(
+                      color: context.appColors.error,
+                    ),
                   ),
                 ),
                 GestureDetector(
                   onTap: () => context.read<KycViewModel>().clearError(),
-                  child: const Icon(
+                  child: Icon(
                     Icons.close,
-                    color: AppColors.error,
+                    color: context.appColors.error,
                     size: 16,
                   ),
                 ),

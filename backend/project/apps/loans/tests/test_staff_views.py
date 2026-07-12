@@ -37,6 +37,7 @@ def borrower(user_factory):
         username="borrower-staff",
         first_name="Ada",
         last_name="Borrower",
+        phone="+233241234567",
         role=UserRole.USER,
         kyc_status=KycStatus.APPROVED,
     )
@@ -49,6 +50,7 @@ def agent_user(user_factory):
         username="agent-staff",
         first_name="Kojo",
         last_name="Agent",
+        phone="+233551234567",
         role=UserRole.AGENT,
         agent_status=AgentStatus.APPROVED,
         kyc_status=KycStatus.APPROVED,
@@ -186,11 +188,11 @@ class TestStaffLoanList:
             agent_wallet=agent_wallet,
         )
 
-        response = client.get("/api/staff/loans/", {"search": "borrower-staff"})
+        response = client.get("/api/staff/loans/", {"search": "241234567"})
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["count"] == 1
-        assert response.data["results"][0]["borrower_email"] == borrower.email
+        assert response.data["results"][0]["borrower_phone"] == borrower.phone
 
     def test_filters_overdue_loans(self, staff_client, borrower, agent_profile, borrower_wallet, agent_wallet):
         client, _ = staff_client

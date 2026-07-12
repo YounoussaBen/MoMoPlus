@@ -3,7 +3,7 @@ import { paginatedResponseSchema } from "@/validators/common";
 
 export const agentCertificationSchema = z.object({
   id: z.string(),
-  agent_email: z.string(),
+  agent_phone: z.string().nullable(),
   agent_name: z.string(),
   agent_id_number: z.string(),
   network: z.string(),

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FileCheck, CheckCircle, XCircle, Eye } from "lucide-react";
 import { useApproveKyc, useKycList, useRejectKyc } from "@/hooks/use-kyc";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
-import { formatDate, formatIdType } from "@/lib/format";
+import { formatDate, formatIdType, formatPhone } from "@/lib/format";
 import type { KycSubmission } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
@@ -55,10 +55,9 @@ const columns: Column<KycSubmission>[] = [
   },
   {
     key: "user",
-    label: "Email",
-    wrap: true,
-    width: "200px",
-    render: (_, row) => row.user.email,
+    label: "Phone",
+    width: "180px",
+    render: (_, row) => formatPhone(row.user.phone),
   },
   {
     key: "id_type",
@@ -149,7 +148,7 @@ export default function KycPage() {
       <FilterBar
         onSearch={handleSearch}
         searchValue={search}
-        searchPlaceholder="Search by name or email..."
+        searchPlaceholder="Search by name or phone number..."
         filters={filters}
         activeFilters={activeFilters}
         onFilterChange={handleFilterChange}
@@ -173,7 +172,7 @@ export default function KycPage() {
         }}
         actions={(row) => {
           const displayName =
-            `${row.user.first_name} ${row.user.last_name}`.trim() || row.user.email;
+            `${row.user.first_name} ${row.user.last_name}`.trim() || formatPhone(row.user.phone);
           const menuActions: TableActionItem[] = [
             {
               label: "View details",
@@ -211,7 +210,7 @@ export default function KycPage() {
       {modal?.type === "approve" && (
         <ConfirmModal
           title="Approve KYC Submission"
-          description={`Are you sure you want to approve the KYC submission from ${`${modal.kyc.user.first_name} ${modal.kyc.user.last_name}`.trim() || modal.kyc.user.email}?`}
+          description={`Are you sure you want to approve the KYC submission from ${`${modal.kyc.user.first_name} ${modal.kyc.user.last_name}`.trim() || formatPhone(modal.kyc.user.phone)}?`}
           confirmLabel="Approve"
           confirmVariant="default"
           isLoading={actionLoading}
@@ -222,7 +221,7 @@ export default function KycPage() {
       {modal?.type === "reject" && (
         <RejectModal
           title="Reject KYC Submission"
-          description={`Provide a reason for rejecting the KYC submission from ${`${modal.kyc.user.first_name} ${modal.kyc.user.last_name}`.trim() || modal.kyc.user.email}.`}
+          description={`Provide a reason for rejecting the KYC submission from ${`${modal.kyc.user.first_name} ${modal.kyc.user.last_name}`.trim() || formatPhone(modal.kyc.user.phone)}.`}
           isLoading={actionLoading}
           onConfirm={(reason) => handleAction(reason)}
           onCancel={() => setModal(null)}

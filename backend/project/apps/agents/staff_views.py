@@ -32,7 +32,7 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     search = params.get("search", "").strip()
     if search:
         qs = qs.filter(
-            Q(agent_profile__user__email__icontains=search)
+            Q(agent_profile__user__phone__icontains=search)
             | Q(agent_profile__user__first_name__icontains=search)
             | Q(agent_profile__user__last_name__icontains=search)
             | Q(agent_id_number__icontains=search)
@@ -45,7 +45,7 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     tags=["Staff — Certifications"],
     parameters=[
         OpenApiParameter("status", str, description="Filter by status: pending | approved | rejected"),
-        OpenApiParameter("search", str, description="Search by agent email, name, or agent ID"),
+        OpenApiParameter("search", str, description="Search by agent phone number, name, or agent ID"),
         OpenApiParameter("page", int, description="Page number"),
     ],
     responses={

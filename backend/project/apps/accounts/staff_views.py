@@ -36,7 +36,7 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
 
     search = params.get("search", "").strip()
     if search:
-        qs = qs.filter(Q(email__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search))
+        qs = qs.filter(Q(phone__icontains=search) | Q(first_name__icontains=search) | Q(last_name__icontains=search))
 
     return qs
 
@@ -45,8 +45,8 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
     allowed = {
         "created_at",
         "-created_at",
-        "email",
-        "-email",
+        "phone",
+        "-phone",
         "first_name",
         "-first_name",
         "last_name",
@@ -74,11 +74,11 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
             "agent_status", str, description="Filter by agent_status: none | pending | approved | rejected"
         ),
         OpenApiParameter("is_active", str, description="Filter by active status: true | false"),
-        OpenApiParameter("search", str, description="Search by email, first name, or last name"),
+        OpenApiParameter("search", str, description="Search by phone number, first name, or last name"),
         OpenApiParameter(
             "ordering",
             str,
-            description="Sort field. Prefix with - for descending. Options: created_at, email, first_name, last_name, role, agent_status",
+            description="Sort field. Prefix with - for descending. Options: created_at, phone, first_name, last_name, role, agent_status",
         ),
         OpenApiParameter("page", int, description="Page number"),
     ],

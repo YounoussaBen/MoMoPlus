@@ -14,11 +14,11 @@ export const staffTransactionStatusSchema = z.enum([
 export const staffPhysicalTransactionSchema = z.object({
   id: z.string(),
   user_id: z.string(),
-  user_email: z.string(),
+  user_phone: z.string().nullable(),
   user_name: z.string(),
   agent_user_id: z.string(),
   agent_id: z.string(),
-  agent_email: z.string(),
+  agent_phone: z.string().nullable(),
   agent_name: z.string(),
   transaction_type: staffTransactionTypeSchema,
   amount: z.string(),

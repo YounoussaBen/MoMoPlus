@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/repositories/auth_repository.dart';
 import '../../../core/data/services/file_upload_service.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../auth/presentation/auth_view_model.dart';
 import '../data/kyc_repository.dart';
 import 'kyc_status_screen.dart';
@@ -63,10 +63,11 @@ class _KycViewState extends State<_KycView> with WidgetsBindingObserver {
     final vm = context.watch<KycViewModel>();
 
     if (vm.screenState == KycScreenState.loading) {
-      return const Scaffold(
+      return Scaffold(
+        backgroundColor: context.appColors.canvas,
         body: Center(
           child: CircularProgressIndicator(
-            color: AppColors.primary,
+            color: context.appColors.brandAccent,
             strokeWidth: 2,
           ),
         ),
@@ -76,7 +77,7 @@ class _KycViewState extends State<_KycView> with WidgetsBindingObserver {
     final isWizard = vm.screenState == KycScreenState.wizard;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
         title: const Text('Identity Verification'),
         leading: isWizard && vm.step > 0

@@ -9,6 +9,7 @@ import {
   formatCurrency,
   formatDate,
   formatNetwork,
+  formatPhone,
   formatTransactionStatus,
   formatTransactionType,
 } from "@/lib/format";
@@ -75,7 +76,7 @@ const columns: Column<StaffPhysicalTransaction>[] = [
     render: (_, row) => (
       <div>
         <p className="font-medium">{row.user_name || "—"}</p>
-        <p className="text-muted-foreground text-xs">{row.user_email}</p>
+        <p className="text-muted-foreground text-xs">{formatPhone(row.user_phone)}</p>
       </div>
     ),
   },
@@ -85,7 +86,7 @@ const columns: Column<StaffPhysicalTransaction>[] = [
     render: (_, row) => (
       <div>
         <p className="font-medium">{row.agent_name || "—"}</p>
-        <p className="text-muted-foreground text-xs">{row.agent_email}</p>
+        <p className="text-muted-foreground text-xs">{formatPhone(row.agent_phone)}</p>
       </div>
     ),
   },
@@ -183,7 +184,7 @@ export default function CashServicesPage() {
       <FilterBar
         onSearch={handleSearch}
         searchValue={search}
-        searchPlaceholder="Search by user, agent, phone, or meeting note..."
+        searchPlaceholder="Search by user, agent, phone number, or meeting note..."
         filters={filters}
         activeFilters={activeFilters}
         onFilterChange={handleFilterChange}

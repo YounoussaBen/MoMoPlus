@@ -55,7 +55,8 @@ export interface UpdateStaffProfileInput {
 
 export interface AppUser {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   first_name: string;
   last_name: string;
   full_name: string;
@@ -89,7 +90,8 @@ export interface EmbeddedUser {
   id: string;
   supabase_user_id: string;
   username: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   first_name: string;
   last_name: string;
   created_at: string;
@@ -130,7 +132,7 @@ export type CertificationStatus = "pending" | "approved" | "rejected";
 
 export interface AgentCertification {
   id: string;
-  agent_email: string;
+  agent_phone: string | null;
   agent_name: string;
   agent_id_number: string;
   network: string;
@@ -182,11 +184,11 @@ export interface StaffLoanListItem {
   id: string;
   borrower_id: string;
   borrower_name: string;
-  borrower_email: string;
+  borrower_phone: string | null;
   agent_user_id: string;
   agent_name: string;
   agent_id: string;
-  agent_email: string;
+  agent_phone: string | null;
   amount: string;
   total_repayment: string;
   penalty_amount: string;
@@ -232,11 +234,11 @@ export type StaffTransactionStatus =
 export interface StaffPhysicalTransaction {
   id: string;
   user_id: string;
-  user_email: string;
+  user_phone: string | null;
   user_name: string;
   agent_user_id: string;
   agent_id: string;
-  agent_email: string;
+  agent_phone: string | null;
   agent_name: string;
   transaction_type: StaffTransactionType;
   amount: string;

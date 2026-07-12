@@ -3,7 +3,8 @@ import { paginatedResponseSchema } from "@/validators/common";
 
 export const appUserSchema = z.object({
   id: z.string(),
-  email: z.string(),
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
   first_name: z.string(),
   last_name: z.string(),
   full_name: z.string(),

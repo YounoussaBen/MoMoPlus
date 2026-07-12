@@ -31,10 +31,12 @@ class StaffLoanBaseSerializer(serializers.ModelSerializer):
     borrower_id = serializers.UUIDField(source="borrower.id", read_only=True)
     borrower_name = serializers.SerializerMethodField()
     borrower_email = serializers.EmailField(source="borrower.email", read_only=True)
+    borrower_phone = serializers.CharField(source="borrower.phone", read_only=True, allow_null=True)
     agent_user_id = serializers.UUIDField(source="agent.user.id", read_only=True)
     agent_id = serializers.UUIDField(source="agent.id", read_only=True)
     agent_name = serializers.SerializerMethodField()
     agent_email = serializers.EmailField(source="agent.user.email", read_only=True)
+    agent_phone = serializers.CharField(source="agent.user.phone", read_only=True, allow_null=True)
     borrower_wallet_phone = serializers.CharField(source="borrower_wallet.phone_number", read_only=True)
     borrower_wallet_network = serializers.CharField(source="borrower_wallet.network", read_only=True)
     agent_wallet_phone = serializers.SerializerMethodField()
@@ -65,10 +67,12 @@ class StaffLoanListSerializer(StaffLoanBaseSerializer):
             "borrower_id",
             "borrower_name",
             "borrower_email",
+            "borrower_phone",
             "agent_user_id",
             "agent_id",
             "agent_name",
             "agent_email",
+            "agent_phone",
             "amount",
             "total_repayment",
             "outstanding_balance",
@@ -102,10 +106,12 @@ class StaffLoanDetailSerializer(StaffLoanBaseSerializer):
             "borrower_id",
             "borrower_name",
             "borrower_email",
+            "borrower_phone",
             "agent_user_id",
             "agent_id",
             "agent_name",
             "agent_email",
+            "agent_phone",
             "amount",
             "interest_rate",
             "origination_fee",

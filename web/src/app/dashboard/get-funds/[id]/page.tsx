@@ -10,6 +10,7 @@ import {
   formatNetwork,
   formatPaymentStatus,
   formatPaymentType,
+  formatPhone,
 } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { DetailHeaderSkeleton, SectionSkeleton } from "@/components/dashboard/skeletons";
@@ -104,11 +105,11 @@ export default function GetFundsDetailPage({ params }: { params: Promise<{ id: s
       <Section icon={UserRound} title="Participants">
         <div className="grid gap-4 sm:grid-cols-2">
           <InfoRow label="Customer">{item.borrower_name}</InfoRow>
-          <InfoRow label="Customer Email">{item.borrower_email}</InfoRow>
+          <InfoRow label="Customer Phone">{formatPhone(item.borrower_phone)}</InfoRow>
           <InfoRow label="Customer Wallet">{item.borrower_wallet_phone}</InfoRow>
           <InfoRow label="Customer Network">{formatNetwork(item.borrower_wallet_network)}</InfoRow>
           <InfoRow label="Agent">{item.agent_name}</InfoRow>
-          <InfoRow label="Agent Email">{item.agent_email}</InfoRow>
+          <InfoRow label="Agent Phone">{formatPhone(item.agent_phone)}</InfoRow>
           <InfoRow label="Agent Wallet">{item.agent_wallet_phone || "—"}</InfoRow>
           <InfoRow label="Agent Network">
             {item.agent_wallet_network ? formatNetwork(item.agent_wallet_network) : "—"}

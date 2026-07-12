@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 import '../../../../core/ui/widgets/app_button.dart';
 import '../kyc_view_model.dart';
 import '../widgets/photo_picker_tile.dart';
@@ -20,14 +21,13 @@ class Step2SelfieScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Take a selfie',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+        Text('Take a selfie', style: context.appTextTheme.headlineMedium),
         const SizedBox(height: 6),
         Text(
           'Look directly at the camera in a well-lit area. Your face must be clearly visible.',
-          style: Theme.of(context).textTheme.bodyMedium,
+          style: context.appTextTheme.bodyMedium?.copyWith(
+            color: context.appColors.textSecondary,
+          ),
         ),
         const SizedBox(height: 32),
         Center(

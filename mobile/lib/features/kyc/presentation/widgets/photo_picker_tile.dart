@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 
 class PhotoPickerTile extends StatelessWidget {
   final String label;
@@ -29,11 +29,11 @@ class PhotoPickerTile extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           color: uploadError != null
-              ? AppColors.error.withAlpha(15)
-              : AppColors.surface,
+              ? context.appColors.errorContainer
+              : context.appColors.surfaceSection,
           borderRadius: BorderRadius.circular(12),
           border: uploadError != null
-              ? Border.all(color: AppColors.error.withAlpha(80), width: 1.5)
+              ? Border.all(color: context.appColors.error, width: 1.5)
               : null,
         ),
         clipBehavior: Clip.antiAlias,
@@ -84,8 +84,8 @@ class PhotoPickerTile extends StatelessWidget {
                       uploadError != null ? Icons.refresh : icon,
                       size: 28,
                       color: uploadError != null
-                          ? AppColors.error
-                          : AppColors.textSecondary,
+                          ? context.appColors.error
+                          : context.appColors.textSecondary,
                     ),
                   const SizedBox(height: 6),
                   Text(
@@ -97,8 +97,8 @@ class PhotoPickerTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       color: uploadError != null
-                          ? AppColors.error
-                          : AppColors.textSecondary,
+                          ? context.appColors.error
+                          : context.appColors.textSecondary,
                     ),
                   ),
                 ],

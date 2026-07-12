@@ -9,7 +9,7 @@ import {
   useRejectAgentApplication,
   useUsersList,
 } from "@/hooks/use-users";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPhone } from "@/lib/format";
 import type { AppUser } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
@@ -47,7 +47,12 @@ const columns: Column<AppUser>[] = [
       </span>
     ),
   },
-  { key: "email", label: "Email", wrap: true, width: "200px" },
+  {
+    key: "phone",
+    label: "Phone",
+    width: "180px",
+    render: (_, row) => formatPhone(row.phone),
+  },
   {
     key: "role",
     label: "Role",
@@ -140,7 +145,7 @@ export default function UsersPage() {
       <FilterBar
         onSearch={handleSearch}
         searchValue={search}
-        searchPlaceholder="Search by name or email..."
+        searchPlaceholder="Search by name or phone number..."
         filters={filters}
         activeFilters={activeFilters}
         onFilterChange={handleFilterChange}
@@ -164,7 +169,7 @@ export default function UsersPage() {
         }}
         actions={(row) => {
           const displayName =
-            row.full_name || `${row.first_name} ${row.last_name}`.trim() || row.email;
+            row.full_name || `${row.first_name} ${row.last_name}`.trim() || formatPhone(row.phone);
           const menuActions: TableActionItem[] = [
             {
               label: "View details",
@@ -206,8 +211,8 @@ export default function UsersPage() {
           }
           description={
             modal.type === "approve"
-              ? `Are you sure you want to approve ${modal.user.full_name || modal.user.email} as an agent? This will grant them agent permissions.`
-              : `Are you sure you want to reject the agent application from ${modal.user.full_name || modal.user.email}?`
+              ? `Are you sure you want to approve ${modal.user.full_name || formatPhone(modal.user.phone)} as an agent? This will grant them agent permissions.`
+              : `Are you sure you want to reject the agent application from ${modal.user.full_name || formatPhone(modal.user.phone)}?`
           }
           confirmLabel={modal.type === "approve" ? "Approve" : "Reject"}
           confirmVariant={modal.type === "approve" ? "default" : "destructive"}

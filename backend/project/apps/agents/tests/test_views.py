@@ -400,6 +400,25 @@ class TestStaffCertificationListView:
 
         assert response.status_code == status.HTTP_200_OK
 
+    def test_searches_applications_by_agent_phone(self, staff_client, agent_client, agent_file_assets):
+        photo, location = agent_file_assets
+        agent_client.post(
+            "/api/agents/certification/apply/",
+            {
+                "agent_id_number": "MTN-AGT-PHONE",
+                "agent_id_photo_id": str(photo.pk),
+                "business_location_photo_id": str(location.pk),
+            },
+            format="json",
+        )
+        user = AgentProfile.objects.select_related("user").get().user
+
+        response = staff_client.get("/api/staff/agents/certifications/", {"search": user.phone})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["agent_phone"] == user.phone
+
     def test_unauthenticated_returns_401(self, api_client):
         response = api_client.get("/api/staff/agents/certifications/")
 

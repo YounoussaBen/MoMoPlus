@@ -4,10 +4,8 @@ import 'package:provider/provider.dart';
 import '../../../core/ui/theme/app_spacing.dart';
 import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
-import '../../../core/ui/widgets/app_icon_button.dart';
 import '../../../core/ui/widgets/app_logo.dart';
 import '../../../core/ui/widgets/app_screen.dart';
-import '../../../core/ui/widgets/app_section.dart';
 import '../../../core/ui/widgets/app_text_field.dart';
 import 'auth_view_model.dart';
 
@@ -50,75 +48,60 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               bottom: AppSpacing.space8,
             ),
             children: [
-              Row(
-                children: [
-                  AppIconButton(
-                    icon: Icons.logout_rounded,
-                    label: 'Sign out',
-                    onPressed: viewModel.isLoading ? null : viewModel.signOut,
-                  ),
-                  const Spacer(),
-                  const AppLogo(size: 44),
-                ],
+              const Align(
+                alignment: Alignment.topRight,
+                child: AppLogo(size: 84),
               ),
               const SizedBox(height: AppSpacing.space10),
               Text(
-                'One last detail.',
+                'Complete your profile',
                 style: context.appTextTheme.displaySmall,
               ),
               const SizedBox(height: AppSpacing.space3),
               Text(
-                'Tell us what to call you. Your phone is already verified; this creates your MoMo Plus profile.',
+                'Enter your details to continue.',
                 style: context.appTextTheme.bodyLarge?.copyWith(
                   color: context.appColors.textSecondary,
                   height: 1.45,
                 ),
               ),
               const SizedBox(height: AppSpacing.space8),
-              AppSection(
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Your name',
-                        style: context.appTextTheme.titleMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.space4),
-                      AppTextField(
-                        hint: 'First name',
-                        controller: _firstNameController,
-                        autofillHints: const [AutofillHints.givenName],
-                        validator: _requiredName,
-                      ),
+              Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AppTextField(
+                      hint: 'First name',
+                      controller: _firstNameController,
+                      autofillHints: const [AutofillHints.givenName],
+                      validator: _requiredName,
+                    ),
+                    const SizedBox(height: AppSpacing.space3),
+                    AppTextField(
+                      hint: 'Last name',
+                      controller: _lastNameController,
+                      autofillHints: const [AutofillHints.familyName],
+                      textInputAction: TextInputAction.done,
+                      validator: _requiredName,
+                      onFieldSubmitted: (_) => _continue(),
+                    ),
+                    if (viewModel.errorMessage != null) ...[
                       const SizedBox(height: AppSpacing.space3),
-                      AppTextField(
-                        hint: 'Last name',
-                        controller: _lastNameController,
-                        autofillHints: const [AutofillHints.familyName],
-                        textInputAction: TextInputAction.done,
-                        validator: _requiredName,
-                        onFieldSubmitted: (_) => _continue(),
-                      ),
-                      if (viewModel.errorMessage != null) ...[
-                        const SizedBox(height: AppSpacing.space3),
-                        Text(
-                          viewModel.errorMessage!,
-                          style: context.appTextTheme.bodySmall?.copyWith(
-                            color: context.appColors.error,
-                          ),
+                      Text(
+                        viewModel.errorMessage!,
+                        style: context.appTextTheme.bodySmall?.copyWith(
+                          color: context.appColors.error,
                         ),
-                      ],
-                      const SizedBox(height: AppSpacing.space5),
-                      AppButton(
-                        label: 'Continue to verification',
-                        onPressed: _continue,
-                        isLoading: viewModel.isLoading,
-                        icon: const Icon(Icons.arrow_forward_rounded),
                       ),
                     ],
-                  ),
+                    const SizedBox(height: AppSpacing.space5),
+                    AppButton(
+                      label: 'Continue',
+                      onPressed: _continue,
+                      isLoading: viewModel.isLoading,
+                    ),
+                  ],
                 ),
               ),
             ],

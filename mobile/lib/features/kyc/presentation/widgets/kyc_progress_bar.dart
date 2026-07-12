@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 
 class KycProgressBar extends StatelessWidget {
   final int currentStep;
@@ -33,7 +33,9 @@ class _Segment extends StatelessWidget {
         curve: Curves.easeInOut,
         height: 4,
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primary : AppColors.divider,
+          color: isActive
+              ? context.appColors.brandAccent
+              : context.appColors.surfaceSubtle,
           borderRadius: BorderRadius.circular(2),
         ),
       ),

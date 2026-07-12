@@ -105,16 +105,16 @@ class TestStaffUserList:
         assert all(not u["is_active"] for u in response.data["results"])
 
     @pytest.mark.django_db
-    def test_search_by_email(self, api_client, user_factory):
+    def test_search_by_phone(self, api_client, user_factory):
         client, _ = _staff_client(api_client, user_factory)
-        user_factory(email="findme@example.com", username="findme")
-        user_factory(email="other@example.com", username="other")
+        user_factory(email="findme@example.com", username="findme", phone="+233241234567")
+        user_factory(email="other@example.com", username="other", phone="+233551234567")
 
-        response = client.get("/api/staff/users/?search=findme")
+        response = client.get("/api/staff/users/?search=241234567")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["count"] == 1
-        assert response.data["results"][0]["email"] == "findme@example.com"
+        assert response.data["results"][0]["phone"] == "+233241234567"
 
     @pytest.mark.django_db
     def test_search_by_first_name(self, api_client, user_factory):
@@ -129,16 +129,16 @@ class TestStaffUserList:
         assert response.data["results"][0]["first_name"] == "Kwame"
 
     @pytest.mark.django_db
-    def test_ordering_by_email(self, api_client, user_factory):
+    def test_ordering_by_phone(self, api_client, user_factory):
         client, _ = _staff_client(api_client, user_factory)
-        user_factory(email="zzz@example.com", username="zzz")
-        user_factory(email="aaa@example.com", username="aaa")
+        user_factory(email="zzz@example.com", username="zzz", phone="+233551234567")
+        user_factory(email="aaa@example.com", username="aaa", phone="+233241234567")
 
-        response = client.get("/api/staff/users/?ordering=email")
+        response = client.get("/api/staff/users/?ordering=phone")
 
         assert response.status_code == status.HTTP_200_OK
-        emails = [u["email"] for u in response.data["results"]]
-        assert emails == sorted(emails)
+        phones = [u["phone"] for u in response.data["results"] if u["phone"]]
+        assert phones == sorted(phones)
 
     @pytest.mark.django_db
     def test_response_includes_role_and_agent_status(self, api_client, user_factory):

@@ -12,7 +12,7 @@ import {
   useRejectCertification,
 } from "@/hooks/use-agents";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPhone } from "@/lib/format";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
 import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
@@ -61,7 +61,12 @@ const columns: Column<AgentRow>[] = [
       </span>
     ),
   },
-  { key: "email", label: "Email", wrap: true, width: "200px" },
+  {
+    key: "phone",
+    label: "Phone",
+    width: "180px",
+    render: (_, row) => formatPhone(row.phone),
+  },
   {
     key: "agent_status",
     label: "Agent Status",
@@ -175,7 +180,7 @@ export default function AgentsPage() {
       <FilterBar
         onSearch={handleSearch}
         searchValue={search}
-        searchPlaceholder="Search by name or email..."
+        searchPlaceholder="Search by name or phone number..."
         filters={filters}
         activeFilters={activeFilters}
         onFilterChange={handleFilterChange}
@@ -199,8 +204,8 @@ export default function AgentsPage() {
         }}
         actions={(row) => {
           const displayName =
-            row.full_name || `${row.first_name} ${row.last_name}`.trim() || row.email;
-          const certification = certMap[row.email];
+            row.full_name || `${row.first_name} ${row.last_name}`.trim() || formatPhone(row.phone);
+          const certification = row.phone ? certMap[row.phone] : undefined;
           const menuActions: TableActionItem[] = [
             {
               label: "View details",
@@ -266,7 +271,7 @@ export default function AgentsPage() {
       {modal?.type === "approve_agent" && (
         <ConfirmModal
           title="Approve Agent Application"
-          description={`Are you sure you want to approve ${modal.user.full_name || modal.user.email} as an agent?`}
+          description={`Are you sure you want to approve ${modal.user.full_name || formatPhone(modal.user.phone)} as an agent?`}
           confirmLabel="Approve"
           confirmVariant="default"
           isLoading={actionLoading}
@@ -278,7 +283,7 @@ export default function AgentsPage() {
       {modal?.type === "reject_agent" && (
         <ConfirmModal
           title="Reject Agent Application"
-          description={`Are you sure you want to reject the agent application from ${modal.user.full_name || modal.user.email}?`}
+          description={`Are you sure you want to reject the agent application from ${modal.user.full_name || formatPhone(modal.user.phone)}?`}
           confirmLabel="Reject"
           isLoading={actionLoading}
           onConfirm={() => handleAction()}
@@ -289,7 +294,7 @@ export default function AgentsPage() {
       {modal?.type === "approve_cert" && (
         <ConfirmModal
           title="Approve Certification"
-          description={`Are you sure you want to certify ${modal.user.full_name || modal.user.email}?`}
+          description={`Are you sure you want to certify ${modal.user.full_name || formatPhone(modal.user.phone)}?`}
           confirmLabel="Approve"
           confirmVariant="default"
           isLoading={actionLoading}
@@ -301,7 +306,7 @@ export default function AgentsPage() {
       {modal?.type === "reject_cert" && (
         <RejectModal
           title="Reject Certification"
-          description={`Provide a reason for rejecting the certification from ${modal.user.full_name || modal.user.email}.`}
+          description={`Provide a reason for rejecting the certification from ${modal.user.full_name || formatPhone(modal.user.phone)}.`}
           isLoading={actionLoading}
           onConfirm={(reason) => handleAction(reason)}
           onCancel={() => setModal(null)}

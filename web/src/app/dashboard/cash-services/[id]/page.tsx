@@ -7,6 +7,7 @@ import {
   formatCurrency,
   formatDateTime,
   formatNetwork,
+  formatPhone,
   formatTransactionStatus,
   formatTransactionType,
 } from "@/lib/format";
@@ -89,9 +90,9 @@ export default function CashServiceDetailPage({ params }: { params: Promise<{ id
       <Section icon={UserRound} title="Participants">
         <div className="grid gap-4 sm:grid-cols-2">
           <InfoRow label="Customer">{item.user_name}</InfoRow>
-          <InfoRow label="Customer Email">{item.user_email}</InfoRow>
+          <InfoRow label="Customer Phone">{formatPhone(item.user_phone)}</InfoRow>
           <InfoRow label="Agent">{item.agent_name}</InfoRow>
-          <InfoRow label="Agent Email">{item.agent_email}</InfoRow>
+          <InfoRow label="Agent Phone">{formatPhone(item.agent_phone)}</InfoRow>
           <InfoRow label="Wallet Phone">{item.wallet_phone_number}</InfoRow>
           <InfoRow label="Wallet Network">{formatNetwork(item.wallet_network)}</InfoRow>
         </div>

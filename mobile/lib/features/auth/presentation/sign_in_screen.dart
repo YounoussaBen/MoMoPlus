@@ -218,7 +218,6 @@ class _PhoneStep extends StatelessWidget {
               label: 'Continue',
               onPressed: onContinue,
               isLoading: viewModel.isLoading,
-              trailingIcon: const Icon(Icons.arrow_forward_rounded),
             ),
             const SizedBox(height: AppSpacing.space3),
             const _AgreementNotice(),

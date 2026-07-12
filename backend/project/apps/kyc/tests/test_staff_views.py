@@ -45,16 +45,16 @@ class TestStaffKycList:
         assert all(s == KycSubmission.Status.PENDING for s in statuses)
 
     @pytest.mark.django_db
-    def test_search_by_user_email(self, user_factory, staff_client, kyc_submission_factory):
+    def test_search_by_user_phone(self, user_factory, staff_client, kyc_submission_factory):
         client, _ = staff_client
-        user = user_factory(email="findkyc@example.com", username="findkyc")
+        user = user_factory(email="findkyc@example.com", username="findkyc", phone="+233241234567")
         kyc_submission_factory(user)
 
-        response = client.get("/api/staff/kyc/?search=findkyc")
+        response = client.get("/api/staff/kyc/?search=241234567")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["count"] == 1
-        assert response.data["results"][0]["user"]["email"] == "findkyc@example.com"
+        assert response.data["results"][0]["user"]["phone"] == "+233241234567"
 
     @pytest.mark.django_db
     def test_list_includes_user_and_status(self, user_factory, staff_client, kyc_submission_factory):

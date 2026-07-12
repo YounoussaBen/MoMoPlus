@@ -43,10 +43,10 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     search = params.get("search", "").strip()
     if search:
         qs = qs.filter(
-            Q(borrower__email__icontains=search)
+            Q(borrower__phone__icontains=search)
             | Q(borrower__first_name__icontains=search)
             | Q(borrower__last_name__icontains=search)
-            | Q(agent__user__email__icontains=search)
+            | Q(agent__user__phone__icontains=search)
             | Q(agent__user__first_name__icontains=search)
             | Q(agent__user__last_name__icontains=search)
             | Q(borrower_wallet__phone_number__icontains=search)
@@ -102,7 +102,7 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
         OpenApiParameter("network", str, description="Filter by network"),
         OpenApiParameter("borrower_id", str, description="Filter by borrower UUID"),
         OpenApiParameter("agent_id", str, description="Filter by agent profile UUID"),
-        OpenApiParameter("search", str, description="Search by borrower/agent email, name, or wallet phone"),
+        OpenApiParameter("search", str, description="Search by borrower/agent phone number, name, or wallet phone"),
         OpenApiParameter("is_overdue", str, description="Filter overdue active loans: true | false"),
         OpenApiParameter(
             "ordering",

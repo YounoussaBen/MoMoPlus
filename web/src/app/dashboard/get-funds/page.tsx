@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { Eye, Wallet } from "lucide-react";
 import { useGetFundsList } from "@/hooks/use-get-funds";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
-import { formatCurrency, formatDate, formatLoanStatus, formatNetwork } from "@/lib/format";
+import {
+  formatCurrency,
+  formatDate,
+  formatLoanStatus,
+  formatNetwork,
+  formatPhone,
+} from "@/lib/format";
 import type { StaffLoanListItem } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
@@ -69,7 +75,7 @@ const columns: Column<StaffLoanListItem>[] = [
     render: (_, row) => (
       <div>
         <p className="font-medium">{row.borrower_name || "—"}</p>
-        <p className="text-muted-foreground text-xs">{row.borrower_email}</p>
+        <p className="text-muted-foreground text-xs">{formatPhone(row.borrower_phone)}</p>
       </div>
     ),
   },
@@ -79,7 +85,7 @@ const columns: Column<StaffLoanListItem>[] = [
     render: (_, row) => (
       <div>
         <p className="font-medium">{row.agent_name || "—"}</p>
-        <p className="text-muted-foreground text-xs">{row.agent_email}</p>
+        <p className="text-muted-foreground text-xs">{formatPhone(row.agent_phone)}</p>
       </div>
     ),
   },
@@ -171,7 +177,7 @@ export default function GetFundsPage() {
       <FilterBar
         onSearch={handleSearch}
         searchValue={search}
-        searchPlaceholder="Search by customer, agent, or phone..."
+        searchPlaceholder="Search by customer, agent, or phone number..."
         filters={filters}
         activeFilters={activeFilters}
         onFilterChange={handleFilterChange}

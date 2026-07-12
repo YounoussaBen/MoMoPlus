@@ -42,10 +42,10 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     search = params.get("search", "").strip()
     if search:
         qs = qs.filter(
-            Q(user__email__icontains=search)
+            Q(user__phone__icontains=search)
             | Q(user__first_name__icontains=search)
             | Q(user__last_name__icontains=search)
-            | Q(agent__user__email__icontains=search)
+            | Q(agent__user__phone__icontains=search)
             | Q(agent__user__first_name__icontains=search)
             | Q(agent__user__last_name__icontains=search)
             | Q(wallet__phone_number__icontains=search)
@@ -94,7 +94,9 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
         OpenApiParameter("network", str, description="Filter by network"),
         OpenApiParameter("user_id", str, description="Filter by user UUID"),
         OpenApiParameter("agent_id", str, description="Filter by agent profile UUID"),
-        OpenApiParameter("search", str, description="Search by user/agent email, name, wallet phone, or meeting note"),
+        OpenApiParameter(
+            "search", str, description="Search by user/agent phone number, name, wallet phone, or meeting note"
+        ),
         OpenApiParameter("has_meeting", str, description="Filter transactions with meeting coordinates: true | false"),
         OpenApiParameter(
             "ordering",

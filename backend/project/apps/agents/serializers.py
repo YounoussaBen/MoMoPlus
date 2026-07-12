@@ -165,6 +165,7 @@ class CertificationRejectSerializer(serializers.Serializer):
 
 class StaffCertificationListSerializer(serializers.ModelSerializer):
     agent_email = serializers.CharField(source="agent_profile.user.email", read_only=True)
+    agent_phone = serializers.CharField(source="agent_profile.user.phone", read_only=True, allow_null=True)
     agent_name = serializers.SerializerMethodField()
 
     class Meta:
@@ -172,6 +173,7 @@ class StaffCertificationListSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "agent_email",
+            "agent_phone",
             "agent_name",
             "agent_id_number",
             "network",

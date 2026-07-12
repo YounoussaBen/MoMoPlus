@@ -16,6 +16,17 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+export function formatPhone(value: string | null | undefined): string {
+  if (!value) return "—";
+
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 12 && digits.startsWith("233")) {
+    return `+233 ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8)}`;
+  }
+
+  return value;
+}
+
 export function formatCurrency(value: string | number | null | undefined): string {
   if (value === null || value === undefined || value === "") return "—";
 

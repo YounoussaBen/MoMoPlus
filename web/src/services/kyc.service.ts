@@ -16,8 +16,14 @@ export class KycService {
 
   async getKycDetail(id: string) {
     const user = await this.usersRepository.getById(id);
+    if (!user.phone) {
+      return {
+        user,
+        kyc: null as KycSubmissionDetail | null,
+      };
+    }
     const submissions = await this.kycRepository.list({
-      search: user.email,
+      search: user.phone,
       page_size: 1,
       page: 1,
     });
