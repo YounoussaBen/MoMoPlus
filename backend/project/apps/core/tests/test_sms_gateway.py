@@ -58,6 +58,7 @@ def test_sends_arkesel_v2_json_with_header(mocker):
     payload = json.loads(request.data.decode())
     assert request.full_url == "https://sms.example.test/api/v2/sms/send"
     assert request.get_header("Api-key") == "test-api-key"
+    assert request.get_header("User-agent") == "MoMoPlus-Backend/1.0"
     assert payload == {
         "sender": "MoMoPlus",
         "message": "A safe test message",

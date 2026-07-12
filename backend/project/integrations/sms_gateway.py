@@ -90,6 +90,8 @@ def send_sms(*, phone: str, message: str) -> None:
             "api-key": api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
+            # Cloudflare blocks urllib's default Python-urllib signature.
+            "User-Agent": "MoMoPlus-Backend/1.0",
         },
     )
 
