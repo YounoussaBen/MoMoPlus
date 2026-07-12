@@ -1,22 +1,13 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { container } from "@/di/container";
-import { kycKeys } from "@/utils/query-keys";
-import type { TableQueryInput } from "@/utils/query-params";
+import { kycKeys, usersKeys } from "@/utils/query-keys";
 
-export function useKycList(input: TableQueryInput) {
+export function useKycSubmissionDetail(id: string) {
   return useQuery({
-    queryKey: kycKeys.list(input),
-    queryFn: () => container.kycService.listKyc(input),
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useKycDetail(id: string) {
-  return useQuery({
-    queryKey: kycKeys.detail(id),
-    queryFn: () => container.kycService.getKycDetail(id),
+    queryKey: kycKeys.submission(id),
+    queryFn: () => container.kycService.getSubmissionDetail(id),
     enabled: !!id,
   });
 }
@@ -28,6 +19,7 @@ export function useApproveKyc() {
     mutationFn: (id: string) => container.kycService.approveKyc(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: kycKeys.all });
+      queryClient.invalidateQueries({ queryKey: usersKeys.all });
     },
   });
 }
@@ -40,6 +32,7 @@ export function useRejectKyc() {
       container.kycService.rejectKyc(id, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: kycKeys.all });
+      queryClient.invalidateQueries({ queryKey: usersKeys.all });
     },
   });
 }

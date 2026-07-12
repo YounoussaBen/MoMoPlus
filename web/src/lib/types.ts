@@ -32,6 +32,17 @@ export interface PaginatedResponse<T> {
 export type UserRole = "user" | "agent";
 export type AgentStatus = "none" | "pending" | "approved" | "rejected";
 export type KycStatus = "none" | "pending" | "approved" | "rejected";
+export type IdType = "national_id" | "passport" | "drivers_license";
+
+export interface UserKycSummary {
+  id: string;
+  status: KycStatus;
+  id_type: IdType;
+  rejection_reason: string;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface StaffProfile {
   id: string;
@@ -62,7 +73,11 @@ export interface AppUser {
   full_name: string;
   role: UserRole;
   agent_status: AgentStatus;
+  kyc_status: KycStatus;
+  kyc_submission: UserKycSummary | null;
   is_active: boolean;
+  deactivation_reason: string;
+  deactivated_at: string | null;
   is_staff: boolean;
   created_at: string;
   updated_at: string;
@@ -105,8 +120,6 @@ export interface FileUrl {
 }
 
 // ─── KYC ─────────────────────────────────────────────────────────────────────
-
-export type IdType = "national_id" | "passport" | "drivers_license";
 
 export interface KycSubmission {
   id: string;

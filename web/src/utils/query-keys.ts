@@ -28,9 +28,7 @@ export const agentsKeys = {
 
 export const kycKeys = {
   all: ["kyc"] as const,
-  lists: () => ["kyc", "list"] as const,
-  list: (input: TableQueryInput) => ["kyc", "list", input] as const,
-  detail: (id: string) => ["kyc", "detail", id] as const,
+  submission: (id: string) => ["kyc", "submission", id] as const,
 };
 
 export const getFundsKeys = {

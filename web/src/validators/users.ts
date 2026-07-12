@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { paginatedResponseSchema } from "@/validators/common";
 
+const userKycSummarySchema = z.object({
+  id: z.string(),
+  status: z.enum(["none", "pending", "approved", "rejected"]),
+  id_type: z.enum(["national_id", "passport", "drivers_license"]),
+  rejection_reason: z.string(),
+  reviewed_at: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
 export const appUserSchema = z.object({
   id: z.string(),
   email: z.string().nullable(),
@@ -10,7 +20,11 @@ export const appUserSchema = z.object({
   full_name: z.string(),
   role: z.enum(["user", "agent"]),
   agent_status: z.enum(["none", "pending", "approved", "rejected"]),
+  kyc_status: z.enum(["none", "pending", "approved", "rejected"]),
+  kyc_submission: userKycSummarySchema.nullable(),
   is_active: z.boolean(),
+  deactivation_reason: z.string(),
+  deactivated_at: z.string().nullable(),
   is_staff: z.boolean(),
   created_at: z.string(),
   updated_at: z.string(),

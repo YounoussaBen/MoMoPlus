@@ -1,7 +1,8 @@
 import pytest
 from rest_framework import status
 
-from project.apps.accounts.models import AgentStatus, LoanGuarantor, UserRole
+from project.apps.accounts.models import AgentStatus, KycStatus, LoanGuarantor, UserRole
+from project.apps.kyc.models import KycSubmission
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -105,6 +106,37 @@ class TestStaffUserList:
         assert all(not u["is_active"] for u in response.data["results"])
 
     @pytest.mark.django_db
+    def test_filter_by_kyc_status_and_id_type(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        passport_user = user_factory(
+            email="passport@example.com",
+            username="passport",
+            kyc_status=KycStatus.PENDING,
+        )
+        KycSubmission.objects.create(
+            user=passport_user,
+            id_type=KycSubmission.IdType.PASSPORT,
+        )
+        card_user = user_factory(
+            email="card@example.com",
+            username="card",
+            kyc_status=KycStatus.PENDING,
+        )
+        KycSubmission.objects.create(
+            user=card_user,
+            id_type=KycSubmission.IdType.NATIONAL_ID,
+        )
+
+        response = client.get("/api/staff/users/?kyc_status=pending&id_type=passport")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        result = response.data["results"][0]
+        assert result["id"] == str(passport_user.id)
+        assert result["kyc_status"] == KycStatus.PENDING
+        assert result["kyc_submission"]["id_type"] == KycSubmission.IdType.PASSPORT
+
+    @pytest.mark.django_db
     def test_search_by_phone(self, api_client, user_factory):
         client, _ = _staff_client(api_client, user_factory)
         user_factory(email="findme@example.com", username="findme", phone="+233241234567")
@@ -151,6 +183,28 @@ class TestStaffUserList:
         first = response.data["results"][0]
         assert "role" in first
         assert "agent_status" in first
+
+    @pytest.mark.django_db
+    def test_response_includes_kyc_summary(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="kyc-summary@example.com",
+            username="kyc-summary",
+            phone="+233241112222",
+            kyc_status=KycStatus.PENDING,
+        )
+        submission = KycSubmission.objects.create(
+            user=target,
+            id_type=KycSubmission.IdType.DRIVERS_LICENSE,
+        )
+
+        response = client.get("/api/staff/users/?search=241112222")
+
+        assert response.status_code == status.HTTP_200_OK
+        summary = response.data["results"][0]["kyc_submission"]
+        assert summary["id"] == str(submission.id)
+        assert summary["status"] == KycSubmission.Status.PENDING
+        assert summary["id_type"] == KycSubmission.IdType.DRIVERS_LICENSE
 
     @pytest.mark.django_db
     def test_superusers_excluded_from_list(self, api_client, user_factory):
@@ -366,6 +420,73 @@ class TestRejectAgent:
         response = authenticated_client.post(f"/api/staff/users/{applicant.id}/reject-agent/")
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ---------------------------------------------------------------------------
+# Deactivate User  POST /api/staff/users/{id}/deactivate/
+# ---------------------------------------------------------------------------
+
+
+class TestDeactivateUser:
+    @pytest.mark.django_db
+    def test_deactivates_approved_user_with_reason(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="approved-user@example.com",
+            username="approved-user",
+            kyc_status=KycStatus.APPROVED,
+        )
+
+        response = client.post(
+            f"/api/staff/users/{target.id}/deactivate/",
+            {"reason": "Identity risk identified during manual review."},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        target.refresh_from_db()
+        assert target.is_active is False
+        assert target.deactivation_reason == "Identity risk identified during manual review."
+        assert target.deactivated_at is not None
+        assert response.data["deactivation_reason"] == target.deactivation_reason
+
+    @pytest.mark.django_db
+    def test_requires_reason(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="no-reason@example.com",
+            username="no-reason",
+            kyc_status=KycStatus.APPROVED,
+        )
+
+        response = client.post(
+            f"/api/staff/users/{target.id}/deactivate/",
+            {"reason": ""},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        target.refresh_from_db()
+        assert target.is_active is True
+
+    @pytest.mark.django_db
+    def test_rejects_user_without_approved_kyc(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="pending-user@example.com",
+            username="pending-user",
+            kyc_status=KycStatus.PENDING,
+        )
+
+        response = client.post(
+            f"/api/staff/users/{target.id}/deactivate/",
+            {"reason": "Should not be accepted."},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        target.refresh_from_db()
+        assert target.is_active is True
 
 
 # ---------------------------------------------------------------------------

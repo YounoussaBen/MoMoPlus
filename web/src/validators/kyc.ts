@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { embeddedUserSchema, fileUrlSchema, paginatedResponseSchema } from "@/validators/common";
+import { embeddedUserSchema, fileUrlSchema } from "@/validators/common";
 
 export const kycSubmissionSchema = z.object({
   id: z.string(),
@@ -18,5 +18,3 @@ export const kycSubmissionDetailSchema = kycSubmissionSchema.extend({
   rejection_reason: z.string(),
   reviewed_at: z.string().nullable(),
 });
-
-export const kycSubmissionsPageSchema = paginatedResponseSchema(kycSubmissionSchema);

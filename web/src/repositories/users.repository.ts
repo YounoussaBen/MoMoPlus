@@ -28,6 +28,10 @@ export class UsersRepository {
     await this.client.post(`/api/staff/users/${id}/reject-agent/`);
   }
 
+  async deactivate(id: string, reason: string) {
+    await this.client.post(`/api/staff/users/${id}/deactivate/`, { reason });
+  }
+
   async getGuarantors(userId: string) {
     const { data } = await this.client.get(`/api/staff/users/${userId}/guarantors/`);
     return loanGuarantorsArraySchema.parse(data);

@@ -21,6 +21,10 @@ export class UsersService {
     return this.usersRepository.rejectAgent(id);
   }
 
+  deactivateUser(id: string, reason: string) {
+    return this.usersRepository.deactivate(id, reason);
+  }
+
   getUserGuarantors(userId: string) {
     return this.usersRepository.getGuarantors(userId);
   }

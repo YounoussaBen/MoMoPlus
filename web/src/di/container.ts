@@ -25,7 +25,7 @@ export const container = {
   authService: new AuthService(authRepository),
   usersService: new UsersService(usersRepository),
   agentsService: new AgentsService(usersRepository, agentsRepository),
-  kycService: new KycService(usersRepository, kycRepository),
+  kycService: new KycService(kycRepository),
   dashboardService: new DashboardService(dashboardRepository),
   getFundsService: new GetFundsService(getFundsRepository),
   cashServicesService: new CashServicesService(cashServicesRepository),

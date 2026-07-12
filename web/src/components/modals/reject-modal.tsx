@@ -9,6 +9,8 @@ export interface RejectModalProps {
   title: string;
   description: string;
   isLoading?: boolean;
+  reasonPlaceholder?: string;
+  confirmLabel?: string;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }
@@ -17,6 +19,8 @@ export function RejectModal({
   title,
   description,
   isLoading = false,
+  reasonPlaceholder = "Reason for rejection (required)",
+  confirmLabel = "Reject",
   onConfirm,
   onCancel,
 }: RejectModalProps) {
@@ -30,7 +34,7 @@ export function RejectModal({
         <Textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Reason for rejection (required)"
+          placeholder={reasonPlaceholder}
           rows={3}
           className="mb-4 min-h-[108px] text-sm shadow-none"
         />
@@ -45,7 +49,7 @@ export function RejectModal({
             className="flex-1"
           >
             {isLoading && <Loader2 size={13} className="animate-spin" />}
-            Reject
+            {confirmLabel}
           </Button>
         </div>
       </div>

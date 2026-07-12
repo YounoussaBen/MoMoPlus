@@ -1,4 +1,5 @@
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -6,9 +7,16 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .models import AgentStatus, User, UserRole
+from project.apps.kyc.models import KycSubmission
+
+from .models import AgentStatus, KycStatus, User, UserRole
 from .serializers import GuarantorSerializer
-from .staff_serializers import AgentRejectSerializer, StaffUserDetailSerializer, StaffUserListSerializer
+from .staff_serializers import (
+    AccountDeactivateSerializer,
+    AgentRejectSerializer,
+    StaffUserDetailSerializer,
+    StaffUserListSerializer,
+)
 
 
 def _get_user_or_404(user_id: str) -> User | None:
@@ -29,6 +37,14 @@ def _apply_filters(qs: QuerySet, params: dict) -> QuerySet:
     agent_status = params.get("agent_status")
     if agent_status in AgentStatus.values:
         qs = qs.filter(agent_status=agent_status)
+
+    kyc_status = params.get("kyc_status")
+    if kyc_status in KycStatus.values:
+        qs = qs.filter(kyc_status=kyc_status)
+
+    id_type = params.get("id_type")
+    if id_type in KycSubmission.IdType.values:
+        qs = qs.filter(kyc_submission__id_type=id_type)
 
     is_active = params.get("is_active")
     if is_active is not None:
@@ -73,6 +89,10 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
         OpenApiParameter(
             "agent_status", str, description="Filter by agent_status: none | pending | approved | rejected"
         ),
+        OpenApiParameter("kyc_status", str, description="Filter by KYC status: none | pending | approved | rejected"),
+        OpenApiParameter(
+            "id_type", str, description="Filter by KYC ID type: national_id | passport | drivers_license"
+        ),
         OpenApiParameter("is_active", str, description="Filter by active status: true | false"),
         OpenApiParameter("search", str, description="Search by phone number, first name, or last name"),
         OpenApiParameter(
@@ -92,7 +112,7 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
 @permission_classes([IsAdminUser])
 def user_list(request: Request) -> Response:
     """List all users. Supports filtering, searching, sorting and pagination."""
-    qs = User.objects.exclude(is_superuser=True)
+    qs = User.objects.exclude(is_superuser=True).select_related("kyc_submission")
     qs = _apply_filters(qs, request.query_params)
     qs = _apply_ordering(qs, request.query_params.get("ordering"))
 
@@ -121,6 +141,45 @@ def user_detail(request: Request, user_id: str) -> Response:
     if user is None:
         return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
     return Response(StaffUserDetailSerializer(user).data)
+
+
+@extend_schema(
+    tags=["Staff — Users"],
+    request=AccountDeactivateSerializer,
+    responses={
+        status.HTTP_200_OK: StaffUserDetailSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+            description="Account is not KYC-approved, is already inactive, or is a staff account"
+        ),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+        status.HTTP_403_FORBIDDEN: OpenApiResponse(description="Staff access required"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="User not found"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAdminUser])
+def deactivate_user(request: Request, user_id: str) -> Response:
+    """Deactivate a KYC-approved account and retain the staff-provided reason."""
+    user = _get_user_or_404(user_id)
+    if user is None:
+        return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+    if user.is_staff:
+        return Response({"detail": "Staff accounts cannot be deactivated here."}, status=status.HTTP_400_BAD_REQUEST)
+    if user.kyc_status != KycStatus.APPROVED:
+        return Response(
+            {"detail": "Only KYC-approved accounts can be deactivated."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not user.is_active:
+        return Response({"detail": "Account is already inactive."}, status=status.HTTP_400_BAD_REQUEST)
+
+    serializer = AccountDeactivateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user.is_active = False
+    user.deactivation_reason = serializer.validated_data["reason"]
+    user.deactivated_at = timezone.now()
+    user.save(update_fields=["is_active", "deactivation_reason", "deactivated_at", "updated_at"])
+    return Response(StaffUserDetailSerializer(user).data, status=status.HTTP_200_OK)
 
 
 @extend_schema(

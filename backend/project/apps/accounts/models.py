@@ -35,6 +35,8 @@ class User(AbstractUser, BaseModel):
     )
     kyc_status: models.CharField = models.CharField(max_length=10, choices=KycStatus.choices, default=KycStatus.NONE)
     kyc_draft: models.JSONField = models.JSONField(default=dict, blank=True)
+    deactivation_reason: models.TextField = models.TextField(blank=True)
+    deactivated_at: models.DateTimeField = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]

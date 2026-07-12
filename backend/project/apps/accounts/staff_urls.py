@@ -7,5 +7,6 @@ urlpatterns = [
     path("users/<str:user_id>/", staff_views.user_detail, name="staff-user-detail"),
     path("users/<str:user_id>/approve-agent/", staff_views.approve_agent, name="staff-approve-agent"),
     path("users/<str:user_id>/reject-agent/", staff_views.reject_agent, name="staff-reject-agent"),
+    path("users/<str:user_id>/deactivate/", staff_views.deactivate_user, name="staff-deactivate-user"),
     path("users/<str:user_id>/guarantors/", staff_views.user_guarantors, name="staff-user-guarantors"),
 ]

@@ -54,3 +54,17 @@ export function useRejectAgentApplication() {
     },
   });
 }
+
+export function useDeactivateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      container.usersService.deactivateUser(id, reason),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      queryClient.invalidateQueries({ queryKey: usersKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: agentsKeys.all });
+    },
+  });
+}

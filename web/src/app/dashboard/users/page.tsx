@@ -2,20 +2,23 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Users, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Users, CheckCircle, XCircle, Eye, Ban } from "lucide-react";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
 import {
   useApproveAgentApplication,
+  useDeactivateUser,
   useRejectAgentApplication,
   useUsersList,
 } from "@/hooks/use-users";
-import { formatDate, formatPhone } from "@/lib/format";
-import type { AppUser } from "@/lib/types";
+import { useApproveKyc, useRejectKyc } from "@/hooks/use-kyc";
+import { formatDate, formatIdType, formatPhone } from "@/lib/format";
+import type { AppUser, UserKycSummary } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
 import { TableActionMenu, type TableActionItem } from "@/components/dashboard/table-action-menu";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
+import { RejectModal } from "@/components/modals/reject-modal";
 
 const filters: FilterDefinition[] = [
   {
@@ -27,14 +30,40 @@ const filters: FilterDefinition[] = [
     ],
   },
   {
-    label: "Active",
+    label: "Account Status",
     key: "is_active",
     options: [
       { label: "Active", value: "true" },
       { label: "Inactive", value: "false" },
     ],
   },
+  {
+    label: "KYC Status",
+    key: "kyc_status",
+    options: [
+      { label: "Not submitted", value: "none" },
+      { label: "Pending", value: "pending" },
+      { label: "Approved", value: "approved" },
+      { label: "Rejected", value: "rejected" },
+    ],
+  },
+  {
+    label: "ID Type",
+    key: "id_type",
+    options: [
+      { label: "Ghana Card", value: "national_id" },
+      { label: "Passport", value: "passport" },
+      { label: "Driver's License", value: "drivers_license" },
+    ],
+  },
 ];
+
+const STATUS_VARIANT: Record<string, "muted" | "warning" | "success" | "destructive"> = {
+  none: "muted",
+  pending: "warning",
+  approved: "success",
+  rejected: "destructive",
+};
 
 const columns: Column<AppUser>[] = [
   {
@@ -59,8 +88,21 @@ const columns: Column<AppUser>[] = [
     render: (_, row) => <Badge variant={row.role === "agent" ? "info" : "muted"}>{row.role}</Badge>,
   },
   {
+    key: "kyc_status",
+    label: "KYC Status",
+    render: (_, row) => (
+      <Badge variant={STATUS_VARIANT[row.kyc_status] ?? "muted"}>{row.kyc_status}</Badge>
+    ),
+  },
+  {
+    key: "kyc_submission",
+    label: "ID Type",
+    hideOnMobile: true,
+    render: (_, row) => (row.kyc_submission ? formatIdType(row.kyc_submission.id_type) : "—"),
+  },
+  {
     key: "is_active",
-    label: "Active",
+    label: "Account",
     hideOnMobile: true,
     render: (_, row) =>
       row.is_active ? (
@@ -77,7 +119,11 @@ const columns: Column<AppUser>[] = [
   },
 ];
 
-type ModalAction = { type: "approve" | "reject"; user: AppUser } | null;
+type ModalAction =
+  | { type: "approve-agent" | "reject-agent"; user: AppUser }
+  | { type: "approve-kyc" | "reject-kyc"; user: AppUser; kyc: UserKycSummary }
+  | { type: "deactivate"; user: AppUser }
+  | null;
 const FILTER_KEYS = filters.map((filter) => filter.key);
 
 export default function UsersPage() {
@@ -107,8 +153,16 @@ export default function UsersPage() {
   const usersQuery = useUsersList(queryInput);
   const approveAgentMutation = useApproveAgentApplication();
   const rejectAgentMutation = useRejectAgentApplication();
+  const approveKycMutation = useApproveKyc();
+  const rejectKycMutation = useRejectKyc();
+  const deactivateUserMutation = useDeactivateUser();
   const [modal, setModal] = useState<ModalAction>(null);
-  const actionLoading = approveAgentMutation.isPending || rejectAgentMutation.isPending;
+  const actionLoading =
+    approveAgentMutation.isPending ||
+    rejectAgentMutation.isPending ||
+    approveKycMutation.isPending ||
+    rejectKycMutation.isPending ||
+    deactivateUserMutation.isPending;
   const data = usersQuery.data?.results ?? [];
   const totalItems = usersQuery.data?.count ?? 0;
 
@@ -120,14 +174,26 @@ export default function UsersPage() {
   const handleClearFilters = useCallback(() => clearFilters(), [clearFilters]);
   const handlePageSizeChange = useCallback((size: number) => setPageSize(size), [setPageSize]);
 
-  const handleAction = async () => {
+  const handleAction = async (reason?: string) => {
     if (!modal) return;
 
     try {
-      if (modal.type === "approve") {
-        await approveAgentMutation.mutateAsync(modal.user.id);
-      } else {
-        await rejectAgentMutation.mutateAsync(modal.user.id);
+      switch (modal.type) {
+        case "approve-agent":
+          await approveAgentMutation.mutateAsync(modal.user.id);
+          break;
+        case "reject-agent":
+          await rejectAgentMutation.mutateAsync(modal.user.id);
+          break;
+        case "approve-kyc":
+          await approveKycMutation.mutateAsync(modal.kyc.id);
+          break;
+        case "reject-kyc":
+          await rejectKycMutation.mutateAsync({ id: modal.kyc.id, reason });
+          break;
+        case "deactivate":
+          await deactivateUserMutation.mutateAsync({ id: modal.user.id, reason: reason ?? "" });
+          break;
       }
       setModal(null);
     } catch {
@@ -183,16 +249,45 @@ export default function UsersPage() {
               {
                 label: "Approve agent",
                 icon: CheckCircle,
-                onSelect: () => setModal({ type: "approve", user: row }),
+                onSelect: () => setModal({ type: "approve-agent", user: row }),
                 separatorBefore: true,
               },
               {
                 label: "Reject agent",
                 icon: XCircle,
-                onSelect: () => setModal({ type: "reject", user: row }),
+                onSelect: () => setModal({ type: "reject-agent", user: row }),
                 destructive: true,
               },
             );
+          }
+
+          if (row.kyc_submission?.status === "pending") {
+            menuActions.push(
+              {
+                label: "Approve KYC",
+                icon: CheckCircle,
+                onSelect: () =>
+                  setModal({ type: "approve-kyc", user: row, kyc: row.kyc_submission! }),
+                separatorBefore: true,
+              },
+              {
+                label: "Reject KYC",
+                icon: XCircle,
+                onSelect: () =>
+                  setModal({ type: "reject-kyc", user: row, kyc: row.kyc_submission! }),
+                destructive: true,
+              },
+            );
+          }
+
+          if (row.kyc_status === "approved" && row.is_active) {
+            menuActions.push({
+              label: "Deactivate account",
+              icon: Ban,
+              onSelect: () => setModal({ type: "deactivate", user: row }),
+              separatorBefore: true,
+              destructive: true,
+            });
           }
 
           return (
@@ -204,18 +299,50 @@ export default function UsersPage() {
         }}
       />
 
-      {modal && (
+      {(modal?.type === "approve-agent" || modal?.type === "reject-agent") && (
         <ConfirmModal
           title={
-            modal.type === "approve" ? "Approve Agent Application" : "Reject Agent Application"
+            modal.type === "approve-agent"
+              ? "Approve Agent Application"
+              : "Reject Agent Application"
           }
           description={
-            modal.type === "approve"
+            modal.type === "approve-agent"
               ? `Are you sure you want to approve ${modal.user.full_name || formatPhone(modal.user.phone)} as an agent? This will grant them agent permissions.`
               : `Are you sure you want to reject the agent application from ${modal.user.full_name || formatPhone(modal.user.phone)}?`
           }
-          confirmLabel={modal.type === "approve" ? "Approve" : "Reject"}
-          confirmVariant={modal.type === "approve" ? "default" : "destructive"}
+          confirmLabel={modal.type === "approve-agent" ? "Approve" : "Reject"}
+          confirmVariant={modal.type === "approve-agent" ? "default" : "destructive"}
+          isLoading={actionLoading}
+          onConfirm={() => handleAction()}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "approve-kyc" && (
+        <ConfirmModal
+          title="Approve KYC Submission"
+          description={`Approve the identity verification for ${modal.user.full_name || formatPhone(modal.user.phone)}?`}
+          confirmLabel="Approve"
+          isLoading={actionLoading}
+          onConfirm={() => handleAction()}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "reject-kyc" && (
+        <RejectModal
+          title="Reject KYC Submission"
+          description={`Provide a reason for rejecting ${modal.user.full_name || formatPhone(modal.user.phone)}'s identity verification.`}
+          isLoading={actionLoading}
+          onConfirm={handleAction}
+          onCancel={() => setModal(null)}
+        />
+      )}
+      {modal?.type === "deactivate" && (
+        <RejectModal
+          title="Deactivate Account"
+          description={`Explain why ${modal.user.full_name || formatPhone(modal.user.phone)}'s account should be deactivated. They will no longer be able to sign in.`}
+          reasonPlaceholder="Reason for deactivation (required)"
+          confirmLabel="Deactivate"
           isLoading={actionLoading}
           onConfirm={handleAction}
           onCancel={() => setModal(null)}
