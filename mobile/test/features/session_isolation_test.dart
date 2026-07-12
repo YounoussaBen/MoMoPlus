@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:momoplus/core/data/services/backend_api_service.dart';
 import 'package:momoplus/features/discover/presentation/discover_view_model.dart';
+import 'package:momoplus/features/agent_profile/presentation/agent_profile_view_model.dart';
 import 'package:momoplus/features/loans/presentation/loan_view_model.dart';
 import 'package:momoplus/features/transactions/presentation/transaction_view_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -65,6 +66,59 @@ void main() {
     expect(viewModel.radius, 10);
     expect(viewModel.errorMessage, isNull);
   });
+
+  test('AgentProfileViewModel ignores an old account response', () async {
+    final api = _ControlledFinancialApi();
+    final viewModel = AgentProfileViewModel(api, autoStart: false);
+    addTearDown(viewModel.dispose);
+
+    viewModel.setSession('agent-a');
+    viewModel.setSession('agent-b');
+
+    api.agentProfileRequests[1].complete(_agentProfileJson('agent-b'));
+    await pumpEventQueue();
+    expect(viewModel.profile?.id, 'agent-b');
+
+    api.agentProfileRequests[0].complete(_agentProfileJson('agent-a'));
+    await pumpEventQueue();
+    expect(viewModel.profile?.id, 'agent-b');
+  });
+
+  test('saved limits update availability eligibility immediately', () async {
+    final api = _ControlledFinancialApi();
+    api.wallets = const [
+      {'is_verified': true},
+    ];
+    final viewModel = AgentProfileViewModel(api, autoStart: false);
+    addTearDown(viewModel.dispose);
+
+    viewModel.setSession('agent-a');
+    api.agentProfileRequests.single.complete(
+      _agentProfileJson('agent-a', minAmount: 0, maxAmount: null),
+    );
+    await pumpEventQueue();
+    expect(viewModel.hasLimitsSet, isFalse);
+    expect(
+      (await viewModel.validateAvailabilityChange(true))?.failure,
+      AvailabilityGuardFailure.limitsRequired,
+    );
+
+    api.updatedAgentProfile = _agentProfileJson(
+      'agent-a',
+      minAmount: 50,
+      maxAmount: 500,
+    );
+    expect(
+      await viewModel.updateProfile(const {
+        'min_amount': '50.00',
+        'max_amount': '500.00',
+      }),
+      isTrue,
+    );
+
+    expect(viewModel.hasLimitsSet, isTrue);
+    expect(await viewModel.validateAvailabilityChange(true), isNull);
+  });
 }
 
 class _ControlledFinancialApi extends BackendApiService {
@@ -73,6 +127,9 @@ class _ControlledFinancialApi extends BackendApiService {
 
   final List<Completer<List<dynamic>>> loanRequests = [];
   final List<Completer<List<dynamic>>> transactionRequests = [];
+  final List<Completer<Map<String, dynamic>?>> agentProfileRequests = [];
+  Map<String, dynamic>? updatedAgentProfile;
+  List<dynamic> wallets = const [];
 
   @override
   Future<List<dynamic>> getLoans({String? status}) {
@@ -87,7 +144,43 @@ class _ControlledFinancialApi extends BackendApiService {
     transactionRequests.add(request);
     return request.future;
   }
+
+  @override
+  Future<Map<String, dynamic>?> getAgentProfile() {
+    final request = Completer<Map<String, dynamic>?>();
+    agentProfileRequests.add(request);
+    return request.future;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> getCertificationStatus() async => null;
+
+  @override
+  Future<List<dynamic>> getWallets() async => wallets;
+
+  @override
+  Future<Map<String, dynamic>> updateAgentProfile(
+    Map<String, dynamic> fields,
+  ) async => updatedAgentProfile!;
 }
+
+Map<String, dynamic> _agentProfileJson(
+  String id, {
+  double minAmount = 50,
+  double? maxAmount = 500,
+}) => {
+  'id': id,
+  'full_name': 'Ama Mensah',
+  'email': 'ama@example.com',
+  'is_available': false,
+  'min_amount': minAmount,
+  'max_amount': maxAmount,
+  'service_radius_km': 10,
+  'bio': '',
+  'rating': 0,
+  'total_ratings': 0,
+  'agent_type': 'self_enrolled',
+};
 
 Map<String, dynamic> _loanJson(String id) => {
   'id': id,

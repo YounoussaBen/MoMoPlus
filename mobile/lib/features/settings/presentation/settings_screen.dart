@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/ui/theme/app_spacing.dart';
@@ -35,7 +34,7 @@ class SettingsScreen extends StatelessWidget {
           const _AboutSection(),
           if (kDebugMode) ...[
             const SizedBox(height: AppSpacing.sectionBand),
-            const _DeveloperSection(),
+            // const _DeveloperSection(),
           ],
         ],
       ),
@@ -43,33 +42,34 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class _DeveloperSection extends StatelessWidget {
-  const _DeveloperSection();
+// class _DeveloperSection extends StatelessWidget {
+//   const _DeveloperSection();
 
-  @override
-  Widget build(BuildContext context) {
-    return AppSection(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Development', style: context.appTextTheme.titleMedium),
-          const SizedBox(height: AppSpacing.space4),
-          AppListRow(
-            title: 'Design system preview',
-            subtitle: 'Inspect Batch 0 components and theme tokens',
-            leading: AppIconTile(
-              icon: Icons.palette_outlined,
-              backgroundColor: context.appColors.brandSoft,
-              foregroundColor: context.appColors.brandStrong,
-            ),
-            showChevron: true,
-            onTap: () => context.push('/design-system'),
-          ),
-        ],
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return AppSection(
+//       child: Column(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Text('Development', style: context.appTextTheme.titleMedium),
+//           const SizedBox(height: AppSpacing.space4),
+//           AppListRow(
+//             title: 'Design system preview',
+//             subtitle: 'Inspect Batch 0 components and theme tokens',
+//             leading: AppIconTile(
+//               icon: Icons.palette_outlined,
+//               backgroundColor: context.appColors.brandSoft,
+//               foregroundColor: context.appColors.brandStrong,
+//             ),
+//             showChevron: true,
+//             onTap: () => context.push('/design-system'),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+// }
 
 class _AppearanceSection extends StatelessWidget {
   const _AppearanceSection();

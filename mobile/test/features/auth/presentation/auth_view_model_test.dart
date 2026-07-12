@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:momoplus/core/data/repositories/auth_repository.dart';
 import 'package:momoplus/features/auth/presentation/auth_view_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -132,39 +131,51 @@ void main() {
     },
   );
 
-  test('KYC approval is presented only once across logins', () async {
-    SharedPreferences.setMockInitialValues({});
+  test('approved KYC at login skips the verified screen', () async {
     const approval = {
       'id': 'kyc-1',
       'status': 'approved',
       'updated_at': '2026-07-12T08:00:00Z',
     };
-    final firstRepository = _FakeAuthRepository(
+    final repository = _FakeAuthRepository(
       session: _session('user-1'),
       kycStatus: approval,
     );
-    final firstViewModel = AuthViewModel(firstRepository);
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
 
-    await firstViewModel.refreshProfile();
-    expect(firstViewModel.shouldShowApprovedKycScreen, isTrue);
+    await viewModel.refreshProfile();
 
-    await firstViewModel.markKycApprovalPresented();
-    expect(firstViewModel.shouldShowApprovedKycScreen, isTrue);
+    expect(viewModel.isKycApproved, isTrue);
+    expect(viewModel.shouldShowApprovedKycScreen, isFalse);
+  });
 
-    firstViewModel.dispose();
-    await firstRepository.close();
-
-    final nextRepository = _FakeAuthRepository(
+  test('pending to approved transition presents the verified screen', () async {
+    final repository = _FakeAuthRepository(
       session: _session('user-1'),
-      kycStatus: approval,
+      kycStatus: const {'id': 'kyc-1', 'status': 'pending'},
     );
-    final nextViewModel = AuthViewModel(nextRepository);
-    addTearDown(nextViewModel.dispose);
-    addTearDown(nextRepository.close);
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
 
-    await nextViewModel.refreshProfile();
-    expect(nextViewModel.isKycApproved, isTrue);
-    expect(nextViewModel.shouldShowApprovedKycScreen, isFalse);
+    await viewModel.refreshProfile();
+    expect(viewModel.kycStatus.name, 'pending');
+    expect(viewModel.shouldShowApprovedKycScreen, isFalse);
+
+    repository.kycStatus = const {
+      'id': 'kyc-1',
+      'status': 'approved',
+      'updated_at': '2026-07-12T08:00:00Z',
+    };
+    await viewModel.refreshProfile();
+
+    expect(viewModel.isKycApproved, isTrue);
+    expect(viewModel.shouldShowApprovedKycScreen, isTrue);
+
+    await viewModel.acknowledgeKycApproval();
+    expect(viewModel.shouldShowApprovedKycScreen, isFalse);
   });
 }
 
@@ -195,7 +206,7 @@ class _FakeAuthRepository implements AuthRepository {
       StreamController<AuthState>.broadcast(sync: true);
   final Completer<void>? _syncCompleter;
   final Object? syncError;
-  final Map<String, dynamic>? kycStatus;
+  Map<String, dynamic>? kycStatus;
   Session? _session;
   int syncCalls = 0;
   int profileCalls = 0;

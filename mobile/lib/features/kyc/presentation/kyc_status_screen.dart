@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -223,22 +221,8 @@ class _RejectedView extends StatelessWidget {
   }
 }
 
-class _ApprovedView extends StatefulWidget {
+class _ApprovedView extends StatelessWidget {
   const _ApprovedView();
-
-  @override
-  State<_ApprovedView> createState() => _ApprovedViewState();
-}
-
-class _ApprovedViewState extends State<_ApprovedView> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(context.read<AuthViewModel>().markKycApprovalPresented());
-    });
-  }
 
   @override
   Widget build(BuildContext context) {

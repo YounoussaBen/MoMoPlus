@@ -20,8 +20,8 @@ class UserShell extends StatelessWidget {
       label: 'Discover',
     ),
     AppNavigationItem(
-      icon: Icons.receipt_long_outlined,
-      selectedIcon: Icons.receipt_long_rounded,
+      icon: Icons.history_rounded,
+      selectedIcon: Icons.history_rounded,
       label: 'Activity',
     ),
     AppNavigationItem(

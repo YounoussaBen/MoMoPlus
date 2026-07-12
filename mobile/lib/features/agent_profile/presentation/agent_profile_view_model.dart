@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/utils/error_helpers.dart';
@@ -32,9 +34,11 @@ class AgentProfileViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool _isSaving = false;
   String? _errorMessage;
+  String? _sessionId;
+  int _sessionGeneration = 0;
 
-  AgentProfileViewModel(this._api) {
-    load();
+  AgentProfileViewModel(this._api, {bool autoStart = true}) {
+    if (autoStart) unawaited(load());
   }
 
   AgentProfile? get profile => _profile;
@@ -50,62 +54,103 @@ class AgentProfileViewModel extends ChangeNotifier {
   bool get isSaving => _isSaving;
   String? get errorMessage => _errorMessage;
 
+  void setSession(String? sessionId) {
+    if (_sessionId == sessionId) return;
+    _sessionId = sessionId;
+    _sessionGeneration++;
+    _profile = null;
+    _certification = null;
+    _hasAnyWallet = false;
+    _hasVerifiedWallet = false;
+    _isLoading = false;
+    _isSaving = false;
+    _errorMessage = null;
+    notifyListeners();
+    if (sessionId != null) unawaited(load());
+  }
+
+  bool _isCurrentSession(int generation, String? sessionId) =>
+      generation == _sessionGeneration && sessionId == _sessionId;
+
   Future<void> load() async {
+    final generation = _sessionGeneration;
+    final sessionId = _sessionId;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
       final data = await _api.getAgentProfile();
+      if (!_isCurrentSession(generation, sessionId)) return;
       if (data != null) _profile = AgentProfile.fromJson(data);
 
       final certData = await _api.getCertificationStatus();
+      if (!_isCurrentSession(generation, sessionId)) return;
       if (certData != null) {
         _certification = CertificationApplication.fromJson(certData);
       }
 
       await refreshWalletEligibility(notify: false);
     } catch (e) {
-      _errorMessage = friendlyErrorMessage(e);
+      if (_isCurrentSession(generation, sessionId)) {
+        _errorMessage = friendlyErrorMessage(e);
+      }
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (_isCurrentSession(generation, sessionId)) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> updateProfile(Map<String, dynamic> fields) async {
+    final generation = _sessionGeneration;
+    final sessionId = _sessionId;
     _isSaving = true;
     _errorMessage = null;
     notifyListeners();
     try {
       final data = await _api.updateAgentProfile(fields);
+      if (!_isCurrentSession(generation, sessionId)) return false;
       _profile = AgentProfile.fromJson(data);
       return true;
     } catch (e) {
-      _errorMessage = friendlyErrorMessage(e);
+      if (_isCurrentSession(generation, sessionId)) {
+        _errorMessage = friendlyErrorMessage(e);
+      }
       return false;
     } finally {
-      _isSaving = false;
-      notifyListeners();
+      if (_isCurrentSession(generation, sessionId)) {
+        _isSaving = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<bool> toggleAvailability() async {
+    final generation = _sessionGeneration;
+    final sessionId = _sessionId;
     _errorMessage = null;
     try {
       final data = await _api.toggleAvailability();
+      if (!_isCurrentSession(generation, sessionId)) return false;
       _profile = AgentProfile.fromJson(data);
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = friendlyErrorMessage(e);
-      notifyListeners();
+      if (_isCurrentSession(generation, sessionId)) {
+        _errorMessage = friendlyErrorMessage(e);
+        notifyListeners();
+      }
       return false;
     }
   }
 
   Future<void> refreshWalletEligibility({bool notify = true}) async {
+    final generation = _sessionGeneration;
+    final sessionId = _sessionId;
     try {
       final wallets = await _api.getWallets();
+      if (!_isCurrentSession(generation, sessionId)) return;
       _hasAnyWallet = wallets.isNotEmpty;
       _hasVerifiedWallet = wallets.any((wallet) {
         final data = wallet as Map<String, dynamic>;
@@ -114,7 +159,9 @@ class AgentProfileViewModel extends ChangeNotifier {
     } catch (_) {
       // Keep the last known wallet state if the wallet check fails.
     } finally {
-      if (notify) notifyListeners();
+      if (notify && _isCurrentSession(generation, sessionId)) {
+        notifyListeners();
+      }
     }
   }
 
@@ -165,6 +212,8 @@ class AgentProfileViewModel extends ChangeNotifier {
     required String businessLocationPhotoId,
     String businessRegistrationNumber = '',
   }) async {
+    final generation = _sessionGeneration;
+    final sessionId = _sessionId;
     _isSaving = true;
     _errorMessage = null;
     notifyListeners();
@@ -175,14 +224,19 @@ class AgentProfileViewModel extends ChangeNotifier {
         businessLocationPhotoId: businessLocationPhotoId,
         businessRegistrationNumber: businessRegistrationNumber,
       );
+      if (!_isCurrentSession(generation, sessionId)) return false;
       _certification = CertificationApplication.fromJson(data);
       return true;
     } catch (e) {
-      _errorMessage = friendlyErrorMessage(e);
+      if (_isCurrentSession(generation, sessionId)) {
+        _errorMessage = friendlyErrorMessage(e);
+      }
       return false;
     } finally {
-      _isSaving = false;
-      notifyListeners();
+      if (_isCurrentSession(generation, sessionId)) {
+        _isSaving = false;
+        notifyListeners();
+      }
     }
   }
 

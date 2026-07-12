@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/utils/error_helpers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/data/repositories/auth_repository.dart';
@@ -28,9 +27,10 @@ class AuthViewModel extends ChangeNotifier {
   User? _currentUser;
   AppUser? _appUser;
   KycStatus? _resolvedKycStatus;
-  String? _kycApprovalToken;
   bool _shouldShowApprovedKycScreen = false;
   String? _selfieUrl;
+  Map<String, dynamic>? _kycSubmission;
+  Map<String, String> _kycDocumentUrls = const {};
   String? _pendingPhone;
   int _resendSeconds = 0;
 
@@ -63,6 +63,8 @@ class AuthViewModel extends ChangeNotifier {
   bool get isKycApproved => kycStatus == KycStatus.approved;
   bool get shouldShowApprovedKycScreen => _shouldShowApprovedKycScreen;
   String? get selfieUrl => _selfieUrl;
+  Map<String, dynamic>? get kycSubmission => _kycSubmission;
+  Map<String, String> get kycDocumentUrls => _kycDocumentUrls;
   String? get pendingPhone => _pendingPhone;
   bool get isAwaitingOtp => _pendingPhone != null;
   int get resendSeconds => _resendSeconds;
@@ -83,9 +85,10 @@ class AuthViewModel extends ChangeNotifier {
       _bootstrapStatus = AuthBootstrapStatus.signedOut;
       _appUser = null;
       _resolvedKycStatus = null;
-      _kycApprovalToken = null;
       _shouldShowApprovedKycScreen = false;
       _selfieUrl = null;
+      _kycSubmission = null;
+      _kycDocumentUrls = const {};
       notifyListeners();
       return;
     }
@@ -98,9 +101,10 @@ class AuthViewModel extends ChangeNotifier {
       _profileRefreshFuture = null;
       _appUser = null;
       _resolvedKycStatus = null;
-      _kycApprovalToken = null;
       _shouldShowApprovedKycScreen = false;
       _selfieUrl = null;
+      _kycSubmission = null;
+      _kycDocumentUrls = const {};
     }
 
     final shouldRefresh =
@@ -148,11 +152,16 @@ class AuthViewModel extends ChangeNotifier {
     try {
       final kycData = await _authRepository.getKycStatus();
       if (!_isCurrentProfileRefresh(generation)) return;
+      final previousKycStatus = _resolvedKycStatus;
+      _kycSubmission = kycData == null
+          ? null
+          : Map<String, dynamic>.unmodifiable(kycData);
       final status = _parseKycStatus(kycData?['status'] as String?);
       _resolvedKycStatus = status ?? _appUser?.kycStatus;
-      await _hydrateKycApprovalPresentation(kycData, generation);
-      if (!_isCurrentProfileRefresh(generation)) return;
-      await _fetchSelfieUrl(kycData, generation);
+      _shouldShowApprovedKycScreen =
+          previousKycStatus == KycStatus.pending &&
+          _resolvedKycStatus == KycStatus.approved;
+      await _fetchKycMediaUrls(kycData, generation);
     } catch (e) {
       if (_isNetworkError(e) && _isCurrentProfileRefresh(generation)) {
         _hasConnectionError = true;
@@ -160,7 +169,6 @@ class AuthViewModel extends ChangeNotifier {
       }
       if (!_isCurrentProfileRefresh(generation)) return;
       _resolvedKycStatus ??= _appUser?.kycStatus;
-      _kycApprovalToken = null;
       _shouldShowApprovedKycScreen = false;
     }
   }
@@ -334,23 +342,8 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> acknowledgeKycApproval() async {
-    await markKycApprovalPresented();
     _shouldShowApprovedKycScreen = false;
     notifyListeners();
-  }
-
-  /// Persist the approval as soon as its success screen is presented.
-  ///
-  /// This deliberately leaves the current route gate active until the user
-  /// presses Continue, while preventing the same approval from reappearing on
-  /// a later login if the app is closed from the success screen.
-  Future<void> markKycApprovalPresented() async {
-    final userId = _kycPreferenceUserId;
-    final token = _kycApprovalToken;
-    if (userId == null || token == null) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_seenKycApprovalKey(userId), token);
   }
 
   void reportConnectionError() {
@@ -425,58 +418,46 @@ class AuthViewModel extends ChangeNotifier {
     );
   }
 
-  Future<void> _hydrateKycApprovalPresentation(
+  Future<void> _fetchKycMediaUrls(
     Map<String, dynamic>? kycData,
     int generation,
   ) async {
     if (!_isCurrentProfileRefresh(generation)) return;
-    final userId = _kycPreferenceUserId;
-    final token = _buildKycApprovalToken(kycData);
-    _kycApprovalToken = token;
-
-    if (userId == null || token == null) {
-      _shouldShowApprovedKycScreen = false;
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    if (!_isCurrentProfileRefresh(generation)) return;
-    final seenToken = prefs.getString(_seenKycApprovalKey(userId));
-    _shouldShowApprovedKycScreen = seenToken != token;
-  }
-
-  String? _buildKycApprovalToken(Map<String, dynamic>? kycData) {
-    final status = kycData?['status'] as String?;
-    if (status != KycStatus.approved.name) return null;
-
-    final submissionId = kycData?['id'] as String?;
-    if (submissionId == null || submissionId.isEmpty) return null;
-
-    final updatedAt = kycData?['updated_at'] as String? ?? '';
-    return '$submissionId:$updatedAt';
-  }
-
-  String? get _kycPreferenceUserId => _appUser?.id ?? _currentUser?.id;
-
-  String _seenKycApprovalKey(String userId) => 'seen_kyc_approval_$userId';
-
-  Future<void> _fetchSelfieUrl(
-    Map<String, dynamic>? kycData,
-    int generation,
-  ) async {
-    if (!_isCurrentProfileRefresh(generation)) return;
-    final selfieId = kycData?['selfie_id'] as String?;
-    if (selfieId == null || _backendApiService == null) {
+    const mediaFields = [
+      'selfie_id',
+      'id_front_id',
+      'id_back_id',
+      'proof_of_address_id',
+    ];
+    final api = _backendApiService;
+    if (kycData == null || api == null) {
       _selfieUrl = null;
+      _kycDocumentUrls = const {};
       return;
     }
+
     try {
-      final selfieUrl = await _backendApiService!.getFileAccessUrl(selfieId);
+      final urls = await Future.wait(
+        mediaFields.map((field) async {
+          final assetId = kycData[field]?.toString();
+          if (assetId == null || assetId.isEmpty) {
+            return MapEntry(field, null);
+          }
+          return MapEntry(field, await api.getFileAccessUrl(assetId));
+        }),
+      );
       if (!_isCurrentProfileRefresh(generation)) return;
-      _selfieUrl = selfieUrl;
+      final resolvedUrls = <String, String>{
+        for (final entry in urls)
+          if (entry.value != null && entry.value!.isNotEmpty)
+            entry.key: entry.value!,
+      };
+      _selfieUrl = resolvedUrls.remove('selfie_id');
+      _kycDocumentUrls = Map<String, String>.unmodifiable(resolvedUrls);
     } catch (_) {
       if (!_isCurrentProfileRefresh(generation)) return;
       _selfieUrl = null;
+      _kycDocumentUrls = const {};
     }
   }
 

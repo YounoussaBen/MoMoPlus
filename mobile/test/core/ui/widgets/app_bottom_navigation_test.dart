@@ -31,13 +31,13 @@ void main() {
                 ),
                 AppNavigationItem(
                   label: 'Activity',
-                  icon: Icons.receipt_long_outlined,
-                  selectedIcon: Icons.receipt_long_rounded,
+                  icon: Icons.history_rounded,
+                  selectedIcon: Icons.history_rounded,
                 ),
                 AppNavigationItem(
                   label: 'More',
-                  icon: Icons.more_horiz_rounded,
-                  selectedIcon: Icons.more_rounded,
+                  icon: Icons.menu_rounded,
+                  selectedIcon: Icons.menu_rounded,
                 ),
               ],
               onSelect: (index) => setState(() => selectedIndex = index),
@@ -59,9 +59,24 @@ void main() {
       AppTheme.light.navigationBarTheme.indicatorColor,
       Colors.transparent,
     );
+    final floatingBar = tester.widget<DecoratedBox>(
+      find.byKey(const Key('floating-bottom-navigation')),
+    );
+    final decoration = floatingBar.decoration as BoxDecoration;
+    expect(decoration.borderRadius, BorderRadius.circular(28));
+    expect(decoration.boxShadow, isNotEmpty);
+
+    final navigationBar = tester.widget<NavigationBar>(
+      find.byType(NavigationBar),
+    );
+    expect(
+      navigationBar.backgroundColor,
+      AppTheme.light.navigationBarTheme.backgroundColor,
+    );
     final activityDestination = tester.widget<NavigationDestination>(
       find.byType(NavigationDestination).at(2),
     );
+    expect((activityDestination.icon as Icon).icon, Icons.history_rounded);
     expect(
       (activityDestination.selectedIcon as Icon).icon,
       (activityDestination.icon as Icon).icon,

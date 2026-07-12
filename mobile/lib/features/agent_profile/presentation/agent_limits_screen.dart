@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../core/data/services/backend_api_service.dart';
-import '../../../core/ui/theme/app_theme.dart';
+
+import '../../../core/ui/theme/app_spacing.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
+import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/app_icon_button.dart';
+import '../../../core/ui/widgets/app_screen.dart';
+import '../../../core/ui/widgets/app_section.dart';
+import '../../../core/ui/widgets/app_text_field.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
 import 'agent_profile_view_model.dart';
 
@@ -11,10 +16,7 @@ class AgentLimitsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) => AgentProfileViewModel(ctx.read<BackendApiService>()),
-      child: const _LimitsBody(),
-    );
+    return const _LimitsBody();
   }
 }
 
@@ -26,205 +28,205 @@ class _LimitsBody extends StatefulWidget {
 }
 
 class _LimitsBodyState extends State<_LimitsBody> {
-  final _minCtrl = TextEditingController();
-  final _maxCtrl = TextEditingController();
-  bool _didInit = false;
+  final _minimumController = TextEditingController();
+  final _maximumController = TextEditingController();
+  bool _didInitialize = false;
 
   @override
   void dispose() {
-    _minCtrl.dispose();
-    _maxCtrl.dispose();
+    _minimumController.dispose();
+    _maximumController.dispose();
     super.dispose();
   }
 
-  void _initFromProfile(AgentProfileViewModel vm) {
-    if (_didInit || vm.profile == null) return;
-    _didInit = true;
-    final p = vm.profile!;
-    _minCtrl.text = p.minAmount > 0 ? p.minAmount.toStringAsFixed(0) : '';
-    _maxCtrl.text = p.maxAmount != null ? p.maxAmount!.toStringAsFixed(0) : '';
+  void _initializeFromProfile(AgentProfileViewModel viewModel) {
+    if (_didInitialize || viewModel.profile == null) return;
+    _didInitialize = true;
+    final profile = viewModel.profile!;
+    _minimumController.text = profile.minAmount > 0
+        ? profile.minAmount.toStringAsFixed(0)
+        : '';
+    _maximumController.text = profile.maxAmount?.toStringAsFixed(0) ?? '';
   }
 
   Future<void> _save() async {
-    final vm = context.read<AgentProfileViewModel>();
+    final viewModel = context.read<AgentProfileViewModel>();
+    final minimum = double.tryParse(_minimumController.text.trim());
+    final maximum = double.tryParse(_maximumController.text.trim());
 
-    final min = double.tryParse(_minCtrl.text);
-    final max = double.tryParse(_maxCtrl.text);
-
-    if (min == null || max == null) {
-      showTopInAppNotification(
-        context,
-        title: 'Missing Fields',
-        message: 'Please enter both a minimum and maximum amount.',
-        type: AppNotificationType.error,
+    if (minimum == null || maximum == null) {
+      _showError(
+        title: 'Missing amounts',
+        message: 'Enter both a minimum and maximum amount.',
       );
       return;
     }
 
-    if (min <= 0 || max <= 0) {
-      showTopInAppNotification(
-        context,
-        title: 'Invalid Amounts',
-        message: 'Both minimum and maximum amounts must be greater than zero.',
-        type: AppNotificationType.error,
+    if (minimum <= 0 || maximum <= 0) {
+      _showError(
+        title: 'Invalid amounts',
+        message: 'Both amounts must be greater than zero.',
       );
       return;
     }
 
-    final fields = <String, dynamic>{
-      'min_amount': min.toStringAsFixed(2),
-      'max_amount': max.toStringAsFixed(2),
-    };
+    if (maximum < minimum) {
+      _showError(
+        title: 'Check your limits',
+        message: 'The maximum amount cannot be less than the minimum.',
+      );
+      return;
+    }
 
-    final ok = await vm.updateProfile(fields);
-    if (ok && mounted) {
+    final saved = await viewModel.updateProfile({
+      'min_amount': minimum.toStringAsFixed(2),
+      'max_amount': maximum.toStringAsFixed(2),
+    });
+
+    if (!mounted) return;
+    if (saved) {
       showTopInAppNotification(
         context,
-        title: 'Saved',
-        message: 'Your amount limits were updated successfully.',
+        title: 'Limits saved',
+        message: 'Your transaction limits were updated successfully.',
         type: AppNotificationType.success,
       );
-    } else if (mounted && vm.errorMessage != null) {
-      showTopInAppNotification(
-        context,
-        title: 'Could Not Save',
-        message: vm.errorMessage!,
-        type: AppNotificationType.error,
-      );
+    } else if (viewModel.errorMessage != null) {
+      _showError(title: 'Could not save', message: viewModel.errorMessage!);
     }
+  }
+
+  void _showError({required String title, required String message}) {
+    showTopInAppNotification(
+      context,
+      title: title,
+      message: message,
+      type: AppNotificationType.error,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final vm = context.watch<AgentProfileViewModel>();
-    _initFromProfile(vm);
+    final viewModel = context.watch<AgentProfileViewModel>();
+    _initializeFromProfile(viewModel);
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Limits'),
-        backgroundColor: AppColors.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: vm.isLoading
-          ? const Center(
+    return AppScreen(
+      title: 'Limits',
+      body: viewModel.isLoading
+          ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.primary,
+                color: context.appColors.brandAccent,
                 strokeWidth: 2,
               ),
             )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
               children: [
-                _SectionLabel('AMOUNT LIMITS'),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                Text(
+                  'Transaction limits',
+                  style: context.appTextTheme.headlineMedium,
+                ),
+                const SizedBox(height: AppSpacing.space1),
+                Text(
+                  'Choose the range of transaction amounts you can support.',
+                  style: context.appTextTheme.bodyMedium?.copyWith(
+                    color: context.appColors.textSecondary,
                   ),
-                  padding: const EdgeInsets.all(16),
+                ),
+                const SizedBox(height: AppSpacing.space6),
+                const AppSectionHeader(title: 'Amount range'),
+                const SizedBox(height: AppSpacing.space2),
+                AppSection(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _Field(
-                        label: 'Minimum Amount (GHS)',
-                        controller: _minCtrl,
-                        hint: '0',
+                      AppTextField(
+                        controller: _minimumController,
+                        label: 'Minimum amount',
+                        hint: 'GHS 0',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.next,
+                        prefixIcon: const AppIconTile(
+                          icon: Icons.south_west_rounded,
+                          size: 40,
+                          iconSize: 19,
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      _Field(
-                        label: 'Maximum Amount (GHS)',
-                        controller: _maxCtrl,
-                        hint: 'e.g. 500',
+                      const SizedBox(height: AppSpacing.space4),
+                      AppTextField(
+                        controller: _maximumController,
+                        label: 'Maximum amount',
+                        hint: 'GHS 500',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.done,
+                        prefixIcon: const AppIconTile(
+                          icon: Icons.north_east_rounded,
+                          size: 40,
+                          iconSize: 19,
+                        ),
+                        onFieldSubmitted: (_) {
+                          if (!viewModel.isSaving) _save();
+                        },
                       ),
                     ],
                   ),
                 ),
-                if (vm.errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    vm.errorMessage!,
-                    style: const TextStyle(
-                      color: AppColors.error,
-                      fontSize: 14,
+                const SizedBox(height: AppSpacing.space4),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.space3),
+                  decoration: BoxDecoration(
+                    color: context.appColors.infoContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 20,
+                        color: context.appColors.info,
+                      ),
+                      const SizedBox(width: AppSpacing.space2),
+                      Expanded(
+                        child: Text(
+                          'Users will only see you for eligible requests within this range.',
+                          style: context.appTextTheme.bodySmall?.copyWith(
+                            color: context.appColors.info,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (viewModel.errorMessage != null) ...[
+                  const SizedBox(height: AppSpacing.space4),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.space3),
+                    decoration: BoxDecoration(
+                      color: context.appColors.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    textAlign: TextAlign.center,
+                    child: Text(
+                      viewModel.errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: context.appTextTheme.bodySmall?.copyWith(
+                        color: context.appColors.error,
+                      ),
+                    ),
                   ),
                 ],
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: vm.isSaving ? null : _save,
-                  child: vm.isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Save'),
+                const SizedBox(height: AppSpacing.space6),
+                AppButton(
+                  label: 'Save limits',
+                  onPressed: viewModel.isSaving ? null : _save,
+                  isLoading: viewModel.isSaving,
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-          letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final String hint;
-  const _Field({
-    required this.label,
-    required this.controller,
-    required this.hint,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(hintText: hint),
-        ),
-      ],
     );
   }
 }

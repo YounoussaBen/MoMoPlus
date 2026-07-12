@@ -11,6 +11,7 @@ import 'core/ui/theme/app_motion.dart';
 import 'core/ui/theme/app_theme.dart';
 import 'core/ui/theme/app_theme_controller.dart';
 import 'features/auth/presentation/auth_view_model.dart';
+import 'features/agent_profile/presentation/agent_profile_view_model.dart';
 import 'features/loans/presentation/loan_view_model.dart';
 import 'features/transactions/presentation/transaction_view_model.dart';
 import 'features/wallet/presentation/wallet_view_model.dart';
@@ -33,6 +34,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
   late final TransactionViewModel _transactionViewModel;
   late final WalletViewModel _walletViewModel;
   late final LoanViewModel _loanViewModel;
+  late final AgentProfileViewModel _agentProfileViewModel;
   late final GoRouter _router;
 
   @override
@@ -59,6 +61,10 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
       autoStart: false,
     );
     _loanViewModel = LoanViewModel(_backendService, autoStart: false);
+    _agentProfileViewModel = AgentProfileViewModel(
+      _backendService,
+      autoStart: false,
+    );
     _authViewModel.addListener(_syncDataSession);
     _syncDataSession();
     _router = AppRouter.create(_authViewModel);
@@ -71,6 +77,9 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
     _transactionViewModel.setSession(sessionId);
     _walletViewModel.setSession(sessionId);
     _loanViewModel.setSession(sessionId);
+    _agentProfileViewModel.setSession(
+      _authViewModel.appUser?.isAgent == true ? sessionId : null,
+    );
   }
 
   @override
@@ -98,6 +107,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
     _transactionViewModel.dispose();
     _walletViewModel.dispose();
     _loanViewModel.dispose();
+    _agentProfileViewModel.dispose();
     _authViewModel.dispose();
     super.dispose();
   }
@@ -118,6 +128,9 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<WalletViewModel>.value(value: _walletViewModel),
         ChangeNotifierProvider<LoanViewModel>.value(value: _loanViewModel),
+        ChangeNotifierProvider<AgentProfileViewModel>.value(
+          value: _agentProfileViewModel,
+        ),
       ],
       child: Consumer<AppThemeController>(
         builder: (context, themeController, _) => MaterialApp.router(

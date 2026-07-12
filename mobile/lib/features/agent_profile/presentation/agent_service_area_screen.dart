@@ -7,22 +7,20 @@ import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
-import '../../../core/ui/theme/app_theme.dart';
 import '../../../core/ui/theme/app_map_style.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
+import '../../../core/ui/widgets/app_button.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
 import 'agent_profile_view_model.dart';
+import 'widgets/agent_availability_pill.dart';
 
 class AgentServiceAreaScreen extends StatelessWidget {
   const AgentServiceAreaScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) => AgentProfileViewModel(ctx.read<BackendApiService>()),
-      child: const _ServiceAreaBody(),
-    );
+    return const _ServiceAreaBody();
   }
 }
 
@@ -77,13 +75,17 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
 
   void _initFromProfile(AgentProfileViewModel vm) {
     final profile = vm.profile;
-    if (_didInitRadius || profile == null) return;
+    if (profile == null) return;
 
-    _didInitRadius = true;
-    _selectedRadiusKm = _nearestRadiusOption(profile.serviceRadiusKm);
-    _availabilityValue = profile.isAvailable;
-    if (profile.hasLocation) {
-      _selectedLocation = LatLng(profile.latitude!, profile.longitude!);
+    if (!_didInitRadius) {
+      _didInitRadius = true;
+      _selectedRadiusKm = _nearestRadiusOption(profile.serviceRadiusKm);
+      if (profile.hasLocation) {
+        _selectedLocation = LatLng(profile.latitude!, profile.longitude!);
+      }
+    }
+    if (!_isSyncingAvailability && !_isProcessingAvailability) {
+      _availabilityValue = profile.isAvailable;
     }
   }
 
@@ -257,24 +259,11 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
     );
   }
 
-  Future<void> _handleAvailabilityChanged(bool nextValue) async {
+  void _handleAvailabilityChanged(bool nextValue) {
     final vm = context.read<AgentProfileViewModel>();
     final currentValue = _availabilityValue ?? vm.profile?.isAvailable ?? false;
 
-    if (currentValue == nextValue && !_isSyncingAvailability) return;
-    if (_isProcessingAvailability) return;
-
-    final guard = await vm.validateAvailabilityChange(nextValue);
-    if (!mounted) return;
-    if (guard != null) {
-      showTopInAppNotification(
-        context,
-        title: guard.title,
-        message: guard.message,
-        type: AppNotificationType.info,
-      );
-      return;
-    }
+    if (currentValue == nextValue) return;
 
     final shouldStartProcessing = !_isProcessingAvailability;
     setState(() {
@@ -283,7 +272,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
     });
 
     if (!shouldStartProcessing) return;
-    await _syncAvailability();
+    unawaited(_syncAvailability());
   }
 
   Future<void> _syncAvailability() async {
@@ -331,9 +320,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
           break;
         }
 
-        setState(() {
-          _availabilityValue = updatedServerValue;
-        });
+        if (_availabilityValue == desiredValue) {
+          setState(() => _availabilityValue = updatedServerValue);
+        }
       }
     } finally {
       _isProcessingAvailability = false;
@@ -356,18 +345,8 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
     return Stack(
       children: [
         Positioned.fill(
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFEAF4E2),
-                  Color(0xFFF9FBF6),
-                  Color(0xFFDDEAD2),
-                ],
-              ),
-            ),
+          child: ColoredBox(
+            color: context.appColors.canvas,
             child: Stack(
               children: [
                 Positioned(
@@ -375,7 +354,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                   left: -36,
                   child: _ServiceBackdropOrb(
                     size: 170,
-                    color: AppColors.primary.withValues(alpha: 0.08),
+                    color: context.appColors.brandSoft.withValues(alpha: 0.7),
                   ),
                 ),
                 Positioned(
@@ -383,7 +362,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                   right: -28,
                   child: _ServiceBackdropOrb(
                     size: 130,
-                    color: const Color(0xFFFFC95B).withValues(alpha: 0.14),
+                    color: context.appColors.warningContainer.withValues(
+                      alpha: 0.7,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -427,17 +408,10 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
           child: Container(
             padding: EdgeInsets.fromLTRB(16, 14, 16, bottomPadding + 40),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.appColors.surfaceSection,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(28),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, -6),
-                ),
-              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -512,10 +486,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
     final isAvailable = _availabilityValue ?? vm.profile?.isAvailable ?? false;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
         title: const Text('Service Area'),
-        backgroundColor: AppColors.background,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
@@ -535,21 +508,14 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                   ),
                   decoration: BoxDecoration(
                     color: isAvailable
-                        ? AppColors.primary.withValues(alpha: 0.08)
-                        : Colors.white,
+                        ? context.appColors.successContainer
+                        : context.appColors.surfaceSection,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
                       color: isAvailable
-                          ? AppColors.primary.withValues(alpha: 0.18)
-                          : AppColors.divider,
+                          ? context.appColors.success.withValues(alpha: 0.28)
+                          : context.appColors.surfaceInteractive,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
                   ),
                   child: Row(
                     children: [
@@ -559,8 +525,8 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                         height: 46,
                         decoration: BoxDecoration(
                           color: isAvailable
-                              ? AppColors.primary.withValues(alpha: 0.14)
-                              : AppColors.surface,
+                              ? context.appColors.successContainer
+                              : context.appColors.surfaceInteractive,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -568,8 +534,8 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                               ? Icons.visibility_rounded
                               : Icons.visibility_off_rounded,
                           color: isAvailable
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
+                              ? context.appColors.success
+                              : context.appColors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -577,13 +543,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Available',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                            Text(
+                              isAvailable ? 'Available' : 'Unavailable',
+                              style: context.appTextTheme.titleSmall,
                             ),
                             const SizedBox(height: 4),
                             AnimatedSwitcher(
@@ -591,19 +553,18 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                               child: Text(
                                 _availabilitySubtitle(),
                                 key: ValueKey(_availabilitySubtitle()),
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary,
+                                style: context.appTextTheme.bodySmall?.copyWith(
+                                  color: context.appColors.textSecondary,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      CupertinoSwitch(
-                        value: isAvailable,
-                        activeTrackColor: AppColors.primary,
-                        onChanged: _handleAvailabilityChanged,
+                      AgentAvailabilityPill(
+                        isAvailable: isAvailable,
+                        onPressed: () =>
+                            _handleAvailabilityChanged(!isAvailable),
                       ),
                     ],
                   ),
@@ -650,12 +611,10 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                                   circleId: const CircleId('service_radius'),
                                   center: _selectedLocation!,
                                   radius: radiusMeters,
-                                  fillColor: AppColors.primary.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  strokeColor: AppColors.primary.withValues(
-                                    alpha: 0.3,
-                                  ),
+                                  fillColor: context.appColors.brandAccent
+                                      .withValues(alpha: 0.08),
+                                  strokeColor: context.appColors.brandStrong
+                                      .withValues(alpha: 0.3),
                                   strokeWidth: 1,
                                 ),
                               }
@@ -719,7 +678,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                   ),
                 ),
                 Container(
-                  color: Colors.white,
+                  color: context.appColors.surfaceSection,
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -738,7 +697,7 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                               label: 'Coordinates',
                               value: _selectedLocation != null
                                   ? _coordinateLabel()
-                                  : 'Add a map pin',
+                                  : 'Map pin',
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -757,21 +716,18 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                           _selectedLocation != null
                               ? 'Tap the map, use current location, or open Street View to confirm the spot.'
                               : 'Tap on the map to set your service location.',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.textSecondary,
+                          style: context.appTextTheme.bodySmall?.copyWith(
+                            color: context.appColors.textSecondary,
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const Align(
+                      Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
                           'Service Radius (km)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textSecondary,
+                          style: context.appTextTheme.labelLarge?.copyWith(
+                            color: context.appColors.textSecondary,
                           ),
                         ),
                       ),
@@ -785,30 +741,25 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                             vertical: 14,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: context.appColors.surfaceInteractive,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.divider),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.radar_outlined,
-                                color: AppColors.textSecondary,
+                                color: context.appColors.textSecondary,
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   '${radiusKm.toStringAsFixed(0)} km',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
+                                  style: context.appTextTheme.titleSmall,
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.keyboard_arrow_down_rounded,
-                                color: AppColors.textSecondary,
+                                color: context.appColors.textSecondary,
                               ),
                             ],
                           ),
@@ -819,31 +770,19 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                         const SizedBox(height: 12),
                         Text(
                           vm.errorMessage!,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.error,
+                          style: context.appTextTheme.bodySmall?.copyWith(
+                            color: context.appColors.error,
                           ),
                           textAlign: TextAlign.center,
                         ),
                       ],
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: vm.isSaving || _isSyncingAvailability
-                              ? null
-                              : _save,
-                          child: vm.isSaving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Save Service Area'),
-                        ),
+                      AppButton(
+                        label: 'Save service area',
+                        onPressed: vm.isSaving || _isSyncingAvailability
+                            ? null
+                            : _save,
+                        isLoading: vm.isSaving,
                       ),
                     ],
                   ),
@@ -886,8 +825,8 @@ class _ServiceGhostPin extends StatelessWidget {
           animation: animation,
           builder: (context, child) {
             final color = Color.lerp(
-              AppColors.primary.withValues(alpha: 0.22),
-              AppColors.primary.withValues(alpha: 0.34),
+              context.appColors.brandAccent.withValues(alpha: 0.22),
+              context.appColors.brandAccent.withValues(alpha: 0.34),
               animation.value,
             )!;
             return Container(
@@ -908,7 +847,7 @@ class _ServiceGhostPin extends StatelessWidget {
           width: 4,
           height: 22,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.24),
+            color: context.appColors.brandAccent.withValues(alpha: 0.24),
             borderRadius: BorderRadius.circular(999),
           ),
         ),
@@ -932,15 +871,8 @@ class _ServiceAreaLoadingCard extends StatelessWidget {
       constraints: BoxConstraints(minHeight: height),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.appColors.surfaceSection,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -983,15 +915,8 @@ class _ServiceLoadingActionButton extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.appColors.surfaceSection,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Center(
         child: _ServiceSkeletonBlock(
@@ -1015,7 +940,7 @@ class _ServiceSkeletonStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -1059,8 +984,8 @@ class _ServiceSkeletonBlock extends StatelessWidget {
       animation: animation,
       builder: (context, child) {
         final color = Color.lerp(
-          const Color(0xFFE7EDE2),
-          const Color(0xFFF2F6EF),
+          context.appColors.surfaceSubtle,
+          context.appColors.surfaceInteractive,
           animation.value,
         )!;
         return Container(
@@ -1084,33 +1009,18 @@ class _MapOverlayCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.96),
+        color: context.appColors.surfaceSection.withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Text(title, style: context.appTextTheme.titleSmall),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
+            style: context.appTextTheme.bodySmall?.copyWith(
+              color: context.appColors.textSecondary,
             ),
           ),
         ],
@@ -1133,7 +1043,7 @@ class _FloatingMapButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.appColors.surfaceSection,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -1143,15 +1053,15 @@ class _FloatingMapButton extends StatelessWidget {
           height: 52,
           child: Center(
             child: isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     width: 22,
                     height: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppColors.primary,
+                      color: context.appColors.brandStrong,
                     ),
                   )
-                : Icon(icon, color: AppColors.primary, size: 22),
+                : Icon(icon, color: context.appColors.brandStrong, size: 22),
           ),
         ),
       ),
@@ -1170,7 +1080,7 @@ class _ServiceStatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.appColors.surfaceInteractive,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -1178,9 +1088,8 @@ class _ServiceStatTile extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
+            style: context.appTextTheme.labelSmall?.copyWith(
+              color: context.appColors.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
@@ -1188,11 +1097,7 @@ class _ServiceStatTile extends StatelessWidget {
             value,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
+            style: context.appTextTheme.titleSmall,
           ),
         ],
       ),

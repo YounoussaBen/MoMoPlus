@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/data/services/file_upload_service.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_spacing.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
+import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/app_screen.dart';
+import '../../../core/ui/widgets/app_section.dart';
+import '../../../core/ui/widgets/app_status.dart';
+import '../../../core/ui/widgets/app_text_field.dart';
 import '../../../core/utils/error_helpers.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
 import 'agent_profile_view_model.dart';
@@ -32,10 +37,7 @@ class CertificationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (ctx) => AgentProfileViewModel(ctx.read<BackendApiService>()),
-      child: const _CertificationBody(),
-    );
+    return const _CertificationBody();
   }
 }
 
@@ -248,20 +250,12 @@ class _CertificationBodyState extends State<_CertificationBody> {
         (_businessPhoto?.isReady ?? false) &&
         !vm.isSaving;
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Certification'),
-        backgroundColor: AppColors.background,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-      ),
+    return AppScreen(
+      title: 'Certification',
       body: vm.isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.primary,
+                color: context.appColors.brandAccent,
                 strokeWidth: 2,
               ),
             )
@@ -276,39 +270,48 @@ class _CertificationBodyState extends State<_CertificationBody> {
   Widget _buildCertifiedView() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.verified,
-                size: 40,
-                color: AppColors.primary,
-              ),
+        padding: const EdgeInsets.all(AppSpacing.space4),
+        child: AppSection(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.space6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: context.appColors.successContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.verified_rounded,
+                    size: 36,
+                    color: context.appColors.success,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.space4),
+                Text(
+                  'Certified agent',
+                  style: context.appTextTheme.headlineMedium,
+                ),
+                const SizedBox(height: AppSpacing.space2),
+                Text(
+                  'Your certification badge is visible to users across MoMo Plus.',
+                  textAlign: TextAlign.center,
+                  style: context.appTextTheme.bodyMedium?.copyWith(
+                    color: context.appColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.space3),
+                const AppStatusBadge(
+                  label: 'Verified',
+                  tone: AppStatusTone.success,
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Certified Agent',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'You are a verified certified MoMo agent.\nUsers can see your certification badge.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -317,39 +320,47 @@ class _CertificationBodyState extends State<_CertificationBody> {
   Widget _buildPendingView() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.hourglass_top_rounded,
-                size: 40,
-                color: Colors.orange,
-              ),
+        padding: const EdgeInsets.all(AppSpacing.space4),
+        child: AppSection(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.space6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: context.appColors.warningContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.hourglass_top_rounded,
+                    size: 36,
+                    color: context.appColors.warning,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.space4),
+                Text(
+                  'Under review',
+                  style: context.appTextTheme.headlineMedium,
+                ),
+                const SizedBox(height: AppSpacing.space2),
+                Text(
+                  'Your certification application is being reviewed. We will notify you when a decision is ready.',
+                  textAlign: TextAlign.center,
+                  style: context.appTextTheme.bodyMedium?.copyWith(
+                    color: context.appColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.space3),
+                const AppStatusBadge(
+                  label: 'Pending review',
+                  tone: AppStatusTone.warning,
+                ),
+              ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Under Review',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Your certification application is being reviewed.\nWe\'ll notify you once it\'s approved.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -361,20 +372,20 @@ class _CertificationBodyState extends State<_CertificationBody> {
     bool canSubmit,
   ) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
       children: [
         if (previousCert != null && previousCert.isRejected) ...[
           Container(
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.06),
+              color: context.appColors.errorContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.info_outline,
-                  color: AppColors.error,
+                  color: context.appColors.error,
                   size: 20,
                 ),
                 const SizedBox(width: 12),
@@ -383,9 +394,8 @@ class _CertificationBodyState extends State<_CertificationBody> {
                     previousCert.rejectionReason.isNotEmpty
                         ? 'Previous application rejected: ${previousCert.rejectionReason}'
                         : 'Your previous application was rejected. You can reapply.',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.error,
+                    style: context.appTextTheme.bodySmall?.copyWith(
+                      color: context.appColors.error,
                     ),
                   ),
                 ),
@@ -394,133 +404,101 @@ class _CertificationBodyState extends State<_CertificationBody> {
           ),
           const SizedBox(height: 20),
         ],
-        // Description
-        const Text(
-          'Become a Certified Agent',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-            letterSpacing: -0.3,
-          ),
+        Text(
+          'Become a certified agent',
+          style: context.appTextTheme.headlineMedium,
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Certified agents get a verification badge and are prioritized in search results.',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: 24),
-        // Agent ID
-        _SectionLabel('MTN MOMO AGENT ID'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            controller: _agentIdCtrl,
-            decoration: const InputDecoration(hintText: 'e.g. MTN-AGT-12345'),
+          style: context.appTextTheme.bodyMedium?.copyWith(
+            color: context.appColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 24),
-        // Agent ID Photo
-        _SectionLabel('AGENT ID CARD PHOTO'),
-        const SizedBox(height: 8),
-        _PhotoTile(
-          photo: _agentIdPhoto,
-          label: 'Upload your agent ID card',
-          onTap: vm.isSaving || (_agentIdPhoto?.uploading ?? false)
-              ? null
-              : () => _choosePhotoSource(true),
+        const SizedBox(height: AppSpacing.space6),
+        const AppSectionHeader(title: 'Agent details'),
+        const SizedBox(height: AppSpacing.space2),
+        AppSection(
+          child: Column(
+            children: [
+              AppTextField(
+                controller: _agentIdCtrl,
+                label: 'MTN MoMo agent ID',
+                hint: 'e.g. MTN-AGT-12345',
+              ),
+              const SizedBox(height: AppSpacing.space4),
+              AppTextField(
+                controller: _bizRegCtrl,
+                label: 'Business registration',
+                hint: 'Optional registration number',
+              ),
+            ],
+          ),
         ),
-        if (_agentIdPhoto?.error != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _agentIdPhoto!.error!,
-            style: const TextStyle(color: AppColors.error, fontSize: 13),
-          ),
-        ],
-        const SizedBox(height: 24),
-        // Business location photo
-        _SectionLabel('BUSINESS LOCATION PHOTO'),
-        const SizedBox(height: 8),
-        _PhotoTile(
-          photo: _businessPhoto,
-          label: 'Upload your business stall photo',
-          onTap: vm.isSaving || (_businessPhoto?.uploading ?? false)
-              ? null
-              : () => _choosePhotoSource(false),
-        ),
-        if (_businessPhoto?.error != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            _businessPhoto!.error!,
-            style: const TextStyle(color: AppColors.error, fontSize: 13),
-          ),
-        ],
-        const SizedBox(height: 24),
-        // Business reg (optional)
-        _SectionLabel('BUSINESS REGISTRATION (OPTIONAL)'),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            controller: _bizRegCtrl,
-            decoration: const InputDecoration(hintText: 'Registration number'),
+        const SizedBox(height: AppSpacing.space6),
+        const AppSectionHeader(title: 'Verification photos'),
+        const SizedBox(height: AppSpacing.space2),
+        AppSection(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Agent ID card', style: context.appTextTheme.titleSmall),
+              const SizedBox(height: AppSpacing.space2),
+              _PhotoTile(
+                photo: _agentIdPhoto,
+                label: 'Upload your agent ID card',
+                onTap: vm.isSaving || (_agentIdPhoto?.uploading ?? false)
+                    ? null
+                    : () => _choosePhotoSource(true),
+              ),
+              if (_agentIdPhoto?.error != null) ...[
+                const SizedBox(height: AppSpacing.space2),
+                _InlineError(message: _agentIdPhoto!.error!),
+              ],
+              const SizedBox(height: AppSpacing.space4),
+              Text('Business location', style: context.appTextTheme.titleSmall),
+              const SizedBox(height: AppSpacing.space2),
+              _PhotoTile(
+                photo: _businessPhoto,
+                label: 'Upload your business location',
+                onTap: vm.isSaving || (_businessPhoto?.uploading ?? false)
+                    ? null
+                    : () => _choosePhotoSource(false),
+              ),
+              if (_businessPhoto?.error != null) ...[
+                const SizedBox(height: AppSpacing.space2),
+                _InlineError(message: _businessPhoto!.error!),
+              ],
+            ],
           ),
         ),
         if (vm.errorMessage != null) ...[
-          const SizedBox(height: 16),
-          Text(
-            vm.errorMessage!,
-            style: const TextStyle(color: AppColors.error, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
+          const SizedBox(height: AppSpacing.space4),
+          _InlineError(message: vm.errorMessage!),
         ],
-        const SizedBox(height: 32),
-        ElevatedButton(
+        const SizedBox(height: AppSpacing.space6),
+        AppButton(
+          label: 'Submit application',
           onPressed: canSubmit ? _submit : null,
-          child: vm.isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('Submit Application'),
+          isLoading: vm.isSaving,
         ),
       ],
     );
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.message});
+
+  final String message;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-          letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Text(
+    message,
+    style: context.appTextTheme.bodySmall?.copyWith(
+      color: context.appColors.error,
+    ),
+  );
 }
 
 class _PhotoTile extends StatelessWidget {
@@ -536,7 +514,7 @@ class _PhotoTile extends StatelessWidget {
       child: Container(
         height: 140,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceInteractive,
           borderRadius: BorderRadius.circular(12),
         ),
         clipBehavior: Clip.antiAlias,
@@ -592,14 +570,13 @@ class _PhotoTile extends StatelessWidget {
                     Icon(
                       Icons.add_a_photo_outlined,
                       size: 32,
-                      color: AppColors.textSecondary.withValues(alpha: 0.5),
+                      color: context.appColors.textMuted,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       label,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+                      style: context.appTextTheme.bodySmall?.copyWith(
+                        color: context.appColors.textSecondary,
                       ),
                     ),
                   ],

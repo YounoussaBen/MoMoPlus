@@ -253,25 +253,22 @@ abstract final class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
-            color: selected
-                ? colors.onNavigation
-                : colors.onNavigation.withValues(alpha: 0.5),
+            color: selected ? colors.brandStrong : colors.textMuted,
             size: selected ? 25 : 22,
           );
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return textTheme.labelMedium?.copyWith(
-            color: selected
-                ? colors.onNavigation
-                : colors.onNavigation.withValues(alpha: 0.5),
+            color: selected ? colors.brandStrong : colors.textMuted,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           );
         }),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: colors.navigationSurface,
-        selectedItemColor: colors.onNavigation,
-        unselectedItemColor: colors.onNavigation.withValues(alpha: 0.72),
+        selectedItemColor: colors.brandStrong,
+        unselectedItemColor: colors.textMuted,
         selectedIconTheme: const IconThemeData(size: 24),
         unselectedIconTheme: const IconThemeData(size: 22),
         selectedLabelStyle: textTheme.labelMedium,
