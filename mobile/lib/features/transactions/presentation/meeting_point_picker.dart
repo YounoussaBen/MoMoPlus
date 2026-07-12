@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_map_style.dart';
 
 class MeetingPointResult {
   final double latitude;
@@ -109,6 +110,9 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                 Positioned.fill(
                   bottom: 180,
                   child: GoogleMap(
+                    style: AppMapStyle.forBrightness(
+                      Theme.of(context).brightness,
+                    ),
                     initialCameraPosition: CameraPosition(
                       target: _selectedPoint!,
                       zoom: 16,

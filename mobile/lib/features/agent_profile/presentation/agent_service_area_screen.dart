@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_map_style.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
 import 'agent_profile_view_model.dart';
 
@@ -611,6 +612,9 @@ class _ServiceAreaBodyState extends State<_ServiceAreaBody>
                   child: Stack(
                     children: [
                       GoogleMap(
+                        style: AppMapStyle.forBrightness(
+                          Theme.of(context).brightness,
+                        ),
                         initialCameraPosition: CameraPosition(
                           target: _initialCenter,
                           zoom: 14.5,

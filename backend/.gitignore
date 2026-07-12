@@ -119,5 +119,5 @@ static/
 
 .ruff_cache/
 
-# Documentation
-docs/
+# Generated/local documentation.
+docs/*

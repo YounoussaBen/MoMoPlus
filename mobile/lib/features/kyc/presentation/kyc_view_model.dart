@@ -7,7 +7,7 @@ import '../../../core/utils/error_helpers.dart';
 import '../data/kyc_repository.dart';
 import '../data/kyc_submission_model.dart';
 
-enum KycScreenState { loading, wizard, pending, rejected, approved }
+enum KycScreenState { loading, wizard, pending, rejected, approved, error }
 
 class FileUploadState {
   /// Either a local file path (just picked) or a signed https URL (restored from server).
@@ -35,7 +35,7 @@ class FileUploadState {
 }
 
 class KycViewModel extends ChangeNotifier {
-  final KycRepository _repository;
+  final KycRepositoryContract _repository;
   final AuthViewModel _authViewModel;
   final ImagePicker _picker = ImagePicker();
 
@@ -44,6 +44,7 @@ class KycViewModel extends ChangeNotifier {
   String? _errorMessage;
   bool _isSubmitting = false;
   bool _isGoingHome = false;
+  bool _isRefreshing = false;
 
   int _step = 0;
   String? _idType;
@@ -53,11 +54,12 @@ class KycViewModel extends ChangeNotifier {
   FileUploadState? _proofOfAddress;
 
   KycViewModel({
-    required KycRepository repository,
+    required KycRepositoryContract repository,
     required AuthViewModel authViewModel,
+    bool autoLoad = true,
   }) : _repository = repository,
        _authViewModel = authViewModel {
-    _loadStatus();
+    if (autoLoad) unawaited(refreshStatus(showLoading: true));
   }
 
   KycScreenState get screenState => _screenState;
@@ -65,6 +67,7 @@ class KycViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isSubmitting => _isSubmitting;
   bool get isGoingHome => _isGoingHome;
+  bool get isRefreshing => _isRefreshing;
   int get step => _step;
   String? get idType => _idType;
 
@@ -82,20 +85,35 @@ class KycViewModel extends ChangeNotifier {
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
 
-  Future<void> _loadStatus() async {
+  Future<void> refreshStatus({bool showLoading = false}) async {
+    if (_isRefreshing) return;
+
+    final previousState = _screenState;
+    _isRefreshing = true;
+    _errorMessage = null;
+    if (showLoading) _screenState = KycScreenState.loading;
+    notifyListeners();
+
     try {
       final submission = await _repository.getStatus();
       if (submission == null) {
         await _loadDraft();
+        _submission = null;
         _screenState = KycScreenState.wizard;
       } else {
         _submission = submission;
         _screenState = _parseState(submission.status);
+        await _authViewModel.refreshProfile();
       }
-    } catch (_) {
-      _screenState = KycScreenState.wizard;
+    } catch (error) {
+      _errorMessage = friendlyErrorMessage(error);
+      _screenState = !showLoading && previousState == KycScreenState.pending
+          ? KycScreenState.pending
+          : KycScreenState.error;
+    } finally {
+      _isRefreshing = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<void> _saveDraft() async {

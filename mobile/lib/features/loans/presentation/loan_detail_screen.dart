@@ -21,6 +21,7 @@ class LoanDetailScreen extends StatefulWidget {
 }
 
 class _LoanDetailScreenState extends State<LoanDetailScreen> {
+  late final LoanViewModel _loanVm;
   Loan? _loan;
   bool _isLoading = true;
   Timer? _timer;
@@ -28,24 +29,27 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLoan();
+    _loanVm = context.read<LoanViewModel>();
+    _loanVm.stopAutoRefresh();
     _timer = Timer.periodic(const Duration(seconds: 15), (_) => _loadLoan());
+    _loadLoan();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _loanVm.startAutoRefresh();
     super.dispose();
   }
 
   Future<void> _loadLoan() async {
-    final loanVm = context.read<LoanViewModel>();
-    final loan = await loanVm.getLoanDetail(widget.loanId);
+    final loan = await _loanVm.getLoanDetail(widget.loanId);
     if (mounted) {
       setState(() {
-        _loan = loan;
+        if (loan != null) _loan = loan;
         _isLoading = false;
       });
+      if (loan != null && !loan.isOngoing) _timer?.cancel();
     }
   }
 
@@ -64,6 +68,8 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     }
 
     if (_loan == null) {
+      final errorMessage = _loanVm.errorMessage;
+      final hasError = errorMessage != null;
       return Scaffold(
         backgroundColor: AppColors.surface,
         appBar: AppBar(
@@ -81,19 +87,40 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  Icons.account_balance_wallet_outlined,
+                  hasError
+                      ? Icons.cloud_off_rounded
+                      : Icons.account_balance_wallet_outlined,
                   size: 56,
                   color: AppColors.textSecondary.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Loan not found',
+                Text(
+                  hasError ? 'Could not load this loan' : 'Loan not found',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
                   ),
                 ),
+                if (hasError) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    errorMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  AppButton(
+                    label: 'Try again',
+                    onPressed: () {
+                      setState(() => _isLoading = true);
+                      _loadLoan();
+                    },
+                  ),
+                ],
               ],
             ),
           ),

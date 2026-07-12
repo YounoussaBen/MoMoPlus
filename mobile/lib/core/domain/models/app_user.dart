@@ -7,6 +7,7 @@ enum KycStatus { none, pending, approved, rejected }
 class AppUser {
   final String id;
   final String email;
+  final String phone;
   final String firstName;
   final String lastName;
   final UserRole role;
@@ -14,10 +15,12 @@ class AppUser {
   final KycStatus kycStatus;
   final String? selfieId;
   final bool hasGuarantors;
+  final bool isOnboarded;
 
   const AppUser({
     required this.id,
     required this.email,
+    this.phone = '',
     required this.firstName,
     required this.lastName,
     this.role = UserRole.user,
@@ -25,9 +28,14 @@ class AppUser {
     this.kycStatus = KycStatus.none,
     this.selfieId,
     this.hasGuarantors = false,
+    this.isOnboarded = false,
   });
 
   String get fullName => '$firstName $lastName'.trim();
+
+  bool get hasDeliverableEmail => email.isNotEmpty;
+
+  String get contactLabel => phone.isNotEmpty ? phone : email;
 
   bool get isAgent => role == UserRole.agent;
 
@@ -38,6 +46,7 @@ class AppUser {
     return AppUser(
       id: data['id'] as String,
       email: data['email'] as String? ?? '',
+      phone: data['phone'] as String? ?? '',
       firstName: meta['first_name'] as String? ?? '',
       lastName: meta['last_name'] as String? ?? '',
     );
@@ -47,12 +56,14 @@ class AppUser {
     return AppUser(
       id: data['id'] as String,
       email: data['email'] as String? ?? '',
+      phone: data['phone'] as String? ?? '',
       firstName: data['first_name'] as String? ?? '',
       lastName: data['last_name'] as String? ?? '',
       role: _parseRole(data['role'] as String? ?? 'user'),
       agentStatus: _parseAgentStatus(data['agent_status'] as String? ?? 'none'),
       kycStatus: _parseKycStatus(data['kyc_status'] as String? ?? 'none'),
       hasGuarantors: data['has_guarantors'] as bool? ?? false,
+      isOnboarded: data['is_onboarded'] as bool? ?? false,
     );
   }
 

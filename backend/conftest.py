@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from rest_framework.test import APIClient
 
+from project.apps.wallets import services as wallet_services
 from project.integrations import paystack
 
 User = get_user_model()
@@ -51,6 +52,7 @@ def user(user_factory):
 def supabase_claims():
     return {
         "sub": str(uuid.uuid4()),
+        "phone": "+233241234567",
         "email": "supabase@example.com",
         "user_metadata": {
             "first_name": "Supa",
@@ -73,7 +75,9 @@ def auth_client_factory(mocker):
 
     def _build(claims: dict[str, object]) -> APIClient:
         token = f"supabase-token-{len(claims_by_token) + 1}"
-        claims_by_token[token] = claims
+        resolved_claims = dict(claims)
+        resolved_claims.setdefault("phone", f"+23324{len(claims_by_token) + 1:07d}")
+        claims_by_token[token] = resolved_claims
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         return client
@@ -174,3 +178,10 @@ def mock_paystack_network_calls(monkeypatch):
 
     monkeypatch.setattr(paystack, "_post", _mock_post)
     monkeypatch.setattr(paystack, "_get", _mock_get)
+
+
+@pytest.fixture(autouse=True)
+def mock_wallet_sms_delivery(monkeypatch):
+    """Wallet tests must never spend SMS credit or expose codes in output."""
+
+    monkeypatch.setattr(wallet_services, "send_wallet_otp", lambda **_: None)

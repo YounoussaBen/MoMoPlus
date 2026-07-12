@@ -28,9 +28,15 @@ class BackendApiService {
 
   /// Explicitly hydrate the backend Django user row after sign-in.
   Future<void> syncUser() async {
-    if (_accessToken == null) return;
+    if (_accessToken == null) throw Exception('Not authenticated.');
     final uri = Uri.parse('$_baseUrl/api/auth/sync/');
-    await http.post(uri, headers: _headers);
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(
+        response,
+        'Could not link the authenticated account.',
+      );
+    }
   }
 
   /// Inform the backend of logout (backend is stateless; client discards the token).
@@ -48,7 +54,24 @@ class BackendApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    return null;
+    throw _buildApiException(response, 'Could not load your profile.');
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/auth/profile/');
+    final response = await http.patch(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'first_name': firstName, 'last_name': lastName}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Could not save your profile.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   /// Fetch the current user's KYC submission status.

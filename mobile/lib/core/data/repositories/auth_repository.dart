@@ -7,16 +7,15 @@ abstract class AuthRepository {
   Session? get currentSession;
   User? get currentUser;
 
-  Future<void> signIn({required String email, required String password});
-  Future<void> signUp({
-    required String email,
-    required String password,
-    String? firstName,
-    String? lastName,
-  });
+  Future<void> sendPhoneOtp({required String phone});
+  Future<void> verifyPhoneOtp({required String phone, required String token});
   Future<void> signOut();
   Future<void> syncWithBackend();
   Future<Map<String, dynamic>?> getBackendProfile();
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+  });
   Future<void> requestAgent();
   Future<Map<String, dynamic>?> getKycStatus();
   Future<Map<String, dynamic>> getKycDraft();
@@ -51,26 +50,26 @@ class SupabaseAuthRepository implements AuthRepository {
   User? get currentUser => _authService.currentUser;
 
   @override
-  Future<void> signIn({required String email, required String password}) =>
-      _authService.signIn(email: email, password: password);
+  Future<void> sendPhoneOtp({required String phone}) =>
+      _authService.sendPhoneOtp(phone: phone);
 
   @override
-  Future<void> signUp({
-    required String email,
-    required String password,
-    String? firstName,
-    String? lastName,
-  }) => _authService.signUp(
-    email: email,
-    password: password,
-    firstName: firstName,
-    lastName: lastName,
-  );
+  Future<void> verifyPhoneOtp({required String phone, required String token}) =>
+      _authService.verifyPhoneOtp(phone: phone, token: token);
+
+  @override
+  Future<Map<String, dynamic>> updateProfile({
+    required String firstName,
+    required String lastName,
+  }) => _backendService.updateProfile(firstName: firstName, lastName: lastName);
 
   @override
   Future<void> signOut() async {
-    await _backendService.logout();
-    await _authService.signOut();
+    try {
+      await _backendService.logout();
+    } finally {
+      await _authService.signOut();
+    }
   }
 
   @override

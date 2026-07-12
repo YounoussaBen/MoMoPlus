@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+
+import '../theme/app_theme_extension.dart';
 
 class ProfileAvatar extends StatelessWidget {
   final String? imageUrl;
@@ -15,21 +16,25 @@ class ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-      backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
-      onBackgroundImageError: imageUrl != null ? (_, _) {} : null,
-      child: imageUrl == null
-          ? Text(
-              fallbackLetter.toUpperCase(),
-              style: TextStyle(
-                fontSize: radius * 0.78,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
-            )
-          : null,
+    return Semantics(
+      image: true,
+      label: 'Profile photo',
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: context.appColors.brandSoft,
+        backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
+        onBackgroundImageError: imageUrl != null ? (_, _) {} : null,
+        child: imageUrl == null
+            ? Text(
+                fallbackLetter.toUpperCase(),
+                style: TextStyle(
+                  fontSize: radius * 0.78,
+                  fontWeight: FontWeight.w600,
+                  color: context.appColors.brandStrong,
+                ),
+              )
+            : null,
+      ),
     );
   }
 }

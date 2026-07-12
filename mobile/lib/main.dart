@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'app.dart';
 import 'core/config/app_config.dart';
+import 'core/ui/theme/app_theme_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,5 +12,7 @@ void main() async {
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
   );
-  runApp(const MomoPlusApp());
+  final themeController = AppThemeController();
+  await themeController.load();
+  runApp(MomoPlusApp(themeController: themeController));
 }

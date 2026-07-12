@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-import random
+import secrets
 from datetime import timedelta
 
 from django.conf import settings
@@ -9,7 +9,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from project.apps.accounts.models import User
+from project.apps.accounts.phone_numbers import normalize_ghana_phone
 from project.integrations import paystack
+from project.integrations.sms_gateway import send_wallet_otp
 
 from .models import Wallet, WalletOtp
 
@@ -19,14 +21,11 @@ OTP_EXPIRY_MINUTES = 10
 
 
 def _generate_otp_code() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _send_otp_message(phone_number: str, code: str) -> None:
-    """Placeholder for real SMS delivery. Prints OTP to console."""
-    print(f"\n{'=' * 40}")
-    print(f"  OTP for {phone_number}: {code}")
-    print(f"{'=' * 40}\n")
+    send_wallet_otp(phone=normalize_ghana_phone(phone_number), otp_code=code)
 
 
 def send_otp(wallet: Wallet) -> WalletOtp:
@@ -102,6 +101,7 @@ def verify_otp(*, wallet: Wallet, code: str) -> Wallet:
     return wallet
 
 
+@transaction.atomic
 def resend_otp(*, wallet: Wallet) -> WalletOtp:
     """Invalidate existing OTPs and send a new one."""
     if wallet.is_verified:

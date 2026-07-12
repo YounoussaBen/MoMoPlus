@@ -1,3 +1,6 @@
+import json
+import re
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from drf_spectacular.utils import OpenApiResponse, extend_schema
@@ -8,7 +11,10 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 
+from project.integrations.sms_gateway import SmsDeliveryError, send_login_otp
+
 from .models import AgentStatus, LoanGuarantor, UserRole
+from .phone_numbers import InvalidPhoneNumber, normalize_ghana_phone
 from .serializers import (
     AuthSyncResponseSerializer,
     GuarantorBulkCreateSerializer,
@@ -22,6 +28,66 @@ from .serializers import (
     UserProfileSerializer,
 )
 from .services import add_guarantor, bulk_create_guarantors, delete_guarantor, update_guarantor
+from .webhooks import WebhookSignatureError, verify_standard_webhook
+
+
+@extend_schema(
+    tags=["Authentication"],
+    auth=[],
+    request=None,
+    responses={
+        status.HTTP_200_OK: OpenApiResponse(description="SMS accepted by provider"),
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid hook payload"),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Invalid hook signature"),
+        status.HTTP_502_BAD_GATEWAY: OpenApiResponse(description="SMS provider failure"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def supabase_send_sms_hook(request: Request) -> Response:
+    """Deliver a Supabase-generated login code through Arkesel.
+
+    The raw request body is authenticated before JSON parsing. Supabase remains
+    the sole owner of OTP creation, expiry, attempt limits and verification.
+    """
+
+    raw_body = request.body
+    try:
+        verify_standard_webhook(
+            raw_body=raw_body,
+            webhook_id=request.headers.get("webhook-id"),
+            webhook_timestamp=request.headers.get("webhook-timestamp"),
+            webhook_signature=request.headers.get("webhook-signature"),
+            secret=settings.SEND_SMS_HOOK_SECRET,
+            tolerance_seconds=settings.SEND_SMS_HOOK_TOLERANCE_SECONDS,
+        )
+    except WebhookSignatureError:
+        return Response(
+            {"error": {"http_code": 401, "message": "Invalid webhook signature."}},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    try:
+        event = json.loads(raw_body.decode("utf-8"))
+        phone = normalize_ghana_phone(event["user"]["phone"])
+        otp_code = str(event["sms"]["otp"])
+        if re.fullmatch(r"\d{6}", otp_code) is None:
+            raise ValueError
+    except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError, InvalidPhoneNumber):
+        return Response(
+            {"error": {"http_code": 400, "message": "Invalid SMS hook payload."}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        send_login_otp(phone=phone, otp_code=otp_code)
+    except SmsDeliveryError:
+        return Response(
+            {"error": {"http_code": 502, "message": "Unable to deliver the verification code."}},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response({}, status=status.HTTP_200_OK)
 
 
 @extend_schema(

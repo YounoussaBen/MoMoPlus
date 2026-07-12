@@ -167,7 +167,7 @@ class _ProfileHeader extends StatelessWidget {
     final authVm = context.watch<AuthViewModel>();
     final displayName = appUser.fullName.isNotEmpty
         ? appUser.fullName
-        : appUser.email.split('@').first;
+        : appUser.contactLabel;
 
     return Column(
       children: [
@@ -188,7 +188,7 @@ class _ProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          appUser.email,
+          appUser.contactLabel,
           style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
         ),
       ],

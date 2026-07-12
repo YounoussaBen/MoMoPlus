@@ -25,6 +25,7 @@ class ActivityScreen extends StatefulWidget {
 class _ActivityScreenState extends State<ActivityScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late int _lastReportedIndex;
 
   @override
   void initState() {
@@ -34,10 +35,36 @@ class _ActivityScreenState extends State<ActivityScreen>
       vsync: this,
       initialIndex: widget.initialTabIndex,
     );
+    _lastReportedIndex = widget.initialTabIndex;
+    _tabController.addListener(_syncRouteWithTab);
+  }
+
+  @override
+  void didUpdateWidget(covariant ActivityScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTabIndex != widget.initialTabIndex &&
+        _tabController.index != widget.initialTabIndex) {
+      _lastReportedIndex = widget.initialTabIndex;
+      _tabController.animateTo(widget.initialTabIndex);
+    }
+  }
+
+  void _syncRouteWithTab() {
+    if (_tabController.indexIsChanging ||
+        _tabController.index == _lastReportedIndex ||
+        !mounted) {
+      return;
+    }
+
+    _lastReportedIndex = _tabController.index;
+    final role = widget.isAgent ? 'agent' : 'user';
+    final tab = _tabController.index == 1 ? 'cashServices' : 'getFunds';
+    context.go('/$role/activity?tab=$tab');
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_syncRouteWithTab);
     _tabController.dispose();
     super.dispose();
   }

@@ -285,6 +285,18 @@ SUPABASE_JWKS_URL = config(
     default=f"{SUPABASE_URL.rstrip('/')}/auth/v1/.well-known/jwks.json" if SUPABASE_URL else "",
 )
 SUPABASE_HTTP_TIMEOUT = config("SUPABASE_HTTP_TIMEOUT", default=10, cast=int)
+SEND_SMS_HOOK_SECRET = config("SEND_SMS_HOOK_SECRET", default="")
+SEND_SMS_HOOK_TOLERANCE_SECONDS = config("SEND_SMS_HOOK_TOLERANCE_SECONDS", default=300, cast=int)
+
+# Arkesel SMS V2. Do not reuse a generic URL variable here: pointing the
+# adapter at the older query-string API can expose credentials and message text.
+ARKESEL_API_KEY = config("ARKESEL_API_KEY", default="")
+ARKESEL_SENDER_ID = config("ARKESEL_SENDER_ID", default="MoMoPlus")
+ARKESEL_API_URL = config(
+    "ARKESEL_API_URL",
+    default="https://sms.arkesel.com/api/v2/sms/send",
+)
+ARKESEL_HTTP_TIMEOUT = config("ARKESEL_HTTP_TIMEOUT", default=4, cast=int)
 SUPABASE_STORAGE_BUCKET = config("SUPABASE_STORAGE_BUCKET", default="")
 SUPABASE_STORAGE_BASE_PATH = config("SUPABASE_STORAGE_BASE_PATH", default="")
 SUPABASE_STORAGE_PUBLIC = config("SUPABASE_STORAGE_PUBLIC", default=False, cast=bool)

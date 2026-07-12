@@ -7,14 +7,23 @@ from .models import LoanGuarantor, User
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ("email", "username", "supabase_user_id", "first_name", "last_name", "is_staff", "created_at")
+    list_display = (
+        "email",
+        "phone",
+        "username",
+        "supabase_user_id",
+        "first_name",
+        "last_name",
+        "is_staff",
+        "created_at",
+    )
     list_filter = ("is_staff", "is_superuser", "is_active", "created_at")
-    search_fields = ("email", "username", "supabase_user_id", "first_name", "last_name")
+    search_fields = ("email", "phone", "username", "supabase_user_id", "first_name", "last_name")
     ordering = ("-created_at",)
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
-        (_("Personal info"), {"fields": ("first_name", "last_name", "email", "supabase_user_id")}),
+        (_("Personal info"), {"fields": ("first_name", "last_name", "email", "phone", "supabase_user_id")}),
         (_("Permissions"), {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         (_("Important dates"), {"fields": ("last_login", "created_at", "updated_at")}),
     )

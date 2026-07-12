@@ -115,6 +115,8 @@ Update this URL in your Paystack dashboard.
 * Django verifies that token, maps `supabase_user_id` to the local user row, and applies authorization locally.
 * Django file storage uses Supabase Storage when `SUPABASE_STORAGE_BUCKET` and `SUPABASE_SERVICE_ROLE_KEY` are configured.
 
+Customer authentication uses Supabase phone OTP with a signed Send SMS hook and Arkesel V2 delivery. See [the phone OTP setup guide](docs/phone-otp-setup.md).
+
 ---
 
 ## Development

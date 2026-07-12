@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
-enum AppButtonVariant { primary, secondary, ghost }
+import '../theme/app_radii.dart';
+import '../theme/app_spacing.dart';
+import '../theme/app_theme_extension.dart';
+
+enum AppButtonVariant { primary, secondary, ghost, destructive }
 
 class AppButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-  final AppButtonVariant variant;
-  final Widget? icon;
-
   const AppButton({
     super.key,
     required this.label,
@@ -19,146 +16,114 @@ class AppButton extends StatelessWidget {
     this.icon,
   });
 
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
+  final AppButtonVariant variant;
+  final Widget? icon;
+
   @override
   Widget build(BuildContext context) {
+    final effectiveOnPressed = isLoading ? null : onPressed;
+    final content = _ButtonContent(
+      label: label,
+      icon: icon,
+      isLoading: isLoading,
+      progressColor: _progressColor(context),
+      constrainLabel: variant != AppButtonVariant.ghost,
+    );
+
     return switch (variant) {
-      AppButtonVariant.primary => _PrimaryButton(
-        label: label,
-        onPressed: isLoading ? null : onPressed,
-        isLoading: isLoading,
-        icon: icon,
+      AppButtonVariant.primary => SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: FilledButton(onPressed: effectiveOnPressed, child: content),
       ),
-      AppButtonVariant.secondary => _SecondaryButton(
-        label: label,
-        onPressed: isLoading ? null : onPressed,
-        isLoading: isLoading,
-        icon: icon,
+      AppButtonVariant.secondary => SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: OutlinedButton(onPressed: effectiveOnPressed, child: content),
       ),
-      AppButtonVariant.ghost => _GhostButton(
-        label: label,
-        onPressed: onPressed,
-        icon: icon,
+      AppButtonVariant.ghost => TextButton(
+        onPressed: effectiveOnPressed,
+        child: content,
+      ),
+      AppButtonVariant.destructive => SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: FilledButton(
+          onPressed: effectiveOnPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: context.appColors.errorContainer,
+            foregroundColor: context.appColors.error,
+            disabledBackgroundColor: context.appColors.surfaceDisabled,
+            disabledForegroundColor: context.appColors.textDisabled,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            shape: const RoundedRectangleBorder(
+              borderRadius: AppRadii.mediumBorderRadius,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.space4),
+          ),
+          child: content,
+        ),
       ),
     };
   }
+
+  Color _progressColor(BuildContext context) => switch (variant) {
+    AppButtonVariant.primary => context.appColors.onBrandAccent,
+    AppButtonVariant.secondary => context.appColors.textPrimary,
+    AppButtonVariant.ghost => context.appColors.brandStrong,
+    AppButtonVariant.destructive => context.appColors.error,
+  };
 }
 
-class _PrimaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-  final Widget? icon;
-
-  const _PrimaryButton({
+class _ButtonContent extends StatelessWidget {
+  const _ButtonContent({
     required this.label,
-    this.onPressed,
+    required this.icon,
     required this.isLoading,
-    this.icon,
+    required this.progressColor,
+    required this.constrainLabel,
   });
+
+  final String label;
+  final Widget? icon;
+  final bool isLoading;
+  final Color progressColor;
+  final bool constrainLabel;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        child: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[icon!, const SizedBox(width: 8)],
-                  Text(label),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-class _SecondaryButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final bool isLoading;
-  final Widget? icon;
-
-  const _SecondaryButton({
-    required this.label,
-    this.onPressed,
-    required this.isLoading,
-    this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.surface,
-          foregroundColor: AppColors.textPrimary,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+    if (isLoading) {
+      return Semantics(
+        label: '$label, in progress',
+        liveRegion: true,
+        child: SizedBox.square(
+          dimension: 20,
+          child: CircularProgressIndicator(
+            color: progressColor,
+            strokeWidth: 2,
           ),
         ),
-        child: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: AppColors.textPrimary,
-                  strokeWidth: 2,
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[icon!, const SizedBox(width: 8)],
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-      ),
+      );
+    }
+
+    final labelWidget = Text(
+      label,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
     );
-  }
-}
 
-class _GhostButton extends StatelessWidget {
-  final String label;
-  final VoidCallback? onPressed;
-  final Widget? icon;
-
-  const _GhostButton({required this.label, this.onPressed, this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onPressed,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[icon!, const SizedBox(width: 8)],
-          Text(label),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (icon != null) ...[icon!, const SizedBox(width: AppSpacing.space2)],
+        if (constrainLabel) Flexible(child: labelWidget) else labelWidget,
+      ],
     );
   }
 }
