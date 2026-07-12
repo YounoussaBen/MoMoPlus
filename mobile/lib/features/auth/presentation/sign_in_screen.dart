@@ -591,6 +591,8 @@ class _OtpEntry extends StatefulWidget {
 }
 
 class _OtpEntryState extends State<_OtpEntry> {
+  String? _lastCompletedCode;
+
   @override
   void initState() {
     super.initState();
@@ -606,6 +608,18 @@ class _OtpEntryState extends State<_OtpEntry> {
   }
 
   void _refresh() => setState(() {});
+
+  void _handleCodeChanged(String value) {
+    if (value.length < 6) {
+      _lastCompletedCode = null;
+      return;
+    }
+    if (value == _lastCompletedCode) return;
+
+    _lastCompletedCode = value;
+    TextInput.finishAutofillContext(shouldSave: false);
+    widget.onComplete();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -664,7 +678,8 @@ class _OtpEntryState extends State<_OtpEntry> {
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(6),
                     ],
-                    onSubmitted: (_) => widget.onComplete(),
+                    onChanged: _handleCodeChanged,
+                    onSubmitted: _handleCodeChanged,
                   ),
                 ),
               ),

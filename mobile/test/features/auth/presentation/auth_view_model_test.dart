@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:momoplus/core/data/repositories/auth_repository.dart';
 import 'package:momoplus/features/auth/presentation/auth_view_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -130,6 +131,41 @@ void main() {
       expect(viewModel.errorMessage, contains('securely link'));
     },
   );
+
+  test('KYC approval is presented only once across logins', () async {
+    SharedPreferences.setMockInitialValues({});
+    const approval = {
+      'id': 'kyc-1',
+      'status': 'approved',
+      'updated_at': '2026-07-12T08:00:00Z',
+    };
+    final firstRepository = _FakeAuthRepository(
+      session: _session('user-1'),
+      kycStatus: approval,
+    );
+    final firstViewModel = AuthViewModel(firstRepository);
+
+    await firstViewModel.refreshProfile();
+    expect(firstViewModel.shouldShowApprovedKycScreen, isTrue);
+
+    await firstViewModel.markKycApprovalPresented();
+    expect(firstViewModel.shouldShowApprovedKycScreen, isTrue);
+
+    firstViewModel.dispose();
+    await firstRepository.close();
+
+    final nextRepository = _FakeAuthRepository(
+      session: _session('user-1'),
+      kycStatus: approval,
+    );
+    final nextViewModel = AuthViewModel(nextRepository);
+    addTearDown(nextViewModel.dispose);
+    addTearDown(nextRepository.close);
+
+    await nextViewModel.refreshProfile();
+    expect(nextViewModel.isKycApproved, isTrue);
+    expect(nextViewModel.shouldShowApprovedKycScreen, isFalse);
+  });
 }
 
 Session _session(String userId) {
@@ -151,6 +187,7 @@ class _FakeAuthRepository implements AuthRepository {
     required Session? session,
     Completer<void>? syncCompleter,
     this.syncError,
+    this.kycStatus,
   }) : _session = session,
        _syncCompleter = syncCompleter;
 
@@ -158,6 +195,7 @@ class _FakeAuthRepository implements AuthRepository {
       StreamController<AuthState>.broadcast(sync: true);
   final Completer<void>? _syncCompleter;
   final Object? syncError;
+  final Map<String, dynamic>? kycStatus;
   Session? _session;
   int syncCalls = 0;
   int profileCalls = 0;
@@ -196,7 +234,8 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<Map<String, dynamic>?> getKycStatus() async => {'status': 'approved'};
+  Future<Map<String, dynamic>?> getKycStatus() async =>
+      kycStatus ?? {'status': 'approved'};
 
   @override
   Future<void> syncWithBackend() {

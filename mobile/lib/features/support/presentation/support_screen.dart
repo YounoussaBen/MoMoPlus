@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../core/ui/theme/app_theme.dart';
+
+import '../../../core/ui/theme/app_theme_extension.dart';
 
 class SupportScreen extends StatelessWidget {
   const SupportScreen({super.key});
@@ -7,10 +8,10 @@ class SupportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
         title: const Text('Support'),
-        backgroundColor: AppColors.background,
+        backgroundColor: context.appColors.canvas,
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -26,13 +27,13 @@ class SupportScreen extends StatelessWidget {
                 title: 'Live Chat',
                 subtitle: 'Chat with our support team',
               ),
-              const Divider(height: 1, indent: 56),
+              const _SupportDivider(),
               _SupportTile(
                 icon: Icons.email_outlined,
                 title: 'Email Us',
                 subtitle: 'support@momoplus.com',
               ),
-              const Divider(height: 1, indent: 56),
+              const _SupportDivider(),
               _SupportTile(
                 icon: Icons.phone_outlined,
                 title: 'Call Us',
@@ -50,13 +51,13 @@ class SupportScreen extends StatelessWidget {
                 title: 'FAQ',
                 subtitle: 'Frequently asked questions',
               ),
-              const Divider(height: 1, indent: 56),
+              const _SupportDivider(),
               _SupportTile(
                 icon: Icons.menu_book_outlined,
                 title: 'User Guide',
                 subtitle: 'Learn how to use MoMo Plus',
               ),
-              const Divider(height: 1, indent: 56),
+              const _SupportDivider(),
               _SupportTile(
                 icon: Icons.bug_report_outlined,
                 title: 'Report a Problem',
@@ -76,7 +77,7 @@ class _HeroBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: context.appColors.brandAccent,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -131,10 +132,10 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(left: 4),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
+          color: context.appColors.textSecondary,
           letterSpacing: 0.8,
         ),
       ),
@@ -150,11 +151,24 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.appColors.surfaceSection,
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+}
+
+class _SupportDivider extends StatelessWidget {
+  const _SupportDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      indent: 56,
+      color: context.appColors.surfaceSubtle,
     );
   }
 }
@@ -172,10 +186,13 @@ class _SupportTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.textSecondary),
+      leading: Icon(icon, color: context.appColors.textSecondary),
       title: Text(title),
       subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: context.appColors.textSecondary,
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       onTap: () {},
     );

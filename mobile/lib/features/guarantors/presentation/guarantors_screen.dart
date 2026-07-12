@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/formatters/ghana_phone_formatter.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
 import '../../../core/utils/error_helpers.dart';
 import '../data/guarantor_model.dart';
@@ -99,7 +99,9 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            style: TextButton.styleFrom(
+              foregroundColor: context.appColors.error,
+            ),
             child: const Text('Remove'),
           ),
         ],
@@ -116,7 +118,7 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(friendlyErrorMessage(e)),
-            backgroundColor: AppColors.error,
+            backgroundColor: context.appColors.error,
           ),
         );
       }
@@ -133,12 +135,12 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(title: const Text('Loan Guarantors')),
       body: _isLoading
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.primary,
+                color: context.appColors.brandAccent,
                 strokeWidth: 2,
               ),
             )
@@ -152,7 +154,7 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
                     Text(
                       _errorMessage!,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: context.appColors.textSecondary),
                     ),
                     const SizedBox(height: 16),
                     AppButton(
@@ -169,14 +171,19 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: context.appColors.surfaceSection,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Column(
                     children: [
                       for (var i = 0; i < _guarantors.length; i++) ...[
-                        if (i > 0) const Divider(height: 1, indent: 56),
+                        if (i > 0)
+                          Divider(
+                            height: 1,
+                            indent: 56,
+                            color: context.appColors.surfaceSubtle,
+                          ),
                         _GuarantorTile(
                           guarantor: _guarantors[i],
                           canDelete: _guarantors.length > 2,
@@ -221,10 +228,14 @@ class _GuarantorTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.1),
+          color: context.appColors.brandSoft,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(Icons.person_outline, color: AppColors.primary, size: 20),
+        child: Icon(
+          Icons.person_outline,
+          color: context.appColors.brandStrong,
+          size: 20,
+        ),
       ),
       title: Text(
         guarantor.name,
@@ -232,20 +243,20 @@ class _GuarantorTile extends StatelessWidget {
       ),
       subtitle: Text(
         guarantor.phoneNumber,
-        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        style: TextStyle(color: context.appColors.textSecondary, fontSize: 13),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 18),
-            color: AppColors.textSecondary,
+            color: context.appColors.textSecondary,
             onPressed: onEdit,
           ),
           if (canDelete)
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18),
-              color: AppColors.error,
+              color: context.appColors.error,
               onPressed: onDelete,
             ),
         ],
@@ -317,9 +328,9 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottomInset),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceSection,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -330,7 +341,7 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: context.appColors.surfaceSubtle,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -371,11 +382,15 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
+                        color: context.appColors.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(width: 1, height: 20, color: AppColors.divider),
+                    Container(
+                      width: 1,
+                      height: 20,
+                      color: context.appColors.surfaceSubtle,
+                    ),
                   ],
                 ),
               ),
@@ -385,7 +400,7 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
             const SizedBox(height: 12),
             Text(
               _error!,
-              style: TextStyle(color: AppColors.error, fontSize: 13),
+              style: TextStyle(color: context.appColors.error, fontSize: 13),
             ),
           ],
           const SizedBox(height: 20),

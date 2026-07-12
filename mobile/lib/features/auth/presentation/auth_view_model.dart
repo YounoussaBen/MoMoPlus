@@ -334,19 +334,23 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> acknowledgeKycApproval() async {
+    await markKycApprovalPresented();
+    _shouldShowApprovedKycScreen = false;
+    notifyListeners();
+  }
+
+  /// Persist the approval as soon as its success screen is presented.
+  ///
+  /// This deliberately leaves the current route gate active until the user
+  /// presses Continue, while preventing the same approval from reappearing on
+  /// a later login if the app is closed from the success screen.
+  Future<void> markKycApprovalPresented() async {
     final userId = _kycPreferenceUserId;
     final token = _kycApprovalToken;
-
-    if (userId == null || token == null) {
-      _shouldShowApprovedKycScreen = false;
-      notifyListeners();
-      return;
-    }
+    if (userId == null || token == null) return;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_seenKycApprovalKey(userId), token);
-    _shouldShowApprovedKycScreen = false;
-    notifyListeners();
   }
 
   void reportConnectionError() {

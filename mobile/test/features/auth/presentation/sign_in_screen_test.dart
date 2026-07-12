@@ -67,8 +67,12 @@ void main() {
     expect(find.text('Verification code'), findsOneWidget);
     expect(find.byIcon(Icons.verified_user_outlined), findsNothing);
 
+    final otpField = tester.widget<TextField>(
+      find.byKey(const ValueKey('otp-input')),
+    );
+    expect(otpField.autofillHints, contains(AutofillHints.oneTimeCode));
+
     await tester.enterText(find.byKey(const ValueKey('otp-input')), '123456');
-    await tester.tap(find.text('Verify and continue'));
     await tester.pump();
 
     expect(repository.verifiedPhone, '+233241234567');

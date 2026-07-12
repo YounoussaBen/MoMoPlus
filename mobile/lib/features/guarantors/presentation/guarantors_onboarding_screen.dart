@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
 import '../../../core/ui/formatters/ghana_phone_formatter.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
 import '../../../core/utils/error_helpers.dart';
 import '../../auth/presentation/auth_view_model.dart';
@@ -91,7 +91,7 @@ class _GuarantorsOnboardingScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: context.appColors.canvas,
       appBar: AppBar(
         title: const Text('Loan Guarantors'),
         centerTitle: true,
@@ -106,14 +106,14 @@ class _GuarantorsOnboardingScreenState
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
+                    color: context.appColors.brandSoft,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         Icons.info_outline,
-                        color: AppColors.primary,
+                        color: context.appColors.brandStrong,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -122,7 +122,7 @@ class _GuarantorsOnboardingScreenState
                           'Add at least 2 guarantors for your loan applications. They may be contacted for verification.',
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textPrimary,
+                            color: context.appColors.textPrimary,
                             height: 1.4,
                           ),
                         ),
@@ -149,7 +149,7 @@ class _GuarantorsOnboardingScreenState
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add Another Guarantor'),
                     style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
+                      foregroundColor: context.appColors.brandStrong,
                     ),
                   ),
                 ),
@@ -158,14 +158,14 @@ class _GuarantorsOnboardingScreenState
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.08),
+                      color: context.appColors.errorContainer,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.error_outline,
-                          color: AppColors.error,
+                          color: context.appColors.error,
                           size: 18,
                         ),
                         const SizedBox(width: 8),
@@ -174,7 +174,7 @@ class _GuarantorsOnboardingScreenState
                             _errorMessage!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: AppColors.error,
+                              color: context.appColors.error,
                             ),
                           ),
                         ),
@@ -188,10 +188,10 @@ class _GuarantorsOnboardingScreenState
           Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.appColors.surfaceSection,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: context.appColors.scrim.withValues(alpha: 0.08),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -229,7 +229,7 @@ class _GuarantorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.appColors.surfaceSection,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -241,7 +241,7 @@ class _GuarantorCard extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: context.appColors.brandSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
@@ -250,7 +250,7 @@ class _GuarantorCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
+                    color: context.appColors.brandStrong,
                   ),
                 ),
               ),
@@ -260,7 +260,7 @@ class _GuarantorCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: context.appColors.textPrimary,
                 ),
               ),
               const Spacer(),
@@ -270,10 +270,14 @@ class _GuarantorCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.08),
+                      color: context.appColors.errorContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.close, size: 16, color: AppColors.error),
+                    child: Icon(
+                      Icons.close,
+                      size: 16,
+                      color: context.appColors.error,
+                    ),
                   ),
                 ),
             ],
@@ -309,11 +313,15 @@ class _GuarantorCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
+                        color: context.appColors.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(width: 1, height: 20, color: AppColors.divider),
+                    Container(
+                      width: 1,
+                      height: 20,
+                      color: context.appColors.surfaceSubtle,
+                    ),
                   ],
                 ),
               ),
