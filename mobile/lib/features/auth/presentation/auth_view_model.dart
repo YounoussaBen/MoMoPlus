@@ -12,12 +12,15 @@ import '../../../core/utils/ghana_phone.dart';
 enum AuthBootstrapStatus { signedOut, loadingProfile, ready }
 
 class AuthViewModel extends ChangeNotifier {
+  static const _bootstrapTimeout = Duration(seconds: 6);
+
   final AuthRepository _authRepository;
   BackendApiService? _backendApiService;
 
   StreamSubscription<AuthState>? _authSubscription;
   Timer? _resendTimer;
   Future<void>? _profileRefreshFuture;
+  bool _profileRefreshLoadsKycDetails = false;
   int _profileRefreshGeneration = 0;
   bool _isAuthenticated = false;
   bool _isLoading = false;
@@ -41,7 +44,7 @@ class AuthViewModel extends ChangeNotifier {
         ? AuthBootstrapStatus.loadingProfile
         : AuthBootstrapStatus.signedOut;
     if (_isAuthenticated) {
-      unawaited(refreshProfile());
+      unawaited(refreshProfile(loadKycDetails: false));
     }
     _authSubscription = _authRepository.authStateChanges.listen(
       _onAuthStateChange,
@@ -116,26 +119,29 @@ class AuthViewModel extends ChangeNotifier {
     }
     notifyListeners();
     if (shouldRefresh) {
-      unawaited(refreshProfile());
+      unawaited(refreshProfile(loadKycDetails: false));
     }
   }
 
   bool _isNetworkError(Object error) =>
-      error is SocketException || error is http.ClientException;
+      error is SocketException ||
+      error is http.ClientException ||
+      error is TimeoutException;
 
   bool _isCurrentProfileRefresh(int generation) =>
       _isAuthenticated && generation == _profileRefreshGeneration;
 
-  Future<void> _syncAndLoadProfile(int generation) async {
+  Future<void> _syncAndLoadProfile(
+    int generation, {
+    required bool loadKycDetails,
+  }) async {
     try {
-      await _authRepository.syncWithBackend();
+      final profileData = await _authRepository.syncWithBackend().timeout(
+        _bootstrapTimeout,
+      );
       if (!_isCurrentProfileRefresh(generation)) return;
-      final profileData = await _authRepository.getBackendProfile();
-      if (!_isCurrentProfileRefresh(generation)) return;
-      if (profileData == null) {
-        throw Exception('Backend profile was not returned.');
-      }
       _appUser = AppUser.fromBackendProfile(profileData);
+      _resolvedKycStatus ??= _appUser?.kycStatus;
       _hasConnectionError = false;
     } catch (e) {
       if (_isNetworkError(e) && _isCurrentProfileRefresh(generation)) {
@@ -149,8 +155,23 @@ class AuthViewModel extends ChangeNotifier {
       return;
     }
 
+    if (!loadKycDetails) {
+      _shouldShowApprovedKycScreen = false;
+      unawaited(_loadKycDetails(generation, reportConnectionError: false));
+      return;
+    }
+
+    await _loadKycDetails(generation, reportConnectionError: true);
+  }
+
+  Future<void> _loadKycDetails(
+    int generation, {
+    required bool reportConnectionError,
+  }) async {
     try {
-      final kycData = await _authRepository.getKycStatus();
+      final kycData = await _authRepository.getKycStatus().timeout(
+        _bootstrapTimeout,
+      );
       if (!_isCurrentProfileRefresh(generation)) return;
       final previousKycStatus = _resolvedKycStatus;
       _kycSubmission = kycData == null
@@ -161,9 +182,12 @@ class AuthViewModel extends ChangeNotifier {
       _shouldShowApprovedKycScreen =
           previousKycStatus == KycStatus.pending &&
           _resolvedKycStatus == KycStatus.approved;
-      await _fetchKycMediaUrls(kycData, generation);
+      notifyListeners();
+      unawaited(_fetchKycMediaUrls(kycData, generation));
     } catch (e) {
-      if (_isNetworkError(e) && _isCurrentProfileRefresh(generation)) {
+      if (reportConnectionError &&
+          _isNetworkError(e) &&
+          _isCurrentProfileRefresh(generation)) {
         _hasConnectionError = true;
         return;
       }
@@ -314,28 +338,34 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> refreshProfile() {
+  Future<void> refreshProfile({bool loadKycDetails = true}) {
     if (!_isAuthenticated) {
       _bootstrapStatus = AuthBootstrapStatus.signedOut;
       return Future<void>.value();
     }
 
     final inFlight = _profileRefreshFuture;
-    if (inFlight != null) return inFlight;
+    if (inFlight != null) {
+      if (!loadKycDetails || _profileRefreshLoadsKycDetails) return inFlight;
+      return inFlight.then((_) => refreshProfile());
+    }
 
     final generation = ++_profileRefreshGeneration;
     _bootstrapStatus = AuthBootstrapStatus.loadingProfile;
+    _profileRefreshLoadsKycDetails = loadKycDetails;
     late final Future<void> future;
-    future = _syncAndLoadProfile(generation).whenComplete(() {
-      if (identical(_profileRefreshFuture, future) &&
-          generation == _profileRefreshGeneration) {
-        _profileRefreshFuture = null;
-        _bootstrapStatus = _isAuthenticated
-            ? AuthBootstrapStatus.ready
-            : AuthBootstrapStatus.signedOut;
-        notifyListeners();
-      }
-    });
+    future = _syncAndLoadProfile(generation, loadKycDetails: loadKycDetails)
+        .whenComplete(() {
+          if (identical(_profileRefreshFuture, future) &&
+              generation == _profileRefreshGeneration) {
+            _profileRefreshFuture = null;
+            _profileRefreshLoadsKycDetails = false;
+            _bootstrapStatus = _isAuthenticated
+                ? AuthBootstrapStatus.ready
+                : AuthBootstrapStatus.signedOut;
+            notifyListeners();
+          }
+        });
     _profileRefreshFuture = future;
     notifyListeners();
     return future;
@@ -356,6 +386,7 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
     _hasConnectionError = false;
     _profileRefreshFuture = null;
+    _profileRefreshLoadsKycDetails = false;
     await refreshProfile();
     _setLoading(false);
   }
@@ -454,10 +485,12 @@ class AuthViewModel extends ChangeNotifier {
       };
       _selfieUrl = resolvedUrls.remove('selfie_id');
       _kycDocumentUrls = Map<String, String>.unmodifiable(resolvedUrls);
+      notifyListeners();
     } catch (_) {
       if (!_isCurrentProfileRefresh(generation)) return;
       _selfieUrl = null;
       _kycDocumentUrls = const {};
+      notifyListeners();
     }
   }
 

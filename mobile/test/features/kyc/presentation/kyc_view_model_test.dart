@@ -173,5 +173,5 @@ class _FakeAuthRepository implements AuthRepository {
   }) async {}
 
   @override
-  Future<void> syncWithBackend() async {}
+  Future<Map<String, dynamic>> syncWithBackend() async => {};
 }

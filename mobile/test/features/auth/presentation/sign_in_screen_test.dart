@@ -123,7 +123,7 @@ class _PhoneAuthRepository implements AuthRepository {
   Future<void> signOut() async {}
 
   @override
-  Future<void> syncWithBackend() async {}
+  Future<Map<String, dynamic>> syncWithBackend() async => {};
 
   @override
   Future<Map<String, dynamic>?> getBackendProfile() async => null;

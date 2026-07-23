@@ -18,8 +18,6 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  static const _minimumDisplayDuration = Duration(milliseconds: 1320);
-
   late final AnimationController _controller;
   late final Animation<double> _opacity;
   late final Animation<double> _scale;
@@ -42,13 +40,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _navigate() async {
     final authViewModel = context.read<AuthViewModel>();
-    final minimumDisplay = Future<void>.delayed(_minimumDisplayDuration);
     final preferences = SharedPreferences.getInstance();
 
     if (authViewModel.isAuthenticated) {
-      await Future.wait([minimumDisplay, authViewModel.refreshProfile()]);
-    } else {
-      await minimumDisplay;
+      await authViewModel.refreshProfile(loadKycDetails: false);
     }
     final prefs = await preferences;
     if (!mounted) return;

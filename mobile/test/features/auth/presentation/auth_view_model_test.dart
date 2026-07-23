@@ -87,6 +87,26 @@ void main() {
     },
   );
 
+  test('startup bootstrap does not wait for KYC details', () async {
+    final kycCompleter = Completer<Map<String, dynamic>?>();
+    final repository = _FakeAuthRepository(
+      session: _session('user-1'),
+      kycCompleter: kycCompleter,
+    );
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
+
+    await viewModel.refreshProfile(loadKycDetails: false);
+
+    expect(viewModel.hasHydratedProfile, isTrue);
+    expect(viewModel.appUser?.id, 'user-1');
+    expect(viewModel.isKycApproved, isTrue);
+
+    kycCompleter.complete({'status': 'approved'});
+    await Future<void>.delayed(Duration.zero);
+  });
+
   test('sign out invalidates an in-flight profile bootstrap', () async {
     final syncCompleter = Completer<void>();
     final repository = _FakeAuthRepository(
@@ -197,6 +217,7 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository({
     required Session? session,
     Completer<void>? syncCompleter,
+    this.kycCompleter,
     this.syncError,
     this.kycStatus,
   }) : _session = session,
@@ -205,6 +226,7 @@ class _FakeAuthRepository implements AuthRepository {
   final StreamController<AuthState> _authStates =
       StreamController<AuthState>.broadcast(sync: true);
   final Completer<void>? _syncCompleter;
+  final Completer<Map<String, dynamic>?>? kycCompleter;
   final Object? syncError;
   Map<String, dynamic>? kycStatus;
   Session? _session;
@@ -246,13 +268,24 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<Map<String, dynamic>?> getKycStatus() async =>
-      kycStatus ?? {'status': 'approved'};
+      kycCompleter?.future ?? kycStatus ?? {'status': 'approved'};
 
   @override
-  Future<void> syncWithBackend() {
+  Future<Map<String, dynamic>> syncWithBackend() async {
     syncCalls++;
-    if (syncError case final error?) return Future<void>.error(error);
-    return _syncCompleter?.future ?? Future<void>.value();
+    if (syncError case final error?) throw error;
+    await _syncCompleter?.future;
+    return {
+      'id': _session?.user.id ?? 'user-1',
+      'email': 'agent@example.com',
+      'first_name': 'Ama',
+      'last_name': 'Mensah',
+      'role': 'agent',
+      'agent_status': 'approved',
+      'kyc_status': 'approved',
+      'has_guarantors': true,
+      'is_onboarded': true,
+    };
   }
 
   String? sentPhone;

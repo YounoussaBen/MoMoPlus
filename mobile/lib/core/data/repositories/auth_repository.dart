@@ -11,7 +11,7 @@ abstract class AuthRepository {
   Future<void> resendPhoneOtp({required String phone});
   Future<void> verifyPhoneOtp({required String phone, required String token});
   Future<void> signOut();
-  Future<void> syncWithBackend();
+  Future<Map<String, dynamic>> syncWithBackend();
   Future<Map<String, dynamic>?> getBackendProfile();
   Future<Map<String, dynamic>> updateProfile({
     required String firstName,
@@ -78,7 +78,7 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> syncWithBackend() => _backendService.syncUser();
+  Future<Map<String, dynamic>> syncWithBackend() => _backendService.syncUser();
 
   @override
   Future<Map<String, dynamic>?> getBackendProfile() =>

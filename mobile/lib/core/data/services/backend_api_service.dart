@@ -27,7 +27,7 @@ class BackendApiService {
   };
 
   /// Explicitly hydrate the backend Django user row after sign-in.
-  Future<void> syncUser() async {
+  Future<Map<String, dynamic>> syncUser() async {
     if (_accessToken == null) throw Exception('Not authenticated.');
     final uri = Uri.parse('$_baseUrl/api/auth/sync/');
     final response = await http.post(uri, headers: _headers);
@@ -37,6 +37,8 @@ class BackendApiService {
         'Could not link the authenticated account.',
       );
     }
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    return body['user'] as Map<String, dynamic>;
   }
 
   /// Inform the backend of logout (backend is stateless; client discards the token).
