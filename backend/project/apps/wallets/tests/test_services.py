@@ -119,6 +119,44 @@ class TestVerifyOtp:
 
         assert result.paystack_recipient_code == "RCP_test_wallet"
 
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_test_mocked",
+        PAYSTACK_TEST_MOBILE_MONEY_PHONE="0551234987",
+    )
+    def test_uses_paystack_test_identity_without_changing_wallet(self, user):
+        wallet = add_wallet(user=user, phone_number="0201234567", network="vodafone")
+        otp = WalletOtp.objects.get(wallet=wallet)
+
+        with patch("project.apps.wallets.services.paystack.create_transfer_recipient") as mock_recipient:
+            mock_recipient.return_value = {"recipient_code": "RCP_test_wallet"}
+            result = verify_otp(wallet=wallet, code=otp.code)
+
+        assert result.phone_number == "0201234567"
+        assert result.network == "vodafone"
+        mock_recipient.assert_called_once_with(
+            name="Test User",
+            account_number="0551234987",
+            bank_code="MTN",
+        )
+
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_live_mocked",
+        PAYSTACK_TEST_MOBILE_MONEY_PHONE="0551234987",
+    )
+    def test_ignores_test_identity_with_live_key(self, user):
+        wallet = add_wallet(user=user, phone_number="0201234567", network="vodafone")
+        otp = WalletOtp.objects.get(wallet=wallet)
+
+        with patch("project.apps.wallets.services.paystack.create_transfer_recipient") as mock_recipient:
+            mock_recipient.return_value = {"recipient_code": "RCP_live_wallet"}
+            verify_otp(wallet=wallet, code=otp.code)
+
+        mock_recipient.assert_called_once_with(
+            name="Test User",
+            account_number="0201234567",
+            bank_code="VOD",
+        )
+
     def test_does_not_verify_wallet_when_paystack_setup_fails(self, user):
         from project.integrations.paystack import PaystackError
 

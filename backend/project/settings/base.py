@@ -277,6 +277,9 @@ GOOGLE_MAPS_SERVER_KEY = config("GOOGLE_MAPS_SERVER_KEY", default="")
 
 PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_PUBLIC_KEY = config("PAYSTACK_PUBLIC_KEY", default="")
+# Optional demo-only override. The Paystack adapter applies this only when the
+# secret key starts with ``sk_test_``; live keys always use the wallet details.
+PAYSTACK_TEST_MOBILE_MONEY_PHONE = config("PAYSTACK_TEST_MOBILE_MONEY_PHONE", default="")
 LOAN_DEFAULT_INTEREST_RATE = Decimal(config("LOAN_DEFAULT_INTEREST_RATE", default="10.00"))
 LOAN_AGENT_INTEREST_RATE = Decimal(config("LOAN_AGENT_INTEREST_RATE", default="5.00"))
 GOOGLE_MAPS_HTTP_TIMEOUT = config("GOOGLE_MAPS_HTTP_TIMEOUT", default=8, cast=int)

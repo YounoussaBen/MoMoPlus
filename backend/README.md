@@ -32,6 +32,8 @@ cp .env.example .env
 # Paystack (use test keys for development)
 PAYSTACK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Optional demo override; Paystack's Ghana MTN test number requires no PIN/OTP.
+PAYSTACK_TEST_MOBILE_MONEY_PHONE=0551234987
 ```
 
 ### 3. Database
@@ -69,6 +71,21 @@ Get your keys from Paystack Dashboard → **Settings → API Keys & Webhooks**.
 
   * `sk_test_...`
   * `pk_test_...`
+
+### Demo mobile-money override
+
+For a test-mode demo, set:
+
+```bash
+PAYSTACK_TEST_MOBILE_MONEY_PHONE=0551234987
+```
+
+Users still create and verify wallets with their own phone numbers. The backend
+stores those numbers and returns them on payment receipts, but sends the test
+number and MTN provider to Paystack when creating recipients and initiating
+charges. The override is applied only when `PAYSTACK_SECRET_KEY` starts with
+`sk_test_`; it is ignored for live keys. Remove the setting (or leave it empty)
+when moving to production.
 
 ---
 

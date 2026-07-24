@@ -132,16 +132,18 @@ def _create_paystack_recipient(wallet: Wallet) -> None:
         raise ValueError("Wallet verification failed: Paystack is not configured.")
 
     user = wallet.user
-    bank_code = paystack.NETWORK_TO_BANK_CODE.get(wallet.network, "MTN")
     full_name = f"{user.first_name} {user.last_name}".strip() or user.email
-    account_number = wallet.phone_number
+    paystack_wallet = paystack.mobile_money_details(
+        phone=wallet.phone_number,
+        network=wallet.network,
+    )
 
     # Create the transfer recipient used for both disbursement and repayment transfers.
     try:
         recip_data = paystack.create_transfer_recipient(
             name=full_name,
-            account_number=account_number,
-            bank_code=bank_code,
+            account_number=paystack_wallet.phone,
+            bank_code=paystack_wallet.bank_code,
         )
         wallet.paystack_recipient_code = recip_data.get("recipient_code", "")
         logger.info("Paystack recipient created: %s for wallet %s", wallet.paystack_recipient_code, wallet.pk)

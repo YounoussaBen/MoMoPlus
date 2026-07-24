@@ -33,3 +33,4 @@ def _build_test_database_config(database_url: str) -> DBConfig:
 DATABASES = {"default": _build_test_database_config(config("TEST_DATABASE_URL", default=_default_test_database_url()))}
 
 PAYSTACK_SECRET_KEY = "sk_test_mocked"
+PAYSTACK_TEST_MOBILE_MONEY_PHONE = ""

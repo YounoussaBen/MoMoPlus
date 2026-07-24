@@ -341,7 +341,10 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
     if not borrower_wallet.paystack_recipient_code:
         raise ValueError("Borrower wallet is not set up to receive transfers. Please re-verify it.")
 
-    provider = paystack.NETWORK_TO_PROVIDER.get(agent_wallet.network, "mtn")
+    paystack_wallet = paystack.mobile_money_details(
+        phone=agent_wallet.phone_number,
+        network=agent_wallet.network,
+    )
     reference = _generate_reference("DISB")
     charge_amount = _money(loan.amount)
     transfer_amount = _disbursement_transfer_amount(charge_amount)
@@ -370,13 +373,15 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
         resp = paystack.charge_mobile_money(
             email=agent_user.email,
             amount_pesewas=_pesewas(payment.charge_amount),
-            phone=agent_wallet.phone_number,
-            provider=provider,
+            phone=paystack_wallet.phone,
+            provider=paystack_wallet.provider,
             reference=reference,
             metadata={
                 "loan_id": str(loan.pk),
                 "payment_type": "disbursement",
                 "borrower_id": str(loan.borrower_id),
+                "payer_phone": payment.payer_phone,
+                "payer_network": payment.payer_network,
                 "principal_amount": str(payment.amount),
                 "charge_amount": str(payment.charge_amount),
                 "transfer_amount": str(payment.transfer_amount),
@@ -422,7 +427,10 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
     if not agent_wallet.paystack_recipient_code:
         raise ValueError("Agent wallet is not set up to receive transfers. Please re-verify it.")
 
-    provider = paystack.NETWORK_TO_PROVIDER.get(borrower_wallet.network, "mtn")
+    paystack_wallet = paystack.mobile_money_details(
+        phone=borrower_wallet.phone_number,
+        network=borrower_wallet.network,
+    )
     reference = _generate_reference("REPAY")
     transfer_amount, platform_amount = _repayment_breakdown(loan=loan)
     charge_amount = repay_amount
@@ -448,13 +456,15 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
         resp = paystack.charge_mobile_money(
             email=loan.borrower.email,
             amount_pesewas=_pesewas(payment.charge_amount),
-            phone=borrower_wallet.phone_number,
-            provider=provider,
+            phone=paystack_wallet.phone,
+            provider=paystack_wallet.provider,
             reference=reference,
             metadata={
                 "loan_id": str(loan.pk),
                 "payment_type": "repayment",
                 "agent_id": str(loan.agent_id),
+                "payer_phone": payment.payer_phone,
+                "payer_network": payment.payer_network,
                 "repayment_amount": str(payment.amount),
                 "charge_amount": str(payment.charge_amount),
                 "transfer_amount": str(payment.transfer_amount),

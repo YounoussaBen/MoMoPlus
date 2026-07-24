@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -89,6 +90,44 @@ NETWORK_TO_PROVIDER = {
     "vodafone": "vod",
     "airteltigo": "atl",
 }
+
+
+@dataclass(frozen=True)
+class MobileMoneyDetails:
+    """Paystack-facing details for a locally stored wallet."""
+
+    phone: str
+    provider: str
+    bank_code: str
+    is_test_override: bool = False
+
+
+def mobile_money_details(*, phone: str, network: str) -> MobileMoneyDetails:
+    """Resolve the details sent to Paystack without changing local wallet data.
+
+    Paystack's Ghana test MoMo identity is an MTN number, so both the provider
+    and bank code must be overridden with the phone. The override is ignored
+    for live keys to make accidentally carrying the demo setting to production
+    harmless.
+    """
+    provider = NETWORK_TO_PROVIDER.get(network, "mtn")
+    bank_code = NETWORK_TO_BANK_CODE.get(network, "MTN")
+    test_phone = str(getattr(settings, "PAYSTACK_TEST_MOBILE_MONEY_PHONE", "")).strip()
+    secret_key = str(getattr(settings, "PAYSTACK_SECRET_KEY", "")).strip()
+
+    if not test_phone:
+        return MobileMoneyDetails(phone=phone, provider=provider, bank_code=bank_code)
+
+    if not secret_key.startswith("sk_test_"):
+        logger.warning("Ignoring PAYSTACK_TEST_MOBILE_MONEY_PHONE because the Paystack key is not a test key.")
+        return MobileMoneyDetails(phone=phone, provider=provider, bank_code=bank_code)
+
+    return MobileMoneyDetails(
+        phone=test_phone,
+        provider=NETWORK_TO_PROVIDER["mtn"],
+        bank_code=NETWORK_TO_BANK_CODE["mtn"],
+        is_test_override=True,
+    )
 
 
 def list_mobile_money_banks() -> list[dict[str, Any]]:

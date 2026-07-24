@@ -2,6 +2,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 
 from project.apps.accounts.factories import UserFactory
 from project.apps.accounts.models import AgentStatus, KycStatus, UserRole
@@ -232,7 +233,37 @@ class TestDisbursement:
         _, kwargs = mock_charge.call_args
         assert kwargs["reference"] == payment.reference
         assert kwargs["amount_pesewas"] == 10000
+        assert kwargs["phone"] == agent_wallet.phone_number
+        assert kwargs["metadata"]["payer_phone"] == agent_wallet.phone_number
+        assert kwargs["metadata"]["payer_network"] == agent_wallet.network
         assert "subaccount_code" not in kwargs
+
+    @override_settings(
+        PAYSTACK_SECRET_KEY="sk_test_mocked",
+        PAYSTACK_TEST_MOBILE_MONEY_PHONE="0551234987",
+    )
+    @patch("project.apps.loans.services.paystack.charge_mobile_money")
+    def test_uses_test_identity_but_records_agent_wallet(self, mock_charge, pending_loan, agent_wallet):
+        mock_charge.return_value = {
+            "reference": "DISB_test_override",
+            "status": "pay_offline",
+        }
+        agent_wallet.phone_number = "0209876543"
+        agent_wallet.network = "vodafone"
+        agent_wallet.save(update_fields=["phone_number", "network", "updated_at"])
+        pending_loan.agent_wallet = agent_wallet
+        pending_loan.status = LoanStatus.APPROVED
+        pending_loan.save()
+
+        payment = initiate_disbursement(loan=pending_loan)
+
+        assert payment.payer_phone == "0209876543"
+        assert payment.payer_network == "vodafone"
+        _, kwargs = mock_charge.call_args
+        assert kwargs["phone"] == "0551234987"
+        assert kwargs["provider"] == "mtn"
+        assert kwargs["metadata"]["payer_phone"] == "0209876543"
+        assert kwargs["metadata"]["payer_network"] == "vodafone"
 
     @patch("project.apps.loans.services.paystack.charge_mobile_money")
     def test_paystack_failure(self, mock_charge, pending_loan, agent_user, agent_wallet):
@@ -277,6 +308,9 @@ class TestRepayment:
         _, kwargs = mock_charge.call_args
         assert kwargs["reference"] == payment.reference
         assert kwargs["amount_pesewas"] == 11000
+        assert kwargs["phone"] == pending_loan.borrower_wallet.phone_number
+        assert kwargs["metadata"]["payer_phone"] == pending_loan.borrower_wallet.phone_number
+        assert kwargs["metadata"]["payer_network"] == pending_loan.borrower_wallet.network
         assert "subaccount_code" not in kwargs
 
     @patch("project.apps.loans.services.paystack.charge_mobile_money")
