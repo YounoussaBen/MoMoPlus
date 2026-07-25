@@ -336,7 +336,6 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
 
     agent_wallet = loan.agent_wallet
     borrower_wallet = loan.borrower_wallet
-    agent_user = loan.agent.user
 
     if not borrower_wallet.paystack_recipient_code:
         raise ValueError("Borrower wallet is not set up to receive transfers. Please re-verify it.")
@@ -371,7 +370,6 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
     # Call Paystack outside the atomic block so failure handling persists
     try:
         resp = paystack.charge_mobile_money(
-            email=agent_user.email,
             amount_pesewas=_pesewas(payment.charge_amount),
             phone=paystack_wallet.phone,
             provider=paystack_wallet.provider,
@@ -454,7 +452,6 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
 
     try:
         resp = paystack.charge_mobile_money(
-            email=loan.borrower.email,
             amount_pesewas=_pesewas(payment.charge_amount),
             phone=paystack_wallet.phone,
             provider=paystack_wallet.provider,

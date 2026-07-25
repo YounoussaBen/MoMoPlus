@@ -277,6 +277,7 @@ GOOGLE_MAPS_SERVER_KEY = config("GOOGLE_MAPS_SERVER_KEY", default="")
 
 PAYSTACK_SECRET_KEY = config("PAYSTACK_SECRET_KEY", default="")
 PAYSTACK_PUBLIC_KEY = config("PAYSTACK_PUBLIC_KEY", default="")
+PAYSTACK_PAYMENT_EMAIL = config("PAYSTACK_PAYMENT_EMAIL", default="payments@momoplus.com")
 # Optional demo-only override. The Paystack adapter applies this only when the
 # secret key starts with ``sk_test_``; live keys always use the wallet details.
 PAYSTACK_TEST_MOBILE_MONEY_PHONE = config("PAYSTACK_TEST_MOBILE_MONEY_PHONE", default="")

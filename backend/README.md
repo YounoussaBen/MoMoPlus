@@ -32,6 +32,8 @@ cp .env.example .env
 # Paystack (use test keys for development)
 PAYSTACK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Optional; defaults to payments@momoplus.com
+PAYSTACK_PAYMENT_EMAIL=payments@momoplus.com
 # Optional demo override; Paystack's Ghana MTN test number requires no PIN/OTP.
 PAYSTACK_TEST_MOBILE_MONEY_PHONE=0551234987
 ```
@@ -71,6 +73,9 @@ Get your keys from Paystack Dashboard → **Settings → API Keys & Webhooks**.
 
   * `sk_test_...`
   * `pk_test_...`
+
+All Paystack charges use `payments@momoplus.com` by default. Set
+`PAYSTACK_PAYMENT_EMAIL` to use a different payment email.
 
 ### Demo mobile-money override
 

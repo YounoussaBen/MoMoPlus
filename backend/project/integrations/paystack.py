@@ -195,7 +195,6 @@ def initiate_transfer(
 
 def charge_mobile_money(
     *,
-    email: str,
     amount_pesewas: int,
     phone: str,
     provider: str,
@@ -208,7 +207,7 @@ def charge_mobile_money(
     `amount_pesewas` is in pesewas (GHS 10 = 1000 pesewas).
     """
     payload: dict[str, Any] = {
-        "email": email,
+        "email": settings.PAYSTACK_PAYMENT_EMAIL,
         "amount": amount_pesewas,
         "currency": "GHS",
         "mobile_money": {
