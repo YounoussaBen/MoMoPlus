@@ -293,14 +293,20 @@ class TransactionViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> confirmTransaction(String id) async {
+  Future<bool> confirmTransaction(
+    String id, {
+    String verificationCode = '',
+  }) async {
     if (!_isSessionActive || _isDisposed) return false;
     final generation = _sessionGeneration;
     _isSubmitting = true;
     _errorMessage = null;
     _notifyListeners();
     try {
-      final data = await _api.confirmPhysicalTransaction(id);
+      final data = await _api.confirmPhysicalTransaction(
+        id,
+        verificationCode: verificationCode,
+      );
       if (!_isCurrentSession(generation)) return false;
       _currentTransaction = PhysicalTransaction.fromJson(data);
       _updateInList(_currentTransaction!);

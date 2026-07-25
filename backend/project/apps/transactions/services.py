@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import random
+import secrets
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
@@ -17,7 +17,7 @@ TRANSACTION_EXPIRY_MINUTES = 60
 
 
 def _generate_verification_code() -> str:
-    return f"{random.randint(0, 999999):06d}"
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def _normalize_coordinate(value: Decimal | float | str) -> Decimal:
@@ -162,42 +162,64 @@ def reject_transaction(
     return txn
 
 
-@transaction.atomic
 def confirm_transaction(
     *,
     txn: PhysicalTransaction,
     user: User,
+    verification_code: str = "",
 ) -> PhysicalTransaction:
-    """Confirm the verification code. Both parties must confirm to complete."""
-    if txn.status != TransactionStatus.ACCEPTED:
-        raise ValueError("Transaction must be accepted before confirmation.")
+    """Verify the in-person handoff, then let the user confirm completion."""
+    verification_error = ""
+    with transaction.atomic():
+        txn = (
+            PhysicalTransaction.objects.select_for_update()
+            .select_related("user", "agent__user", "wallet")
+            .get(pk=txn.pk)
+        )
+        if txn.status != TransactionStatus.ACCEPTED:
+            raise ValueError("Transaction must be accepted before confirmation.")
 
-    is_user = txn.user_id == user.pk
-    is_agent = txn.agent.user_id == user.pk
+        is_user = txn.user_id == user.pk
+        is_agent = txn.agent.user_id == user.pk
 
-    if not is_user and not is_agent:
-        raise ValueError("You are not a party to this transaction.")
+        if not is_user and not is_agent:
+            raise ValueError("You are not a party to this transaction.")
 
-    update_fields = ["updated_at"]
+        update_fields = ["updated_at"]
 
-    if is_user:
-        if txn.user_confirmed:
-            raise ValueError("You have already confirmed this transaction.")
-        txn.user_confirmed = True
-        update_fields.append("user_confirmed")
+        if is_user:
+            if txn.user_confirmed:
+                raise ValueError("You have already confirmed this transaction.")
+            if not txn.agent_confirmed:
+                raise ValueError("The agent must verify your code before you can confirm completion.")
+            txn.user_confirmed = True
+            update_fields.append("user_confirmed")
 
-    if is_agent:
-        if txn.agent_confirmed:
-            raise ValueError("You have already confirmed this transaction.")
-        txn.agent_confirmed = True
-        update_fields.append("agent_confirmed")
+        if is_agent:
+            if txn.agent_confirmed:
+                raise ValueError("You have already verified the code.")
+            if txn.verification_attempts >= 5:
+                raise ValueError("Code verification is locked. Cancel this transaction and create a new request.")
+            if not verification_code or not secrets.compare_digest(verification_code, txn.verification_code):
+                txn.verification_attempts += 1
+                update_fields.append("verification_attempts")
+                attempts_left = 5 - txn.verification_attempts
+                verification_error = (
+                    "The code is incorrect. " f"{attempts_left} attempt{'s' if attempts_left != 1 else ''} remaining."
+                )
+            else:
+                txn.agent_confirmed = True
+                update_fields.append("agent_confirmed")
 
-    if txn.user_confirmed and txn.agent_confirmed:
-        txn.status = TransactionStatus.COMPLETED
-        txn.completed_at = timezone.now()
-        update_fields.extend(["status", "completed_at"])
+        if txn.user_confirmed and txn.agent_confirmed:
+            txn.status = TransactionStatus.COMPLETED
+            txn.completed_at = timezone.now()
+            update_fields.extend(["status", "completed_at"])
 
-    txn.save(update_fields=update_fields)
+        txn.save(update_fields=update_fields)
+
+    if verification_error:
+        raise ValueError(verification_error)
     return txn
 
 

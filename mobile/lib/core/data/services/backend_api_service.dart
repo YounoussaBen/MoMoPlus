@@ -600,13 +600,18 @@ class BackendApiService {
   }
 
   Future<Map<String, dynamic>> confirmPhysicalTransaction(
-    String transactionId,
-  ) async {
+    String transactionId, {
+    String verificationCode = '',
+  }) async {
     if (_accessToken == null) throw Exception('Not authenticated.');
     final uri = Uri.parse(
       '$_baseUrl/api/transactions/physical/$transactionId/confirm/',
     );
-    final response = await http.post(uri, headers: _headers);
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'verification_code': verificationCode}),
+    );
     if (response.statusCode != 200) {
       throw _buildApiException(response, 'Failed to confirm transaction.');
     }

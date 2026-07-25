@@ -6,6 +6,7 @@ from .models import PhysicalTransaction, TransactionType
 
 
 class PhysicalTransactionSerializer(serializers.ModelSerializer):
+    verification_code = serializers.SerializerMethodField()
     user_name = serializers.SerializerMethodField()
     agent_name = serializers.SerializerMethodField()
     agent_id = serializers.UUIDField(source="agent.pk", read_only=True)
@@ -46,6 +47,13 @@ class PhysicalTransactionSerializer(serializers.ModelSerializer):
         agent_user = obj.agent.user
         return f"{agent_user.first_name} {agent_user.last_name}".strip()
 
+    def get_verification_code(self, obj) -> str:
+        """Only reveal an accepted transaction's code to its user."""
+        request = self.context.get("request")
+        if request is not None and request.user.pk == obj.user_id and obj.status == "accepted":
+            return obj.verification_code
+        return ""
+
 
 class CreatePhysicalTransactionSerializer(serializers.Serializer):
     agent_id = serializers.UUIDField()
@@ -67,3 +75,13 @@ class RejectTransactionSerializer(serializers.Serializer):
 
 class CancelTransactionSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, default="", allow_blank=True)
+
+
+class ConfirmTransactionSerializer(serializers.Serializer):
+    verification_code = serializers.RegexField(
+        r"^\d{6}$",
+        required=False,
+        default="",
+        allow_blank=True,
+        error_messages={"invalid": "Enter the 6-digit code."},
+    )

@@ -268,26 +268,35 @@ class TestRejectTransaction:
 
 @pytest.mark.django_db
 class TestConfirmTransaction:
-    def test_user_confirms(self, pending_txn, agent_user, borrower):
+    def test_user_confirms_after_agent_verifies(self, pending_txn, agent_user, borrower):
         accept_transaction(
             txn=pending_txn,
             user=agent_user,
             meeting_latitude=Decimal("5.6100"),
             meeting_longitude=Decimal("-0.1900"),
+        )
+        confirm_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            verification_code=pending_txn.verification_code,
         )
         txn = confirm_transaction(txn=pending_txn, user=borrower)
         assert txn.user_confirmed is True
-        assert txn.agent_confirmed is False
-        assert txn.status == TransactionStatus.ACCEPTED
+        assert txn.agent_confirmed is True
+        assert txn.status == TransactionStatus.COMPLETED
 
-    def test_agent_confirms(self, pending_txn, agent_user):
+    def test_agent_verifies_correct_code(self, pending_txn, agent_user):
         accept_transaction(
             txn=pending_txn,
             user=agent_user,
             meeting_latitude=Decimal("5.6100"),
             meeting_longitude=Decimal("-0.1900"),
         )
-        txn = confirm_transaction(txn=pending_txn, user=agent_user)
+        txn = confirm_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            verification_code=pending_txn.verification_code,
+        )
         assert txn.agent_confirmed is True
         assert txn.user_confirmed is False
         assert txn.status == TransactionStatus.ACCEPTED
@@ -299,24 +308,84 @@ class TestConfirmTransaction:
             meeting_latitude=Decimal("5.6100"),
             meeting_longitude=Decimal("-0.1900"),
         )
-        confirm_transaction(txn=pending_txn, user=borrower)
-        txn = confirm_transaction(txn=pending_txn, user=agent_user)
+        confirm_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            verification_code=pending_txn.verification_code,
+        )
+        txn = confirm_transaction(txn=pending_txn, user=borrower)
         assert txn.status == TransactionStatus.COMPLETED
         assert txn.completed_at is not None
 
-    def test_cannot_confirm_pending(self, pending_txn, borrower):
-        with pytest.raises(ValueError, match="must be accepted"):
-            confirm_transaction(txn=pending_txn, user=borrower)
-
-    def test_double_confirm_rejected(self, pending_txn, agent_user, borrower):
+    def test_agent_wrong_code_rejected(self, pending_txn, agent_user):
         accept_transaction(
             txn=pending_txn,
             user=agent_user,
             meeting_latitude=Decimal("5.6100"),
             meeting_longitude=Decimal("-0.1900"),
         )
+        wrong_code = "000001" if pending_txn.verification_code == "000000" else "000000"
+        with pytest.raises(ValueError, match="code is incorrect"):
+            confirm_transaction(
+                txn=pending_txn,
+                user=agent_user,
+                verification_code=wrong_code,
+            )
+        pending_txn.refresh_from_db()
+        assert pending_txn.agent_confirmed is False
+        assert pending_txn.verification_attempts == 1
+
+    def test_agent_is_locked_after_five_wrong_codes(self, pending_txn, agent_user):
+        accept_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            meeting_latitude=Decimal("5.6100"),
+            meeting_longitude=Decimal("-0.1900"),
+        )
+        wrong_code = "000001" if pending_txn.verification_code == "000000" else "000000"
+        for _ in range(5):
+            with pytest.raises(ValueError, match="code is incorrect"):
+                confirm_transaction(
+                    txn=pending_txn,
+                    user=agent_user,
+                    verification_code=wrong_code,
+                )
+
+        with pytest.raises(ValueError, match="verification is locked"):
+            confirm_transaction(
+                txn=pending_txn,
+                user=agent_user,
+                verification_code=pending_txn.verification_code,
+            )
+
+    def test_user_cannot_confirm_before_code_is_verified(self, pending_txn, agent_user, borrower):
+        accept_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            meeting_latitude=Decimal("5.6100"),
+            meeting_longitude=Decimal("-0.1900"),
+        )
+        with pytest.raises(ValueError, match="must verify your code"):
+            confirm_transaction(txn=pending_txn, user=borrower)
+
+    def test_cannot_confirm_pending(self, pending_txn, borrower):
+        with pytest.raises(ValueError, match="must be accepted"):
+            confirm_transaction(txn=pending_txn, user=borrower)
+
+    def test_completed_transaction_cannot_be_confirmed_again(self, pending_txn, agent_user, borrower):
+        accept_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            meeting_latitude=Decimal("5.6100"),
+            meeting_longitude=Decimal("-0.1900"),
+        )
+        confirm_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            verification_code=pending_txn.verification_code,
+        )
         confirm_transaction(txn=pending_txn, user=borrower)
-        with pytest.raises(ValueError, match="already confirmed"):
+        with pytest.raises(ValueError, match="must be accepted"):
             confirm_transaction(txn=pending_txn, user=borrower)
 
 
@@ -345,8 +414,12 @@ class TestCancelTransaction:
             meeting_latitude=Decimal("5.6100"),
             meeting_longitude=Decimal("-0.1900"),
         )
-        confirm_transaction(txn=pending_txn, user=borrower)
-        confirm_transaction(txn=pending_txn, user=agent_user)
+        pending_txn = confirm_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            verification_code=pending_txn.verification_code,
+        )
+        pending_txn = confirm_transaction(txn=pending_txn, user=borrower)
 
         with pytest.raises(ValueError, match="can no longer be cancelled"):
             cancel_transaction(txn=pending_txn, user=borrower)

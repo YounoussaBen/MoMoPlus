@@ -98,7 +98,7 @@ class TestCreateTransactionView:
         assert data["status"] == "pending"
         assert data["amount"] == "100.00"
         assert data["transaction_type"] == "cash_out"
-        assert len(data["verification_code"]) == 6
+        assert data["verification_code"] == ""
 
     def test_create_agent_unavailable(self, user_api_client, agent_api_client, agent_claims, user_claims):
         user_api_client.get(reverse("transaction-list"))
@@ -164,18 +164,61 @@ class TestTransactionLifecycleView:
         assert response.json()["status"] == "accepted"
         assert response.json()["meeting_description"] == "By the roundabout"
 
-        # User confirms
-        response = user_api_client.post(reverse("transaction-confirm", args=[txn_id]))
+        # The code is only visible to the user, never in the agent payload.
+        user_detail = user_api_client.get(reverse("transaction-detail", args=[txn_id])).json()
+        code = user_detail["verification_code"]
+        assert len(code) == 6
+        agent_detail = agent_api_client.get(reverse("transaction-detail", args=[txn_id])).json()
+        assert agent_detail["verification_code"] == ""
+
+        # Agent enters the user's code before starting cash service.
+        response = agent_api_client.post(
+            reverse("transaction-confirm", args=[txn_id]),
+            {"verification_code": code},
+            format="json",
+        )
         assert response.status_code == 200
-        assert response.json()["user_confirmed"] is True
+        assert response.json()["agent_confirmed"] is True
         assert response.json()["status"] == "accepted"
 
-        # Agent confirms → completed
-        response = agent_api_client.post(reverse("transaction-confirm", args=[txn_id]))
+        # User confirms the cash handoff → completed.
+        response = user_api_client.post(
+            reverse("transaction-confirm", args=[txn_id]),
+            {},
+            format="json",
+        )
         assert response.status_code == 200
         assert response.json()["status"] == "completed"
-        assert response.json()["agent_confirmed"] is True
+        assert response.json()["user_confirmed"] is True
         assert response.json()["completed_at"] is not None
+
+    def test_wrong_code_is_rejected(
+        self,
+        user_api_client,
+        agent_api_client,
+        agent_claims,
+        user_claims,
+    ):
+        data = self._create_txn(user_api_client, agent_api_client, agent_claims, user_claims)
+        txn_id = data["id"]
+        agent_api_client.post(
+            reverse("transaction-accept", args=[txn_id]),
+            {
+                "meeting_latitude": "5.6100",
+                "meeting_longitude": "-0.1900",
+            },
+            format="json",
+        )
+        code = user_api_client.get(reverse("transaction-detail", args=[txn_id])).json()["verification_code"]
+        wrong_code = "000001" if code == "000000" else "000000"
+
+        response = agent_api_client.post(
+            reverse("transaction-confirm", args=[txn_id]),
+            {"verification_code": wrong_code},
+            format="json",
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == ("The code is incorrect. 4 attempts remaining.")
 
     def test_accept_allows_high_precision_coordinates(
         self,

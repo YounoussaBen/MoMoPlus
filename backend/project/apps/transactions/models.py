@@ -43,6 +43,7 @@ class PhysicalTransaction(BaseModel):
         default=TransactionStatus.PENDING,
     )
     verification_code = models.CharField(max_length=6, blank=True, default="")
+    verification_attempts = models.PositiveSmallIntegerField(default=0)
     meeting_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     meeting_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     meeting_description = models.TextField(blank=True, default="")

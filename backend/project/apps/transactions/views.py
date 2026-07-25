@@ -11,6 +11,7 @@ from .models import PhysicalTransaction
 from .serializers import (
     AcceptTransactionSerializer,
     CancelTransactionSerializer,
+    ConfirmTransactionSerializer,
     CreatePhysicalTransactionSerializer,
     PhysicalTransactionSerializer,
     RejectTransactionSerializer,
@@ -32,6 +33,10 @@ def _get_txn_or_404(pk: str) -> PhysicalTransaction | None:
         return PhysicalTransaction.objects.select_related("user", "agent__user", "wallet").get(pk=pk)
     except PhysicalTransaction.DoesNotExist:
         return None
+
+
+def _serialize(txn: PhysicalTransaction, request: Request) -> dict:
+    return PhysicalTransactionSerializer(txn, context={"request": request}).data
 
 
 @extend_schema(
@@ -63,7 +68,7 @@ def create_transaction(request: Request) -> Response:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(
-        PhysicalTransactionSerializer(txn).data,
+        _serialize(txn, request),
         status=status.HTTP_201_CREATED,
     )
 
@@ -83,7 +88,7 @@ def list_transactions(request: Request) -> Response:
     else:
         txns = get_user_transactions(user=request.user, status=status_filter)
 
-    return Response(PhysicalTransactionSerializer(txns, many=True).data)
+    return Response(PhysicalTransactionSerializer(txns, many=True, context={"request": request}).data)
 
 
 @extend_schema(
@@ -102,7 +107,7 @@ def transaction_detail(request: Request, pk: str) -> Response:
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response(PhysicalTransactionSerializer(txn).data)
+    return Response(_serialize(txn, request))
 
 
 @extend_schema(
@@ -137,7 +142,7 @@ def accept_transaction_view(request: Request, pk: str) -> Response:
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(PhysicalTransactionSerializer(txn).data)
+    return Response(_serialize(txn, request))
 
 
 @extend_schema(
@@ -169,12 +174,12 @@ def reject_transaction_view(request: Request, pk: str) -> Response:
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(PhysicalTransactionSerializer(txn).data)
+    return Response(_serialize(txn, request))
 
 
 @extend_schema(
     tags=["Cash Services"],
-    request=None,
+    request=ConfirmTransactionSerializer,
     responses={
         status.HTTP_200_OK: PhysicalTransactionSerializer,
         status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
@@ -184,17 +189,24 @@ def reject_transaction_view(request: Request, pk: str) -> Response:
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def confirm_transaction_view(request: Request, pk: str) -> Response:
-    """Confirm the verification code for a physical transaction."""
+    """Agent verifies the code; user confirms service completion."""
     txn = _get_txn_or_404(pk)
     if txn is None:
         return Response({"detail": "Transaction not found."}, status=status.HTTP_404_NOT_FOUND)
 
+    serializer = ConfirmTransactionSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
     try:
-        txn = confirm_transaction(txn=txn, user=request.user)
+        txn = confirm_transaction(
+            txn=txn,
+            user=request.user,
+            verification_code=serializer.validated_data["verification_code"],
+        )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(PhysicalTransactionSerializer(txn).data)
+    return Response(_serialize(txn, request))
 
 
 @extend_schema(
@@ -226,4 +238,4 @@ def cancel_transaction_view(request: Request, pk: str) -> Response:
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(PhysicalTransactionSerializer(txn).data)
+    return Response(_serialize(txn, request))
