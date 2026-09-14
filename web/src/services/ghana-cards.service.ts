@@ -20,6 +20,10 @@ export class GhanaCardsService {
     return this.repository.uploadImage(file);
   }
 
+  deleteImage(id: string) {
+    return this.repository.deleteImage(id);
+  }
+
   setActive(id: string, isActive: boolean) {
     return this.repository.setActive(id, isActive);
   }

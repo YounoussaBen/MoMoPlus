@@ -112,7 +112,12 @@ class TestSubmitKyc:
     def test_auto_approves_when_card_is_in_registry(self, user_factory, media_root):
         registry_owner = user_factory(email="registry@example.com", username="registry")
         make_ghana_card_record(registry_owner)
-        user = user_factory(email="matched@example.com", username="matched")
+        user = user_factory(
+            email="matched@example.com",
+            username="matched",
+            first_name="Kwame",
+            last_name="Mensah",
+        )
 
         submission = submit_kyc(
             user=user,
@@ -124,6 +129,50 @@ class TestSubmitKyc:
         assert submission.verification_method == KycSubmission.VerificationMethod.GHANA_CARD_REGISTRY
         user.refresh_from_db()
         assert user.kyc_status == KycStatus.APPROVED
+
+    @pytest.mark.django_db
+    def test_keeps_submission_pending_when_name_does_not_match_card(self, user_factory, media_root):
+        registry_owner = user_factory(email="registry-mismatch@example.com", username="registry-mismatch")
+        make_ghana_card_record(registry_owner)
+        user = user_factory(
+            email="mismatch@example.com",
+            username="mismatch",
+            first_name="Ama",
+            last_name="Mensah",
+        )
+
+        submission = submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
+
+        assert submission.status == KycSubmission.Status.PENDING
+        assert submission.verification_method == KycSubmission.VerificationMethod.MANUAL_REVIEW
+        user.refresh_from_db()
+        assert user.kyc_status == KycStatus.PENDING
+
+    @pytest.mark.django_db
+    def test_name_match_ignores_case_spacing_punctuation_and_accents(self, user_factory, media_root):
+        registry_owner = user_factory(email="registry-normalized@example.com", username="registry-normalized")
+        record = make_ghana_card_record(registry_owner)
+        record.first_names = "Érnestina Korkor"
+        record.surname = "O' Mensah"
+        record.save(update_fields=["first_names", "surname"])
+        user = user_factory(
+            email="normalized@example.com",
+            username="normalized",
+            first_name="ernestina-korkor",
+            last_name="o mensah",
+        )
+
+        submission = submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
+
+        assert submission.status == KycSubmission.Status.APPROVED
 
 
 class TestApproveKyc:

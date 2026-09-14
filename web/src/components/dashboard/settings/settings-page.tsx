@@ -10,7 +10,7 @@ import {
   SunMedium,
   UserRound,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
 import {
@@ -21,6 +21,7 @@ import {
 import { useSettingsProfile, useUpdateSettingsProfile } from "@/hooks/use-settings-profile";
 import { cn } from "@/lib/utils";
 import type { ThemePreference } from "@/lib/theme";
+import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -129,10 +130,18 @@ export function SettingsPageView() {
   const { preferences, updatePreferences, resetPreferences } = useDashboardPreferences();
   const profileQuery = useSettingsProfile();
   const updateProfileMutation = useUpdateSettingsProfile();
-  const [formFeedback, setFormFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const { error } = useToast();
+
+  useEffect(() => {
+    if (profileQuery.error) {
+      error(
+        "Could not load profile",
+        profileQuery.error instanceof Error
+          ? profileQuery.error.message
+          : "Unable to load profile details.",
+      );
+    }
+  }, [error, profileQuery.error]);
 
   const profile = profileQuery.data;
   const profileFormKey = `${profile?.id ?? user?.id ?? "staff"}:${profile?.updated_at ?? "pending"}`;
@@ -142,10 +151,7 @@ export function SettingsPageView() {
     const lastName = String(formData.get("last_name") ?? "").trim();
 
     if (!firstName || !lastName) {
-      setFormFeedback({
-        type: "error",
-        message: "First name and last name are required.",
-      });
+      error("Names are required", "Enter both your first name and last name.");
       return;
     }
 
@@ -159,15 +165,8 @@ export function SettingsPageView() {
         first_name: updatedProfile.first_name,
         last_name: updatedProfile.last_name,
       });
-      setFormFeedback({
-        type: "success",
-        message: "Profile details updated successfully.",
-      });
-    } catch (error) {
-      setFormFeedback({
-        type: "error",
-        message: error instanceof Error ? error.message : "Unable to update your profile.",
-      });
+    } catch {
+      // The mutation displays the API error as a toast.
     }
   };
 
@@ -222,14 +221,6 @@ export function SettingsPageView() {
                   </div>
                 </div>
 
-                {profileQuery.error ? (
-                  <p className="text-destructive text-sm">
-                    {profileQuery.error instanceof Error
-                      ? profileQuery.error.message
-                      : "Unable to load profile details."}
-                  </p>
-                ) : null}
-
                 <form
                   key={profileFormKey}
                   className="grid gap-4 md:grid-cols-2"
@@ -264,20 +255,10 @@ export function SettingsPageView() {
                   </div>
 
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center md:col-span-2">
-                    {formFeedback ? (
-                      <p
-                        className={cn(
-                          "text-sm",
-                          formFeedback.type === "success" ? "text-success" : "text-destructive",
-                        )}
-                      >
-                        {formFeedback.message}
-                      </p>
-                    ) : null}
                     <Button
                       type="submit"
                       disabled={updateProfileMutation.isPending}
-                      className={cn(!formFeedback && "sm:ml-auto")}
+                      className="sm:ml-auto"
                     >
                       <Save className="size-4" />
                       {updateProfileMutation.isPending ? "Saving..." : "Save changes"}

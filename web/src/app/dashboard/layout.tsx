@@ -10,17 +10,17 @@ import {
   UserCog,
   ArrowLeftRight,
   Wallet,
-  CreditCard,
+  BadgeCheck,
   Settings,
 } from "lucide-react";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", exact: true },
   { icon: Users, label: "User Management", href: "/dashboard/users" },
-  { icon: CreditCard, label: "Ghana Cards", href: "/dashboard/ghana-cards" },
   { icon: UserCog, label: "Agent Management", href: "/dashboard/agents" },
   { icon: Wallet, label: "Get Funds", href: "/dashboard/get-funds" },
   { icon: ArrowLeftRight, label: "Cash Services", href: "/dashboard/cash-services" },
+  { icon: BadgeCheck, label: "Verification Registry", href: "/dashboard/ghana-cards" },
 ];
 
 const bottomNavItems = [{ icon: Settings, label: "Settings", href: "/dashboard/settings" }];

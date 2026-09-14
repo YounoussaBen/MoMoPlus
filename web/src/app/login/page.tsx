@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
+import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,9 +18,9 @@ export default function LoginPage() {
   const [isNavigating, startTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const { success, error } = useToast();
   const logoSrc = resolvedTheme === "dark" ? "/logo-white.png" : "/logo.png";
   const isBusy = submitting || isNavigating;
 
@@ -35,16 +36,19 @@ export default function LoginPage() {
     e.preventDefault();
     if (isBusy) return;
 
-    setError("");
     setSubmitting(true);
 
     try {
       await login(email, password);
+      success("Welcome back", "You are signed in to the MoMoPlus dashboard.");
       startTransition(() => {
         router.push("/dashboard");
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
+      error(
+        "Sign in failed",
+        err instanceof Error ? err.message : "Please check your credentials and try again.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -116,12 +120,6 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-
-            {error && (
-              <p className="bg-destructive/10 text-destructive rounded-xl px-4 py-2.5 text-sm">
-                {error}
-              </p>
-            )}
 
             <Button type="submit" size="lg" className="w-full" disabled={isBusy}>
               {isBusy && <Loader2 className="animate-spin" />}

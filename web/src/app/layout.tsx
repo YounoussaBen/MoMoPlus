@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ReactQueryProvider } from "@/di/react-query-provider";
 import { AuthProvider } from "@/context/auth-context";
 import { ThemeProvider } from "@/context/theme-context";
+import { ToastProvider } from "@/components/ui/toast";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
@@ -22,11 +23,13 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <ThemeProvider>
-          <AuthProvider>
-            <ReactQueryProvider>{children}</ReactQueryProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <ToastProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <ReactQueryProvider>{children}</ReactQueryProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </ToastProvider>
       </body>
     </html>
   );

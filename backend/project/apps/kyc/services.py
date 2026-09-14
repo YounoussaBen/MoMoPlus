@@ -8,7 +8,7 @@ from project.apps.files.models import FileAsset
 from project.apps.files.services import delete_file_asset
 
 from .models import GhanaCardRecord, KycSubmission
-from .utils import normalize_ghana_card_number
+from .utils import normalize_ghana_card_number, normalize_person_name
 
 
 def _get_ready_asset(user: User, asset_id: str, expected_kind: str) -> FileAsset:
@@ -64,7 +64,15 @@ def submit_kyc(
     ):
         raise ValueError("This Ghana Card is already linked to another account.")
 
-    matched_registry = registry_record is not None
+    normalized_user_first_name = normalize_person_name(user.first_name)
+    normalized_user_last_name = normalize_person_name(user.last_name)
+    matched_registry = bool(
+        registry_record
+        and normalized_user_first_name
+        and normalized_user_last_name
+        and normalized_user_first_name == normalize_person_name(registry_record.first_names)
+        and normalized_user_last_name == normalize_person_name(registry_record.surname)
+    )
     new_status = KycSubmission.Status.APPROVED if matched_registry else KycSubmission.Status.PENDING
     verification_method = (
         KycSubmission.VerificationMethod.GHANA_CARD_REGISTRY

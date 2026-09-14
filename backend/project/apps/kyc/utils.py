@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 _GHANA_CARD_NUMBER_RE = re.compile(r"^GHA\d{10}$")
+_PERSON_NAME_TOKEN_RE = re.compile(r"[^\W_]+", flags=re.UNICODE)
 
 
 def normalize_ghana_card_number(value: str) -> str:
@@ -12,6 +14,13 @@ def normalize_ghana_card_number(value: str) -> str:
         raise ValueError("Enter a valid Ghana Card number in the format GHA-XXXXXXXXX-X.")
 
     return f"GHA-{compact[3:12]}-{compact[12:]}"
+
+
+def normalize_person_name(value: str) -> str:
+    """Normalize a person's name for a strict, user-to-registry comparison."""
+    decomposed = unicodedata.normalize("NFKD", str(value or ""))
+    without_diacritics = "".join(char for char in decomposed if not unicodedata.combining(char))
+    return " ".join(_PERSON_NAME_TOKEN_RE.findall(without_diacritics.casefold()))
 
 
 def mask_ghana_card_number(value: str) -> str:

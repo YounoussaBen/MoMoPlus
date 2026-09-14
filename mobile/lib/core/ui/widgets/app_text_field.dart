@@ -14,6 +14,7 @@ class AppTextField extends StatelessWidget {
   final void Function(String)? onChanged;
   final Widget? suffixIcon;
   final Widget? prefixIcon;
+  final String? prefixText;
   final bool autofocus;
   final FocusNode? focusNode;
   final bool enabled;
@@ -38,6 +39,7 @@ class AppTextField extends StatelessWidget {
     this.onChanged,
     this.suffixIcon,
     this.prefixIcon,
+    this.prefixText,
     this.autofocus = false,
     this.focusNode,
     this.enabled = true,
@@ -74,6 +76,7 @@ class AppTextField extends StatelessWidget {
         hintText: hint,
         helperText: helperText,
         prefixIcon: prefixIcon,
+        prefixText: prefixText,
         suffixIcon: suffixIcon,
       ),
     );

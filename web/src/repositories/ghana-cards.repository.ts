@@ -32,23 +32,37 @@ export class GhanaCardsRepository {
   }
 
   async uploadImage(file: File) {
-    const { data } = await this.client.post<FileUploadResponse>("/api/files/", {
-      original_name: file.name,
-      content_type: file.type || "application/octet-stream",
-      size: file.size,
-      kind: "ghana_card",
-      visibility: "private",
-    });
+    let fileId: string | null = null;
 
-    if (!data.upload.signed_url) {
-      throw new Error("The storage service did not return an upload URL.");
+    try {
+      const { data } = await this.client.post<FileUploadResponse>("/api/files/", {
+        original_name: file.name,
+        content_type: file.type || "application/octet-stream",
+        size: file.size,
+        kind: "ghana_card",
+        visibility: "private",
+      });
+      fileId = data.file.id;
+
+      if (!data.upload.signed_url) {
+        throw new Error("The storage service did not return an upload URL.");
+      }
+
+      await axios.put(data.upload.signed_url, file, {
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      await this.client.post(`/api/files/${data.file.id}/complete/`);
+      return data.file.id;
+    } catch (error) {
+      if (fileId) {
+        await this.deleteImage(fileId).catch(() => undefined);
+      }
+      throw error;
     }
+  }
 
-    await axios.put(data.upload.signed_url, file, {
-      headers: { "Content-Type": file.type || "application/octet-stream" },
-    });
-    await this.client.post(`/api/files/${data.file.id}/complete/`);
-    return data.file.id;
+  async deleteImage(id: string) {
+    await this.client.delete(`/api/files/${id}/`);
   }
 
   async setActive(id: string, isActive: boolean) {
