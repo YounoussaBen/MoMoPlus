@@ -314,10 +314,16 @@ class KycViewModel extends ChangeNotifier {
     await _uploadFile(
       file: file,
       kind: 'selfie',
-      contentType: 'image/jpeg',
+      contentType: _imageContentType(file),
       getState: () => _selfie,
       setState: (s) => _selfie = s,
     );
+  }
+
+  String _imageContentType(File file) {
+    return file.path.toLowerCase().endsWith('.png')
+        ? 'image/png'
+        : 'image/jpeg';
   }
 
   Future<void> pickProofOfAddress() async {

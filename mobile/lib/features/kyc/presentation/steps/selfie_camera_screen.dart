@@ -1,9 +1,18 @@
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/ui/widgets/app_button.dart';
+import '../../data/demo_selfie_file.dart';
+
+// Debug builds support simulator demos by default. Release/profile demo builds
+// can opt in explicitly with --dart-define=MOMO_DEMO_MODE=true.
+const _demoModeEnabled = bool.fromEnvironment(
+  'MOMO_DEMO_MODE',
+  defaultValue: false,
+);
 
 class SelfieCameraScreen extends StatefulWidget {
   const SelfieCameraScreen({super.key});
@@ -152,6 +161,27 @@ class _SelfieCameraScreenState extends State<SelfieCameraScreen> {
     }
   }
 
+  Future<void> _useDemoSelfie() async {
+    if ((!kDebugMode && !_demoModeEnabled) || _isCapturing) return;
+
+    setState(() {
+      _isCapturing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final file = await DemoSelfieFile.create();
+      if (!mounted) return;
+      Navigator.of(context).pop(file);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isCapturing = false;
+        _errorMessage = 'Could not create the demo selfie.';
+      });
+    }
+  }
+
   String _cameraErrorMessage(CameraException error) {
     return switch (error.code) {
       'CameraAccessDenied' ||
@@ -253,6 +283,27 @@ class _SelfieCameraScreenState extends State<SelfieCameraScreen> {
             style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 16),
+          if (kDebugMode || _demoModeEnabled) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'The simulator has no camera. Use an illustrated image for this demo.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: AppButton(
+                label: 'Use demo selfie',
+                variant: AppButtonVariant.primary,
+                isLoading: _isCapturing,
+                onPressed: _isCapturing ? null : _useDemoSelfie,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: AppButton(
