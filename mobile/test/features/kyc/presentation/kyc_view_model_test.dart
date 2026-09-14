@@ -59,7 +59,7 @@ void main() {
         id: 'kyc-1',
         status: 'pending',
         idType: 'national_id',
-        ghanaCardNumber: 'GHA-728430143-4',
+        ghanaCardNumber: 'GHA-123456789-0',
         rejectionReason: '',
       );
       await viewModel.refreshStatus(showLoading: true);

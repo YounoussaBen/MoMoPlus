@@ -7,6 +7,7 @@ abstract final class AppMotion {
   static const Duration standard = Duration(milliseconds: 220);
   static const Duration emphasized = Duration(milliseconds: 320);
   static const Duration data = Duration(milliseconds: 420);
+  static const Duration splash = Duration(milliseconds: 1100);
 
   /// Used specifically for appearance changes defined by the design system.
   static const Duration themeChange = Duration(milliseconds: 180);

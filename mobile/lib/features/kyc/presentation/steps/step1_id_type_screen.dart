@@ -106,7 +106,7 @@ class _Step1GhanaCardScreenState extends State<Step1GhanaCardScreen> {
         const SizedBox(height: AppSpacing.space5),
         AppTextField(
           label: 'Ghana Card number',
-          hint: '728430143-4',
+          hint: '123456789-0',
           prefixText: 'GHA-',
           controller: _cardNumberController,
           keyboardType: TextInputType.number,
@@ -126,7 +126,7 @@ class _Step1GhanaCardScreenState extends State<Step1GhanaCardScreen> {
             if (value == null || value.trim().isEmpty) return null;
             return vm.isGhanaCardNumberValid
                 ? null
-                : 'Enter the 10 digits after GHA-, for example 728430143-4.';
+                : 'Enter the 10 digits after GHA-, for example 123456789-0.';
           },
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),

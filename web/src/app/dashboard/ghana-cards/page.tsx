@@ -445,7 +445,7 @@ export default function GhanaCardsPage() {
                     onChange={(event) =>
                       setCardDigits(event.target.value.replace(/\D/g, "").slice(0, 10))
                     }
-                    placeholder="728430143-4"
+                    placeholder="123456789-0"
                     inputMode="numeric"
                     autoComplete="off"
                     maxLength={11}
