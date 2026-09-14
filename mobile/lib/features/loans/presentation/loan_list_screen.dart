@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../domain/loan.dart';
 import 'loan_view_model.dart';
@@ -42,12 +42,13 @@ class _LoanListScreenState extends State<LoanListScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final loanVm = context.watch<LoanViewModel>();
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: colors.canvas,
         surfaceTintColor: Colors.transparent,
         title: const Text(
           'Loans',
@@ -56,9 +57,9 @@ class _LoanListScreenState extends State<LoanListScreen>
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: colors.brandStrong,
+          labelColor: colors.brandStrong,
+          unselectedLabelColor: colors.textSecondary,
           tabs: [
             Tab(text: 'Active (${loanVm.ongoingLoans.length})'),
             Tab(text: 'History (${loanVm.historyLoans.length})'),
@@ -106,15 +107,16 @@ class _LoanTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (isLoading && loans.isEmpty) {
-      return const Center(
+      return Center(
         child: CircularProgressIndicator(
-          color: AppColors.primary,
+          color: context.appColors.brandStrong,
           strokeWidth: 2,
         ),
       );
     }
 
     if (loans.isEmpty) {
+      final colors = context.appColors;
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -122,15 +124,12 @@ class _LoanTab extends StatelessWidget {
             Icon(
               emptyIcon,
               size: 48,
-              color: AppColors.textSecondary.withValues(alpha: 0.3),
+              color: colors.textSecondary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 12),
             Text(
               emptyText,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: colors.textSecondary),
             ),
           ],
         ),
@@ -139,7 +138,7 @@ class _LoanTab extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: () => context.read<LoanViewModel>().loadLoans(),
-      color: AppColors.primary,
+      color: context.appColors.brandStrong,
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: loans.length,
@@ -158,18 +157,19 @@ class _LoanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final (statusColor, statusIcon) = switch (loan.status) {
-      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
-      'approved' => (AppColors.primary, Icons.check_circle_outline),
-      'disbursing' => (Colors.blue, Icons.sync_rounded),
-      'active' => (AppColors.primary, Icons.account_balance_wallet_rounded),
-      'repaying' => (Colors.blue, Icons.sync_rounded),
-      'completed' => (AppColors.primary, Icons.check_circle_rounded),
-      'defaulted' => (AppColors.error, Icons.warning_amber_rounded),
-      'rejected' => (AppColors.error, Icons.block_rounded),
-      'cancelled' => (AppColors.textSecondary, Icons.cancel_outlined),
-      'failed' => (AppColors.error, Icons.error_outline_rounded),
-      _ => (AppColors.textSecondary, Icons.info_outline),
+      'pending' => (colors.warning, Icons.hourglass_top_rounded),
+      'approved' => (colors.brandStrong, Icons.check_circle_outline),
+      'disbursing' => (colors.info, Icons.sync_rounded),
+      'active' => (colors.brandStrong, Icons.account_balance_wallet_rounded),
+      'repaying' => (colors.info, Icons.sync_rounded),
+      'completed' => (colors.brandStrong, Icons.check_circle_rounded),
+      'defaulted' => (colors.error, Icons.warning_amber_rounded),
+      'rejected' => (colors.error, Icons.block_rounded),
+      'cancelled' => (colors.textSecondary, Icons.cancel_outlined),
+      'failed' => (colors.error, Icons.error_outline_rounded),
+      _ => (colors.textSecondary, Icons.info_outline),
     };
 
     return GestureDetector(
@@ -177,8 +177,9 @@ class _LoanCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surfaceSection,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.surfaceSubtle),
         ),
         child: Row(
           children: [
@@ -198,10 +199,10 @@ class _LoanCard extends StatelessWidget {
                 children: [
                   Text(
                     isAgent ? loan.borrowerName : loan.agentName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -209,18 +210,18 @@ class _LoanCard extends StatelessWidget {
                     children: [
                       Text(
                         '${loan.statusLabel} · ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                       NetworkLogo(network: loan.network, size: 14),
                       const SizedBox(width: 3),
                       Text(
                         loan.networkLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                     ],
@@ -233,29 +234,25 @@ class _LoanCard extends StatelessWidget {
               children: [
                 Text(
                   'GHS ${loan.amount.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
                 if (loan.isActive && loan.isOverdue)
-                  const Text(
+                  Text(
                     'OVERDUE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.error,
+                      color: colors.error,
                     ),
                   ),
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right,
-              size: 20,
-              color: AppColors.textSecondary,
-            ),
+            Icon(Icons.chevron_right, size: 20, color: colors.textSecondary),
           ],
         ),
       ),

@@ -291,6 +291,7 @@ class _EarningsHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.space6),
       decoration: const BoxDecoration(
@@ -303,21 +304,21 @@ class _EarningsHero extends StatelessWidget {
           Text(
             'Total earnings',
             style: context.appTextTheme.labelLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
+              color: colors.onBrandAccent.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: AppSpacing.space2),
           Text(
             'GHS ${earnings.totalEarned.toStringAsFixed(2)}',
             style: context.appTextTheme.displayLarge?.copyWith(
-              color: Colors.white,
+              color: colors.onBrandAccent,
             ),
           ),
           const SizedBox(height: AppSpacing.space2),
           Text(
             '${earnings.totalLoansCompleted} completed loan${earnings.totalLoansCompleted == 1 ? '' : 's'}',
             style: context.appTextTheme.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.74),
+              color: colors.onBrandAccent.withValues(alpha: 0.74),
             ),
           ),
         ],

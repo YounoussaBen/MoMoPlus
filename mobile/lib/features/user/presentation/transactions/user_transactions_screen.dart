@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 
 class UserTransactionsScreen extends StatelessWidget {
   const UserTransactionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.canvas,
       appBar: AppBar(title: const Text('Transactions')),
       body: Center(
         child: Column(
@@ -16,7 +17,7 @@ class UserTransactionsScreen extends StatelessWidget {
             Icon(
               Icons.receipt_long_outlined,
               size: 64,
-              color: AppColors.textSecondary.withValues(alpha: 0.4),
+              color: colors.textSecondary.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             Text(
@@ -27,7 +28,7 @@ class UserTransactionsScreen extends StatelessWidget {
             Text(
               'All completed transactions,\nreferences, and statuses.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 14, color: colors.textSecondary),
             ),
           ],
         ),

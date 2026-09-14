@@ -173,11 +173,6 @@ class _WalletTile extends StatelessWidget {
                   label: 'Default',
                   tone: AppStatusTone.brand,
                 ),
-              if (wallet.isSignupWallet)
-                const AppStatusBadge(
-                  label: 'Signup wallet',
-                  tone: AppStatusTone.success,
-                ),
               if (!wallet.isVerified)
                 const AppStatusBadge(
                   label: 'Unverified',

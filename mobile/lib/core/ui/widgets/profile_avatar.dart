@@ -16,24 +16,45 @@ class ProfileAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final normalizedImageUrl = imageUrl?.trim();
+    final hasImage =
+        normalizedImageUrl != null && normalizedImageUrl.isNotEmpty;
+
     return Semantics(
       image: true,
       label: 'Profile photo',
       child: CircleAvatar(
         radius: radius,
         backgroundColor: context.appColors.brandSoft,
-        backgroundImage: imageUrl != null ? NetworkImage(imageUrl!) : null,
-        onBackgroundImageError: imageUrl != null ? (_, _) {} : null,
-        child: imageUrl == null
-            ? Text(
-                fallbackLetter.toUpperCase(),
-                style: TextStyle(
-                  fontSize: radius * 0.78,
-                  fontWeight: FontWeight.w600,
-                  color: context.appColors.brandStrong,
+        child: hasImage
+            ? ClipOval(
+                child: Image.network(
+                  normalizedImageUrl,
+                  width: radius * 2,
+                  height: radius * 2,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _fallback(context),
+                  frameBuilder:
+                      (context, child, frame, wasSynchronouslyLoaded) {
+                        if (wasSynchronouslyLoaded || frame != null) {
+                          return child;
+                        }
+                        return _fallback(context);
+                      },
                 ),
               )
-            : null,
+            : _fallback(context),
+      ),
+    );
+  }
+
+  Widget _fallback(BuildContext context) {
+    return Text(
+      fallbackLetter.toUpperCase(),
+      style: TextStyle(
+        fontSize: radius * 0.78,
+        fontWeight: FontWeight.w600,
+        color: context.appColors.brandStrong,
       ),
     );
   }

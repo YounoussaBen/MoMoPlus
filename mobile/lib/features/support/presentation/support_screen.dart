@@ -74,6 +74,7 @@ class SupportScreen extends StatelessWidget {
 class _HeroBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -86,17 +87,17 @@ class _HeroBanner extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
+              color: colors.onBrandAccent.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.support_agent_rounded,
-              color: Colors.white,
+              color: colors.onBrandAccent,
               size: 28,
             ),
           ),
           const SizedBox(width: 16),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -105,13 +106,16 @@ class _HeroBanner extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: colors.onBrandAccent,
                   ),
                 ),
                 SizedBox(height: 4),
                 Text(
                   'We\'re here to assist you 24/7',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colors.onBrandAccent.withValues(alpha: 0.7),
+                  ),
                 ),
               ],
             ),

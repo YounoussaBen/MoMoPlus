@@ -279,7 +279,7 @@ class AgentDetailSheet extends StatelessWidget {
                   label: 'Cash Service',
                   statusText:
                       '${activeTransaction!.statusLabel} ${activeTransaction!.typeLabel} · GHS ${activeTransaction!.amount.toStringAsFixed(2)}',
-                  color: Colors.orange,
+                  color: context.appColors.warning,
                   icon: Icons.swap_horiz_rounded,
                   onTap: () {
                     Navigator.pop(context);

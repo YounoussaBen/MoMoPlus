@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../domain/physical_transaction.dart';
 import 'transaction_view_model.dart';
@@ -68,18 +68,19 @@ class _TransactionListBodyState extends State<_TransactionListBody>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return DefaultTabController(
       length: 2,
       initialIndex: widget.initialTabIndex,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor: colors.canvas,
         appBar: AppBar(
-          backgroundColor: AppColors.primary,
+          backgroundColor: colors.brandAccent,
           toolbarHeight: 12,
-          bottom: const TabBar(
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            indicatorColor: Colors.white,
+          bottom: TabBar(
+            labelColor: colors.onBrandAccent,
+            unselectedLabelColor: colors.onBrandAccent.withValues(alpha: 0.72),
+            indicatorColor: colors.onBrandAccent,
             tabs: [
               Tab(text: 'Active'),
               Tab(text: 'History'),
@@ -89,9 +90,9 @@ class _TransactionListBodyState extends State<_TransactionListBody>
         body: Consumer<TransactionViewModel>(
           builder: (context, vm, _) {
             if (vm.isLoading && vm.transactions.isEmpty) {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(
-                  color: AppColors.primary,
+                  color: colors.brandStrong,
                   strokeWidth: 2,
                 ),
               );
@@ -161,6 +162,7 @@ class _TransactionTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     if (transactions.isEmpty) {
       return Center(
         child: Padding(
@@ -171,25 +173,22 @@ class _TransactionTab extends StatelessWidget {
               Icon(
                 emptyIcon,
                 size: 56,
-                color: AppColors.textSecondary.withValues(alpha: 0.3),
+                color: colors.textSecondary.withValues(alpha: 0.3),
               ),
               const SizedBox(height: 16),
               Text(
                 emptyTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 emptySubtitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 14, color: colors.textSecondary),
               ),
             ],
           ),
@@ -219,13 +218,14 @@ class _TransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final (statusColor, statusIcon) = switch (txn.status) {
-      'pending' => (Colors.orange, Icons.hourglass_top_rounded),
-      'accepted' => (AppColors.primary, Icons.handshake_outlined),
-      'completed' => (AppColors.primary, Icons.check_circle_outlined),
-      'cancelled' => (AppColors.error, Icons.cancel_outlined),
-      'rejected' => (AppColors.error, Icons.block_outlined),
-      _ => (AppColors.textSecondary, Icons.info_outline),
+      'pending' => (colors.warning, Icons.hourglass_top_rounded),
+      'accepted' => (colors.brandStrong, Icons.handshake_outlined),
+      'completed' => (colors.brandStrong, Icons.check_circle_outlined),
+      'cancelled' => (colors.error, Icons.cancel_outlined),
+      'rejected' => (colors.error, Icons.block_outlined),
+      _ => (colors.textSecondary, Icons.info_outline),
     };
 
     return GestureDetector(
@@ -233,8 +233,9 @@ class _TransactionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surfaceSection,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.surfaceSubtle),
         ),
         child: Row(
           children: [
@@ -256,10 +257,10 @@ class _TransactionCard extends StatelessWidget {
                     children: [
                       Text(
                         txn.typeLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: colors.textPrimary,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -288,18 +289,18 @@ class _TransactionCard extends StatelessWidget {
                     children: [
                       Text(
                         'GHS ${txn.amount.toStringAsFixed(2)} · ',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                       NetworkLogo(network: txn.network, size: 14),
                       const SizedBox(width: 3),
                       Text(
                         txn.networkLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: colors.textSecondary,
                         ),
                       ),
                     ],
@@ -309,7 +310,7 @@ class _TransactionCard extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right,
-              color: AppColors.textSecondary.withValues(alpha: 0.5),
+              color: colors.textSecondary.withValues(alpha: 0.5),
               size: 20,
             ),
           ],

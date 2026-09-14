@@ -4,12 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Users, CheckCircle, XCircle, Eye, Ban } from "lucide-react";
 import { useTableUrlState } from "@/hooks/use-table-url-state";
-import {
-  useApproveAgentApplication,
-  useDeactivateUser,
-  useRejectAgentApplication,
-  useUsersList,
-} from "@/hooks/use-users";
+import { useDeactivateUser, useUsersList } from "@/hooks/use-users";
 import { useApproveKyc, useRejectKyc } from "@/hooks/use-kyc";
 import { formatDate, formatPhone } from "@/lib/format";
 import type { AppUser, UserKycSummary } from "@/lib/types";
@@ -111,7 +106,6 @@ const columns: Column<AppUser>[] = [
 ];
 
 type ModalAction =
-  | { type: "approve-agent" | "reject-agent"; user: AppUser }
   | { type: "approve-kyc" | "reject-kyc"; user: AppUser; kyc: UserKycSummary }
   | { type: "deactivate"; user: AppUser }
   | null;
@@ -142,18 +136,12 @@ export default function UsersPage() {
     [activeFilters, page, pageSize, search],
   );
   const usersQuery = useUsersList(queryInput);
-  const approveAgentMutation = useApproveAgentApplication();
-  const rejectAgentMutation = useRejectAgentApplication();
   const approveKycMutation = useApproveKyc();
   const rejectKycMutation = useRejectKyc();
   const deactivateUserMutation = useDeactivateUser();
   const [modal, setModal] = useState<ModalAction>(null);
   const actionLoading =
-    approveAgentMutation.isPending ||
-    rejectAgentMutation.isPending ||
-    approveKycMutation.isPending ||
-    rejectKycMutation.isPending ||
-    deactivateUserMutation.isPending;
+    approveKycMutation.isPending || rejectKycMutation.isPending || deactivateUserMutation.isPending;
   const data = usersQuery.data?.results ?? [];
   const totalItems = usersQuery.data?.count ?? 0;
 
@@ -170,12 +158,6 @@ export default function UsersPage() {
 
     try {
       switch (modal.type) {
-        case "approve-agent":
-          await approveAgentMutation.mutateAsync(modal.user.id);
-          break;
-        case "reject-agent":
-          await rejectAgentMutation.mutateAsync(modal.user.id);
-          break;
         case "approve-kyc":
           await approveKycMutation.mutateAsync(modal.kyc.id);
           break;
@@ -235,23 +217,6 @@ export default function UsersPage() {
             },
           ];
 
-          if (row.agent_status === "pending") {
-            menuActions.push(
-              {
-                label: "Approve agent",
-                icon: CheckCircle,
-                onSelect: () => setModal({ type: "approve-agent", user: row }),
-                separatorBefore: true,
-              },
-              {
-                label: "Reject agent",
-                icon: XCircle,
-                onSelect: () => setModal({ type: "reject-agent", user: row }),
-                destructive: true,
-              },
-            );
-          }
-
           if (row.kyc_submission?.status === "pending") {
             menuActions.push(
               {
@@ -290,25 +255,6 @@ export default function UsersPage() {
         }}
       />
 
-      {(modal?.type === "approve-agent" || modal?.type === "reject-agent") && (
-        <ConfirmModal
-          title={
-            modal.type === "approve-agent"
-              ? "Approve Agent Application"
-              : "Reject Agent Application"
-          }
-          description={
-            modal.type === "approve-agent"
-              ? `Are you sure you want to approve ${modal.user.full_name || formatPhone(modal.user.phone)} as an agent? This will grant them agent permissions.`
-              : `Are you sure you want to reject the agent application from ${modal.user.full_name || formatPhone(modal.user.phone)}?`
-          }
-          confirmLabel={modal.type === "approve-agent" ? "Approve" : "Reject"}
-          confirmVariant={modal.type === "approve-agent" ? "default" : "destructive"}
-          isLoading={actionLoading}
-          onConfirm={() => handleAction()}
-          onCancel={() => setModal(null)}
-        />
-      )}
       {modal?.type === "approve-kyc" && (
         <ConfirmModal
           title="Approve KYC Submission"

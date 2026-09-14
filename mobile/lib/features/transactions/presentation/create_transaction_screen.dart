@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/data/services/backend_api_service.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../../../core/ui/widgets/profile_avatar.dart';
 import '../../wallet/domain/wallet.dart';
@@ -30,13 +31,16 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
   String _transactionType = 'cash_out';
   Wallet? _selectedWallet;
   bool _hasAmount = false;
+  String? _agentSelfieUrl;
 
   @override
   void initState() {
     super.initState();
+    _agentSelfieUrl = _readImageUrl(widget.agentSelfieUrl);
     _amountController.addListener(_onAmountChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<TransactionViewModel>().loadWallets();
+      if (_agentSelfieUrl == null) _loadAgentPhoto();
     });
   }
 
@@ -56,6 +60,7 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final vm = context.watch<TransactionViewModel>();
 
     // Auto-select default wallet
@@ -67,11 +72,11 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.canvas,
       appBar: AppBar(
         title: const Text('Cash Services'),
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: colors.canvas,
+        foregroundColor: colors.textPrimary,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -83,14 +88,14 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surfaceSection,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.divider),
+                border: Border.all(color: colors.surfaceSubtle),
               ),
               child: Row(
                 children: [
                   ProfileAvatar(
-                    imageUrl: widget.agentSelfieUrl,
+                    imageUrl: _agentSelfieUrl,
                     fallbackLetter: widget.agentName.isNotEmpty
                         ? widget.agentName[0]
                         : '?',
@@ -100,10 +105,10 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
                   Expanded(
                     child: Text(
                       widget.agentName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),
@@ -113,12 +118,12 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
             const SizedBox(height: 24),
 
             // Transaction type
-            const Text(
+            Text(
               'Service Type',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -148,12 +153,12 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
             const SizedBox(height: 24),
 
             // Amount
-            const Text(
+            Text(
               'Amount (GHS)',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -164,37 +169,44 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
               ),
               decoration: InputDecoration(
                 hintText: 'Enter amount',
-                prefixText: 'GHS ',
+                prefix: Text(
+                  'GHS ',
+                  style: TextStyle(color: colors.textPrimary),
+                ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: colors.surfaceInteractive,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: colors.surfaceSubtle),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: colors.surfaceSubtle),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: colors.brandStrong, width: 2),
                 ),
               ),
             ),
             const SizedBox(height: 24),
 
             // Wallet selection
-            const Text(
+            Text(
               'Select Wallet',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             if (vm.isLoadingWallets)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: CircularProgressIndicator(
-                    color: AppColors.primary,
+                    color: colors.brandStrong,
                     strokeWidth: 2,
                   ),
                 ),
@@ -203,25 +215,22 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surfaceSection,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.divider),
+                  border: Border.all(color: colors.surfaceSubtle),
                 ),
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: AppColors.error.withValues(alpha: 0.7),
-                        ),
+                        Icon(Icons.warning_amber_rounded, color: colors.error),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'No verified wallets. Add and verify a wallet first.',
                             style: TextStyle(
                               fontSize: 14,
-                              color: AppColors.textSecondary,
+                              color: colors.textSecondary,
                             ),
                           ),
                         ),
@@ -257,24 +266,17 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
+                  color: colors.errorContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: AppColors.error,
-                      size: 20,
-                    ),
+                    Icon(Icons.error_outline, color: colors.error, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         vm.errorMessage!,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.error,
-                        ),
+                        style: TextStyle(fontSize: 14, color: colors.error),
                       ),
                     ),
                   ],
@@ -293,12 +295,12 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
                     ? null
                     : () => _submit(vm),
                 child: vm.isSubmitting
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: colors.onBrandAccent,
                         ),
                       )
                     : const Text(
@@ -338,6 +340,30 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
     });
     await vm.loadWallets();
   }
+
+  Future<void> _loadAgentPhoto() async {
+    try {
+      final payload = await context.read<BackendApiService>().getAgentDetail(
+        widget.agentId,
+      );
+      final imageUrl = _readImageUrl(payload?['selfie_url']);
+      if (!mounted || imageUrl == null) return;
+      setState(() => _agentSelfieUrl = imageUrl);
+    } catch (_) {
+      // Keep the initials placeholder when the optional photo is unavailable.
+    }
+  }
+
+  static String? _readImageUrl(dynamic value) {
+    if (value is String) {
+      final url = value.trim();
+      return url.isEmpty ? null : url;
+    }
+    if (value is Map) {
+      return _readImageUrl(value['url'] ?? value['signed_url']);
+    }
+    return null;
+  }
 }
 
 class _TypeCard extends StatelessWidget {
@@ -357,19 +383,16 @@ class _TypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.08)
-              : Colors.white,
+          color: selected ? colors.brandSoft : colors.surfaceSection,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected
-                ? AppColors.primary.withValues(alpha: 0.3)
-                : AppColors.divider,
+            color: selected ? colors.brandStrong : colors.surfaceSubtle,
           ),
         ),
         child: Column(
@@ -377,7 +400,7 @@ class _TypeCard extends StatelessWidget {
             Icon(
               icon,
               size: 28,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected ? colors.brandStrong : colors.textSecondary,
             ),
             const SizedBox(height: 8),
             Text(
@@ -385,16 +408,13 @@ class _TypeCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: selected ? AppColors.primary : AppColors.textPrimary,
+                color: selected ? colors.brandStrong : colors.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 12, color: colors.textSecondary),
             ),
           ],
         ),
@@ -416,19 +436,16 @@ class _WalletOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.08)
-              : Colors.white,
+          color: selected ? colors.brandSoft : colors.surfaceSection,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected
-                ? AppColors.primary.withValues(alpha: 0.3)
-                : AppColors.divider,
+            color: selected ? colors.brandStrong : colors.surfaceSubtle,
           ),
         ),
         child: Row(
@@ -444,27 +461,22 @@ class _WalletOption extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: selected
-                          ? AppColors.primary
-                          : AppColors.textPrimary,
+                      color: selected ? colors.brandStrong : colors.textPrimary,
                     ),
                   ),
                   Text(
                     wallet.networkLabel,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 13, color: colors.textSecondary),
                   ),
                 ],
               ),
             ),
             if (selected)
-              const Icon(Icons.check_circle, color: AppColors.primary, size: 22)
+              Icon(Icons.check_circle, color: colors.brandStrong, size: 22)
             else
               Icon(
                 Icons.radio_button_unchecked,
-                color: AppColors.textSecondary.withValues(alpha: 0.4),
+                color: colors.textSecondary.withValues(alpha: 0.4),
                 size: 22,
               ),
           ],

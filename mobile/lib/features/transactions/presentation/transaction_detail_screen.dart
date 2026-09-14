@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/native_map_launcher.dart';
 import '../../../core/services/transaction_safety_service.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../../auth/presentation/auth_view_model.dart';
 import '../domain/physical_transaction.dart';
@@ -49,9 +49,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
       builder: (context, _) {
         final txn = _vm.currentTransaction;
         final isAgent = context.read<AuthViewModel>().appUser?.isAgent == true;
+        final colors = context.appColors;
 
         return Scaffold(
-          backgroundColor: AppColors.surface,
+          backgroundColor: colors.canvas,
           appBar: AppBar(
             title: const Text('Cash Service'),
             actions: [
@@ -65,14 +66,14 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             ],
           ),
           body: _vm.isLoading && txn == null
-              ? const Center(
+              ? Center(
                   child: CircularProgressIndicator(
-                    color: AppColors.primary,
+                    color: colors.brandStrong,
                     strokeWidth: 2,
                   ),
                 )
               : txn == null
-              ? _buildError()
+              ? _buildError(context)
               : RefreshIndicator(
                   onRefresh: () =>
                       _vm.loadTransactionDetail(widget.transactionId),
@@ -125,7 +126,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     );
   }
 
-  Widget _buildError() {
+  Widget _buildError(BuildContext context) {
+    final colors = context.appColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -135,16 +137,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             Icon(
               Icons.receipt_long_outlined,
               size: 56,
-              color: AppColors.textSecondary.withValues(alpha: 0.3),
+              color: colors.textSecondary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             Text(
               _vm.errorMessage ?? 'Transaction not found',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 16, color: colors.textSecondary),
             ),
           ],
         ),
@@ -163,6 +162,7 @@ class _WorkflowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final activeStep = txn.isPending
         ? 0
         : txn.isAccepted && !txn.agentConfirmed
@@ -181,24 +181,25 @@ class _WorkflowCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Safe handoff',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'The code must be verified before any cash changes hands.',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
           ),
           const SizedBox(height: 16),
           Row(
@@ -215,8 +216,8 @@ class _WorkflowCard extends StatelessWidget {
                             child: Container(
                               height: 2,
                               color: complete
-                                  ? AppColors.primary
-                                  : AppColors.divider,
+                                  ? colors.brandStrong
+                                  : colors.surfaceSubtle,
                             ),
                           ),
                         Container(
@@ -225,19 +226,22 @@ class _WorkflowCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: complete
-                                ? AppColors.primary
+                                ? colors.brandStrong
                                 : current
-                                ? AppColors.primary.withValues(alpha: 0.12)
-                                : AppColors.surface,
+                                ? colors.brandSoft
+                                : colors.surfaceInteractive,
                             border: current
-                                ? Border.all(color: AppColors.primary, width: 2)
+                                ? Border.all(
+                                    color: colors.brandStrong,
+                                    width: 2,
+                                  )
                                 : null,
                           ),
                           child: complete
-                              ? const Icon(
+                              ? Icon(
                                   Icons.check,
                                   size: 14,
-                                  color: Colors.white,
+                                  color: colors.onBrandAccent,
                                 )
                               : null,
                         ),
@@ -246,8 +250,8 @@ class _WorkflowCard extends StatelessWidget {
                             child: Container(
                               height: 2,
                               color: index < activeStep
-                                  ? AppColors.primary
-                                  : AppColors.divider,
+                                  ? colors.brandStrong
+                                  : colors.surfaceSubtle,
                             ),
                           ),
                       ],
@@ -264,8 +268,8 @@ class _WorkflowCard extends StatelessWidget {
                             ? FontWeight.w600
                             : FontWeight.w400,
                         color: current || complete
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                            ? colors.textPrimary
+                            : colors.textSecondary,
                       ),
                     ),
                   ],
@@ -287,40 +291,41 @@ class _StatusHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final (color, icon, subtitle) = switch (txn.status) {
       'pending' => (
-        Colors.orange,
+        colors.warning,
         Icons.hourglass_top_rounded,
         'Waiting for agent to accept',
       ),
       'accepted' => (
-        AppColors.primary,
+        colors.brandStrong,
         Icons.handshake_outlined,
         txn.agentConfirmed
             ? 'Code verified — complete the cash service'
             : 'Meet in person and verify the code',
       ),
       'completed' => (
-        AppColors.primary,
+        colors.brandStrong,
         Icons.check_circle_outlined,
         'Transaction completed successfully',
       ),
       'cancelled' => (
-        AppColors.error,
+        colors.error,
         Icons.cancel_outlined,
         'This transaction was cancelled',
       ),
       'rejected' => (
-        AppColors.error,
+        colors.error,
         Icons.block_outlined,
         'Agent declined this request',
       ),
       'expired' => (
-        AppColors.textSecondary,
+        colors.textSecondary,
         Icons.timer_off_outlined,
         'This transaction has expired',
       ),
-      _ => (AppColors.textSecondary, Icons.info_outline, ''),
+      _ => (colors.textSecondary, Icons.info_outline, ''),
     };
 
     return Column(
@@ -349,7 +354,7 @@ class _StatusHeader extends StatelessWidget {
         Text(
           subtitle,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 14, color: colors.textSecondary),
         ),
         const SizedBox(height: 4),
         Text(
@@ -357,7 +362,7 @@ class _StatusHeader extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary.withValues(alpha: 0.7),
+            color: colors.textSecondary.withValues(alpha: 0.7),
           ),
         ),
       ],
@@ -373,30 +378,32 @@ class _AmountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Amount',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'GHS ${txn.amount.toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
@@ -404,7 +411,7 @@ class _AmountCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: colors.surfaceInteractive,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -414,10 +421,10 @@ class _AmountCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   txn.networkLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    color: colors.textSecondary,
                   ),
                 ),
               ],
@@ -438,12 +445,14 @@ class _DetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         children: [
@@ -451,15 +460,15 @@ class _DetailsCard extends StatelessWidget {
             label: isAgent ? 'Requested by' : 'Agent',
             value: isAgent ? txn.userName : txn.agentName,
           ),
-          _detailDivider(),
+          _detailDivider(context),
           _DetailRow(label: 'Wallet', value: txn.walletPhoneNumber),
           if (txn.userConfirmed || txn.agentConfirmed) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _ConfirmationRow(txn: txn),
           ],
           if (txn.cancellationReason != null &&
               txn.cancellationReason!.isNotEmpty) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(label: 'Reason', value: txn.cancellationReason!),
           ],
         ],
@@ -467,8 +476,8 @@ class _DetailsCard extends StatelessWidget {
     );
   }
 
-  Widget _detailDivider() {
-    return Divider(height: 24, color: AppColors.divider);
+  Widget _detailDivider(BuildContext context) {
+    return Divider(height: 24, color: context.appColors.surfaceSubtle);
   }
 }
 
@@ -484,16 +493,19 @@ class _DetailRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: TextStyle(
+            fontSize: 14,
+            color: context.appColors.textSecondary,
+          ),
         ),
         const SizedBox(width: 16),
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: context.appColors.textPrimary,
             ),
             textAlign: TextAlign.end,
           ),
@@ -509,31 +521,31 @@ class _ConfirmationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
+        Text(
           'Confirmations',
-          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 14, color: colors.textSecondary),
         ),
         Row(
           children: [
-            _confirmChip('User', txn.userConfirmed),
+            _confirmChip(context, 'User', txn.userConfirmed),
             const SizedBox(width: 8),
-            _confirmChip('Agent', txn.agentConfirmed),
+            _confirmChip(context, 'Agent', txn.agentConfirmed),
           ],
         ),
       ],
     );
   }
 
-  Widget _confirmChip(String label, bool confirmed) {
+  Widget _confirmChip(BuildContext context, String label, bool confirmed) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: confirmed
-            ? AppColors.primary.withValues(alpha: 0.1)
-            : AppColors.surface,
+        color: confirmed ? colors.brandSoft : colors.surfaceInteractive,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -542,7 +554,7 @@ class _ConfirmationRow extends StatelessWidget {
           Icon(
             confirmed ? Icons.check_circle : Icons.radio_button_unchecked,
             size: 14,
-            color: confirmed ? AppColors.primary : AppColors.textSecondary,
+            color: confirmed ? colors.brandStrong : colors.textSecondary,
           ),
           const SizedBox(width: 4),
           Text(
@@ -550,7 +562,7 @@ class _ConfirmationRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: confirmed ? AppColors.primary : AppColors.textSecondary,
+              color: confirmed ? colors.brandStrong : colors.textSecondary,
             ),
           ),
         ],
@@ -567,21 +579,23 @@ class _VerificationCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'YOUR CODE',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: AppColors.textSecondary,
+              color: colors.textSecondary,
               letterSpacing: 1.2,
             ),
           ),
@@ -589,15 +603,15 @@ class _VerificationCodeCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.06),
+              color: colors.brandSoft,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               txn.verificationCode!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 34,
                 fontWeight: FontWeight.w800,
-                color: AppColors.primary,
+                color: colors.brandStrong,
                 letterSpacing: 10,
               ),
             ),
@@ -610,7 +624,7 @@ class _VerificationCodeCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: AppColors.textSecondary.withValues(alpha: 0.8),
+              color: colors.textSecondary.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -627,12 +641,14 @@ class _MeetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,22 +659,22 @@ class _MeetingCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: colors.brandSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.location_on_rounded,
                   size: 18,
-                  color: AppColors.primary,
+                  color: colors.brandStrong,
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'Meeting Point',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: colors.textPrimary,
                 ),
               ),
             ],
@@ -668,10 +684,7 @@ class _MeetingCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               txn.meetingDescription!,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: TextStyle(fontSize: 14, color: colors.textSecondary),
             ),
           ],
           const SizedBox(height: 14),
@@ -707,18 +720,19 @@ class _SafetyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Material(
-      color: AppColors.error.withValues(alpha: 0.06),
+      color: colors.errorContainer,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.shield_outlined, color: AppColors.error, size: 24),
-              SizedBox(width: 12),
+              Icon(Icons.shield_outlined, color: colors.error, size: 24),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -728,7 +742,7 @@ class _SafetyCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: 2),
@@ -736,13 +750,13 @@ class _SafetyCard extends StatelessWidget {
                       'Call 112, share your location, or review the meeting point.',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: AppColors.textSecondary),
+              Icon(Icons.chevron_right, color: colors.textSecondary),
             ],
           ),
         ),
@@ -775,12 +789,13 @@ class _SafetySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: colors.surfaceSection,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
@@ -792,30 +807,30 @@ class _SafetySheet extends StatelessWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: colors.surfaceSubtle,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            const Row(
+            Row(
               children: [
-                Icon(Icons.shield_outlined, color: AppColors.error, size: 28),
-                SizedBox(width: 10),
+                Icon(Icons.shield_outlined, color: colors.error, size: 28),
+                const SizedBox(width: 10),
                 Text(
                   'Emergency & safety',
                   style: TextStyle(
                     fontSize: 21,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: colors.textPrimary,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'If you feel unsafe, leave the area. Do not exchange cash and contact emergency services.',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 14, color: colors.textSecondary),
             ),
             const SizedBox(height: 18),
             SizedBox(
@@ -825,9 +840,7 @@ class _SafetySheet extends StatelessWidget {
                   context,
                   TransactionSafetyService.callEmergencyServices,
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.error,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: colors.error),
                 icon: const Icon(Icons.call_outlined),
                 label: const Text('Call emergency services · 112'),
               ),
@@ -870,16 +883,16 @@ class _SafetySheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: colors.surfaceInteractive,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
                     Icons.info_outline,
                     size: 18,
-                    color: AppColors.textSecondary,
+                    color: colors.textSecondary,
                   ),
                   SizedBox(width: 10),
                   Expanded(
@@ -888,7 +901,7 @@ class _SafetySheet extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         height: 1.35,
-                        color: AppColors.textSecondary,
+                        color: colors.textSecondary,
                       ),
                     ),
                   ),
@@ -927,20 +940,21 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
+        color: colors.errorContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+          Icon(Icons.error_outline, color: colors.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(fontSize: 14, color: AppColors.error),
+              style: TextStyle(fontSize: 14, color: colors.error),
             ),
           ),
         ],
@@ -964,6 +978,7 @@ class _ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     if (txn.isCompleted || txn.isCancelled || txn.isRejected) {
       return const SizedBox.shrink();
     }
@@ -979,12 +994,12 @@ class _ActionButtons extends StatelessWidget {
                   ? null
                   : () => _openMeetingPointPicker(context),
               icon: vm.isSubmitting
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: colors.onBrandAccent,
                       ),
                     )
                   : const Icon(Icons.location_on_outlined),
@@ -999,9 +1014,9 @@ class _ActionButtons extends StatelessWidget {
                   ? null
                   : () => _showRejectDialog(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
-                backgroundColor: AppColors.error.withValues(alpha: 0.06),
+                foregroundColor: colors.error,
+                side: BorderSide(color: colors.error),
+                backgroundColor: colors.errorContainer,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -1031,24 +1046,24 @@ class _ActionButtons extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: colors.brandSoft,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.verified_user_outlined,
-                    color: AppColors.primary,
+                    color: colors.brandStrong,
                     size: 20,
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Code verified. You may now complete the cash service.',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.primary,
+                        color: colors.brandStrong,
                       ),
                     ),
                   ),
@@ -1060,14 +1075,14 @@ class _ActionButtons extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.08),
+                color: colors.warningContainer,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(
                     Icons.lock_clock_outlined,
-                    color: Colors.orange,
+                    color: colors.warning,
                     size: 20,
                   ),
                   SizedBox(width: 10),
@@ -1077,7 +1092,7 @@ class _ActionButtons extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),
@@ -1111,9 +1126,9 @@ class _ActionButtons extends StatelessWidget {
               onPressed: vm.isSubmitting
                   ? null
                   : () => _showCancelDialog(context),
-              child: const Text(
+              child: Text(
                 'Cancel transaction',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: colors.textSecondary),
               ),
             ),
           ),
@@ -1185,9 +1200,9 @@ class _ActionButtons extends StatelessWidget {
       title: 'Reject',
       subtitle: 'The user will be notified that you declined their request.',
       icon: Icons.block_outlined,
-      iconColor: AppColors.error,
+      iconColor: context.appColors.error,
       confirmLabel: 'Reject',
-      confirmColor: AppColors.error,
+      confirmColor: context.appColors.error,
       reasons: const [
         'I am currently unavailable',
         'Amount is too large',
@@ -1211,9 +1226,9 @@ class _ActionButtons extends StatelessWidget {
           ? 'The user will be notified. This action cannot be undone.'
           : 'The agent will be notified. This action cannot be undone.',
       icon: Icons.cancel_outlined,
-      iconColor: AppColors.error,
+      iconColor: context.appColors.error,
       confirmLabel: 'Continue',
-      confirmColor: AppColors.error,
+      confirmColor: context.appColors.error,
       reasons: isAgent
           ? const [
               'I feel unsafe',
@@ -1292,6 +1307,7 @@ class _CodeSheetState extends State<_CodeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
@@ -1300,8 +1316,8 @@ class _CodeSheetState extends State<_CodeSheet> {
         top: false,
         child: Container(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: colors.surfaceSection,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
@@ -1311,7 +1327,7 @@ class _CodeSheetState extends State<_CodeSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.divider,
+                  color: colors.surfaceSubtle,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1320,28 +1336,25 @@ class _CodeSheetState extends State<_CodeSheet> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: colors.brandSoft,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.password_rounded,
-                  color: AppColors.primary,
-                ),
+                child: Icon(Icons.password_rounded, color: colors.brandStrong),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Enter code',
                 style: TextStyle(
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Ask the user to show you their 6-digit code in person. Never start the cash service before it is verified.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 14, color: colors.textSecondary),
               ),
               const SizedBox(height: 20),
               TextField(
@@ -1433,6 +1446,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final mediaQuery = MediaQuery.of(context);
     final bottomInset = mediaQuery.viewInsets.bottom;
     final bottomPadding = mediaQuery.viewPadding.bottom;
@@ -1446,8 +1460,8 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
       child: SafeArea(
         top: false,
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: colors.surfaceSection,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: ConstrainedBox(
@@ -1464,7 +1478,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withValues(alpha: 0.3),
+                        color: colors.textSecondary.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -1492,19 +1506,19 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                           children: [
                             Text(
                               widget.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: colors.textPrimary,
                                 letterSpacing: -0.3,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               widget.subtitle,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.textSecondary,
+                                color: colors.textSecondary,
                               ),
                             ),
                           ],
@@ -1513,12 +1527,12 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Select a reason',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1540,7 +1554,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                           decoration: BoxDecoration(
                             color: selected
                                 ? widget.iconColor.withValues(alpha: 0.06)
-                                : AppColors.surface,
+                                : colors.surfaceInteractive,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: selected
@@ -1557,21 +1571,21 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                   shape: BoxShape.circle,
                                   color: selected
                                       ? widget.iconColor
-                                      : Colors.white,
+                                      : colors.surfaceSection,
                                   border: Border.all(
                                     color: selected
                                         ? widget.iconColor
-                                        : AppColors.textSecondary.withValues(
+                                        : colors.textSecondary.withValues(
                                             alpha: 0.3,
                                           ),
                                     width: selected ? 0 : 1.5,
                                   ),
                                 ),
                                 child: selected
-                                    ? const Icon(
+                                    ? Icon(
                                         Icons.check,
                                         size: 14,
-                                        color: Colors.white,
+                                        color: colors.onBrandAccent,
                                       )
                                     : null,
                               ),
@@ -1584,7 +1598,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                     fontWeight: selected
                                         ? FontWeight.w600
                                         : FontWeight.w400,
-                                    color: AppColors.textPrimary,
+                                    color: colors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -1610,7 +1624,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                         decoration: BoxDecoration(
                           color: _isOther
                               ? widget.iconColor.withValues(alpha: 0.06)
-                              : AppColors.surface,
+                              : colors.surfaceInteractive,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: _isOther
@@ -1627,21 +1641,21 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                 shape: BoxShape.circle,
                                 color: _isOther
                                     ? widget.iconColor
-                                    : Colors.white,
+                                    : colors.surfaceSection,
                                 border: Border.all(
                                   color: _isOther
                                       ? widget.iconColor
-                                      : AppColors.textSecondary.withValues(
+                                      : colors.textSecondary.withValues(
                                           alpha: 0.3,
                                         ),
                                   width: _isOther ? 0 : 1.5,
                                 ),
                               ),
                               child: _isOther
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.check,
                                       size: 14,
-                                      color: Colors.white,
+                                      color: colors.onBrandAccent,
                                     )
                                   : null,
                             ),
@@ -1653,7 +1667,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                 fontWeight: _isOther
                                     ? FontWeight.w600
                                     : FontWeight.w400,
-                                color: AppColors.textPrimary,
+                                color: colors.textPrimary,
                               ),
                             ),
                           ],

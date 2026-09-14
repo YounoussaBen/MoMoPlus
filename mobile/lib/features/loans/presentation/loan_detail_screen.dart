@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
 import '../../../core/ui/widgets/network_logo.dart';
 import '../../../core/ui/widgets/top_in_app_notification.dart';
@@ -55,12 +55,13 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.surface,
+      return Scaffold(
+        backgroundColor: colors.canvas,
         body: Center(
           child: CircularProgressIndicator(
-            color: AppColors.primary,
+            color: colors.brandStrong,
             strokeWidth: 2,
           ),
         ),
@@ -71,9 +72,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
       final errorMessage = _loanVm.errorMessage;
       final hasError = errorMessage != null;
       return Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor: colors.canvas,
         appBar: AppBar(
-          backgroundColor: AppColors.surface,
+          backgroundColor: colors.canvas,
           surfaceTintColor: Colors.transparent,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
@@ -91,26 +92,20 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
                       ? Icons.cloud_off_rounded
                       : Icons.account_balance_wallet_outlined,
                   size: 56,
-                  color: AppColors.textSecondary.withValues(alpha: 0.3),
+                  color: colors.textSecondary.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   hasError ? 'Could not load this loan' : 'Loan not found',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppColors.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 16, color: colors.textSecondary),
                 ),
                 if (hasError) ...[
                   const SizedBox(height: 8),
                   Text(
                     errorMessage,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 14, color: colors.textSecondary),
                   ),
                   const SizedBox(height: 24),
                   AppButton(
@@ -132,9 +127,9 @@ class _LoanDetailScreenState extends State<LoanDetailScreen> {
     final isAgent = context.read<AuthViewModel>().appUser?.isAgent == true;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.canvas,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: colors.canvas,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
@@ -189,58 +184,59 @@ class _StatusHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final (color, icon, subtitle) = switch (loan.status) {
       'pending' => (
-        Colors.orange,
+        colors.warning,
         Icons.hourglass_top_rounded,
         'Waiting for agent to accept',
       ),
       'approved' => (
-        AppColors.primary,
+        colors.brandStrong,
         Icons.check_circle_outline,
         'Agent accepted, awaiting fund disbursement',
       ),
       'disbursing' => (
-        Colors.blue,
+        colors.info,
         Icons.sync_rounded,
         'Sending funds to your wallet',
       ),
       'active' => (
-        AppColors.primary,
+        colors.brandStrong,
         Icons.account_balance_wallet_rounded,
         'Loan is active, repay before the deadline',
       ),
       'repaying' => (
-        Colors.blue,
+        colors.info,
         Icons.sync_rounded,
         'Processing your repayment',
       ),
       'completed' => (
-        AppColors.primary,
+        colors.brandStrong,
         Icons.check_circle_rounded,
         'Loan has been fully repaid',
       ),
       'defaulted' => (
-        AppColors.error,
+        colors.error,
         Icons.warning_amber_rounded,
         'This loan has defaulted',
       ),
       'rejected' => (
-        AppColors.error,
+        colors.error,
         Icons.block_rounded,
         'Agent declined this request',
       ),
       'cancelled' => (
-        AppColors.textSecondary,
+        colors.textSecondary,
         Icons.cancel_outlined,
         'This loan was cancelled',
       ),
       'failed' => (
-        AppColors.error,
+        colors.error,
         Icons.error_outline_rounded,
         'Transaction failed',
       ),
-      _ => (AppColors.textSecondary, Icons.info_outline, ''),
+      _ => (colors.textSecondary, Icons.info_outline, ''),
     };
 
     return Column(
@@ -269,7 +265,7 @@ class _StatusHeader extends StatelessWidget {
         Text(
           subtitle,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 14, color: colors.textSecondary),
         ),
         if (loan.rejectionReason.isNotEmpty) ...[
           const SizedBox(height: 4),
@@ -279,7 +275,7 @@ class _StatusHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary.withValues(alpha: 0.7),
+              color: colors.textSecondary.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -297,30 +293,32 @@ class _AmountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Amount',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'GHS ${loan.amount.toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
@@ -328,7 +326,7 @@ class _AmountCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: colors.surfaceInteractive,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -338,10 +336,10 @@ class _AmountCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   loan.networkLabel,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
+                    color: colors.textSecondary,
                   ),
                 ),
               ],
@@ -354,17 +352,20 @@ class _AmountCard extends StatelessWidget {
               children: [
                 if (isAgent) ...[
                   _amountRow(
+                    context,
                     'Your Commission (${(loan.agentInterestAmount / loan.amount * 100).toStringAsFixed(0)}%)',
                     'GHS ${loan.agentInterestAmount.toStringAsFixed(2)}',
                   ),
                   if (loan.penaltyAmount > 0)
                     _amountRow(
+                      context,
                       'Penalties',
                       'GHS ${loan.penaltyAmount.toStringAsFixed(2)}',
-                      valueColor: AppColors.error,
+                      valueColor: colors.error,
                     ),
-                  Divider(height: 20, color: AppColors.divider),
+                  Divider(height: 20, color: colors.surfaceSubtle),
                   _amountRow(
+                    context,
                     loan.isCompleted
                         ? 'Repayment Received'
                         : 'Repayment to You',
@@ -373,34 +374,39 @@ class _AmountCard extends StatelessWidget {
                   ),
                   if (loan.isActive || loan.isRepaying || loan.isDefaulted)
                     _amountRow(
+                      context,
                       'Outstanding to You',
                       'GHS ${loan.agentReceivableBalance.toStringAsFixed(2)}',
                       bold: true,
-                      valueColor: AppColors.primary,
+                      valueColor: colors.brandStrong,
                     ),
                 ] else ...[
                   _amountRow(
+                    context,
                     'Interest (${loan.interestRate.toStringAsFixed(0)}%)',
                     'GHS ${loan.totalInterestAmount.toStringAsFixed(2)}',
                   ),
                   if (loan.penaltyAmount > 0)
                     _amountRow(
+                      context,
                       'Penalties',
                       'GHS ${loan.penaltyAmount.toStringAsFixed(2)}',
-                      valueColor: AppColors.error,
+                      valueColor: colors.error,
                     ),
-                  Divider(height: 20, color: AppColors.divider),
+                  Divider(height: 20, color: colors.surfaceSubtle),
                   _amountRow(
+                    context,
                     'Total Repayment',
                     'GHS ${loan.totalRepayment.toStringAsFixed(2)}',
                     bold: true,
                   ),
                   if (loan.isActive || loan.isRepaying || loan.isDefaulted)
                     _amountRow(
+                      context,
                       'Outstanding',
                       'GHS ${loan.outstandingBalance.toStringAsFixed(2)}',
                       bold: true,
-                      valueColor: AppColors.primary,
+                      valueColor: colors.brandStrong,
                     ),
                 ],
               ],
@@ -412,11 +418,13 @@ class _AmountCard extends StatelessWidget {
   }
 
   Widget _amountRow(
+    BuildContext context,
     String label,
     String value, {
     bool bold = false,
     Color? valueColor,
   }) {
+    final colors = context.appColors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
@@ -427,7 +435,7 @@ class _AmountCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
-              color: AppColors.textSecondary,
+              color: colors.textSecondary,
             ),
           ),
           Text(
@@ -435,7 +443,7 @@ class _AmountCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: bold ? FontWeight.w700 : FontWeight.w600,
-              color: valueColor ?? AppColors.textPrimary,
+              color: valueColor ?? colors.textPrimary,
             ),
           ),
         ],
@@ -473,6 +481,7 @@ class _TimerCardState extends State<_TimerCard> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final remaining = widget.loan.timeRemaining;
     final isOverdue = widget.loan.isOverdue;
 
@@ -495,13 +504,11 @@ class _TimerCardState extends State<_TimerCard> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isOverdue
-            ? AppColors.error.withValues(alpha: 0.08)
-            : Colors.white,
+        color: isOverdue ? colors.errorContainer : colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
         border: isOverdue
-            ? Border.all(color: AppColors.error.withValues(alpha: 0.3))
-            : null,
+            ? Border.all(color: colors.error.withValues(alpha: 0.3))
+            : Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         children: [
@@ -510,7 +517,7 @@ class _TimerCardState extends State<_TimerCard> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isOverdue ? AppColors.error : AppColors.textSecondary,
+              color: isOverdue ? colors.error : colors.textSecondary,
             ),
           ),
           const SizedBox(height: 8),
@@ -520,17 +527,17 @@ class _TimerCardState extends State<_TimerCard> {
               fontSize: 36,
               fontWeight: FontWeight.w800,
               fontFeatures: const [FontFeature.tabularFigures()],
-              color: isOverdue ? AppColors.error : AppColors.textPrimary,
+              color: isOverdue ? colors.error : colors.textPrimary,
             ),
           ),
           if (widget.loan.penaltyAmount > 0) ...[
             const SizedBox(height: 8),
             Text(
               'Penalties: GHS ${widget.loan.penaltyAmount.toStringAsFixed(2)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.error,
+                color: colors.error,
               ),
             ),
           ],
@@ -549,12 +556,14 @@ class _DetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         children: [
@@ -562,31 +571,31 @@ class _DetailsCard extends StatelessWidget {
             label: isAgent ? 'Borrower' : 'Agent',
             value: isAgent ? loan.borrowerName : loan.agentName,
           ),
-          _detailDivider(),
+          _detailDivider(context),
           _DetailRow(label: 'Network', value: loan.networkLabel),
-          _detailDivider(),
+          _detailDivider(context),
           _DetailRow(label: 'Borrower Wallet', value: loan.borrowerWalletPhone),
           if (loan.agentWalletPhone.isNotEmpty) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(label: 'Agent Wallet', value: loan.agentWalletPhone),
           ],
           if (loan.approvedAt != null) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(label: 'Approved', value: _formatDate(loan.approvedAt!)),
           ],
           if (loan.disbursedAt != null) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(
               label: 'Funds Sent',
               value: _formatDate(loan.disbursedAt!),
             ),
           ],
           if (loan.deadlineAt != null) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(label: 'Deadline', value: _formatDate(loan.deadlineAt!)),
           ],
           if (loan.completedAt != null) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(
               label: 'Completed',
               value: _formatDate(loan.completedAt!),
@@ -594,7 +603,7 @@ class _DetailsCard extends StatelessWidget {
           ],
           if (loan.rejectionReason.isNotEmpty &&
               (loan.isRejected || loan.isCancelled)) ...[
-            _detailDivider(),
+            _detailDivider(context),
             _DetailRow(label: 'Reason', value: loan.rejectionReason),
           ],
         ],
@@ -602,8 +611,8 @@ class _DetailsCard extends StatelessWidget {
     );
   }
 
-  Widget _detailDivider() {
-    return Divider(height: 24, color: AppColors.divider);
+  Widget _detailDivider(BuildContext context) {
+    return Divider(height: 24, color: context.appColors.surfaceSubtle);
   }
 
   String _formatDate(DateTime dt) {
@@ -618,21 +627,22 @@ class _DetailRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          style: TextStyle(fontSize: 14, color: colors.textSecondary),
         ),
         const SizedBox(width: 16),
         Flexible(
           child: Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+              color: colors.textPrimary,
             ),
             textAlign: TextAlign.end,
           ),
@@ -652,12 +662,14 @@ class _PaymentsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceSection,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,22 +680,22 @@ class _PaymentsCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: colors.brandSoft,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.receipt_long_rounded,
                   size: 18,
-                  color: AppColors.primary,
+                  color: colors.brandStrong,
                 ),
               ),
               const SizedBox(width: 10),
-              const Text(
+              Text(
                 'Payment History',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: colors.textPrimary,
                 ),
               ),
             ],
@@ -691,9 +703,9 @@ class _PaymentsCard extends StatelessWidget {
           const SizedBox(height: 14),
           ...loan.payments.map((p) {
             final (icon, color) = switch (p.status) {
-              'success' => (Icons.check_circle, AppColors.primary),
-              'failed' => (Icons.cancel, AppColors.error),
-              _ => (Icons.hourglass_top, Colors.orange),
+              'success' => (Icons.check_circle, colors.success),
+              'failed' => (Icons.cancel, colors.error),
+              _ => (Icons.hourglass_top, colors.warning),
             };
             final title = p.title(isAgent: isAgent);
             final visibleAmount = p.visibleAmount(isAgent: isAgent);
@@ -709,17 +721,17 @@ class _PaymentsCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
+                            color: colors.textPrimary,
                           ),
                         ),
                         Text(
                           p.reference,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ),
                       ],
@@ -727,10 +739,10 @@ class _PaymentsCard extends StatelessWidget {
                   ),
                   Text(
                     'GHS ${visibleAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ],
@@ -751,20 +763,21 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
+        color: colors.errorContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
+          Icon(Icons.error_outline, color: colors.error, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(fontSize: 14, color: AppColors.error),
+              style: TextStyle(fontSize: 14, color: colors.error),
             ),
           ),
         ],
@@ -788,6 +801,7 @@ class _ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final loanVm = context.watch<LoanViewModel>();
 
     if (loan.isCompleted ||
@@ -816,9 +830,9 @@ class _ActionButtons extends StatelessWidget {
                   ? null
                   : () => _showRejectDialog(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: const BorderSide(color: AppColors.error),
-                backgroundColor: AppColors.error.withValues(alpha: 0.06),
+                foregroundColor: colors.error,
+                side: BorderSide(color: colors.error),
+                backgroundColor: colors.errorContainer,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -854,17 +868,17 @@ class _ActionButtons extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.06),
+              color: colors.infoContainer,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.blue,
+                    color: colors.info,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -873,7 +887,7 @@ class _ActionButtons extends StatelessWidget {
                     loan.isDisbursing
                         ? 'Waiting for payment confirmation.'
                         : 'Processing repayment. Please wait.',
-                    style: const TextStyle(fontSize: 13, color: Colors.blue),
+                    style: TextStyle(fontSize: 13, color: colors.info),
                   ),
                 ),
               ],
@@ -889,10 +903,10 @@ class _ActionButtons extends StatelessWidget {
               onPressed: loanVm.isSubmitting
                   ? null
                   : () => _showCancelDialog(context),
-              child: const Text(
+              child: Text(
                 'Cancel',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: colors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -904,6 +918,7 @@ class _ActionButtons extends StatelessWidget {
   }
 
   Future<void> _showAcceptDialog(BuildContext context) async {
+    final colors = context.appColors;
     final walletVm = context.read<WalletViewModel>();
     await walletVm.loadWallets();
     if (!context.mounted) return;
@@ -928,7 +943,7 @@ class _ActionButtons extends StatelessWidget {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.surfaceSection,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -941,21 +956,18 @@ class _ActionButtons extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Select Your Wallet',
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'This wallet will be charged to send funds and will receive repayment.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 13, color: colors.textSecondary),
                   ),
                   const SizedBox(height: 16),
                   ...verifiedWallets.map(
@@ -965,11 +977,11 @@ class _ActionButtons extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: colors.surfaceInteractive,
                           borderRadius: BorderRadius.circular(12),
                           border: selectedWallet.id == w.id
-                              ? Border.all(color: AppColors.primary, width: 2)
-                              : null,
+                              ? Border.all(color: colors.brandStrong, width: 2)
+                              : Border.all(color: colors.surfaceSubtle),
                         ),
                         child: Row(
                           children: [
@@ -984,9 +996,9 @@ class _ActionButtons extends StatelessWidget {
                             ),
                             const Spacer(),
                             if (selectedWallet.id == w.id)
-                              const Icon(
+                              Icon(
                                 Icons.check_circle,
-                                color: AppColors.primary,
+                                color: colors.brandStrong,
                                 size: 20,
                               ),
                           ],
@@ -1022,9 +1034,9 @@ class _ActionButtons extends StatelessWidget {
       subtitle:
           'The borrower will be notified that you declined their request.',
       icon: Icons.block_outlined,
-      iconColor: AppColors.error,
+      iconColor: context.appColors.error,
       confirmLabel: 'Reject',
-      confirmColor: AppColors.error,
+      confirmColor: context.appColors.error,
       reasons: const [
         'I am currently unavailable',
         'Amount is too large',
@@ -1047,9 +1059,9 @@ class _ActionButtons extends StatelessWidget {
       title: 'Cancel',
       subtitle: 'This action cannot be undone.',
       icon: Icons.cancel_outlined,
-      iconColor: AppColors.error,
+      iconColor: context.appColors.error,
       confirmLabel: 'Continue',
-      confirmColor: AppColors.error,
+      confirmColor: context.appColors.error,
       reasons: const [
         'I changed my mind',
         'Agent is taking too long',
@@ -1163,6 +1175,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final mediaQuery = MediaQuery.of(context);
     final bottomInset = mediaQuery.viewInsets.bottom;
     final bottomPadding = mediaQuery.viewPadding.bottom;
@@ -1176,8 +1189,8 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
       child: SafeArea(
         top: false,
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: colors.surfaceSection,
             borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: ConstrainedBox(
@@ -1194,7 +1207,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                       width: 36,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppColors.textSecondary.withValues(alpha: 0.3),
+                        color: colors.textSecondary.withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -1222,19 +1235,19 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                           children: [
                             Text(
                               widget.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: colors.textPrimary,
                                 letterSpacing: -0.3,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               widget.subtitle,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.textSecondary,
+                                color: colors.textSecondary,
                               ),
                             ),
                           ],
@@ -1243,12 +1256,12 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Select a reason',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1270,7 +1283,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                           decoration: BoxDecoration(
                             color: selected
                                 ? widget.iconColor.withValues(alpha: 0.06)
-                                : AppColors.surface,
+                                : colors.surfaceInteractive,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: selected
@@ -1287,21 +1300,21 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                   shape: BoxShape.circle,
                                   color: selected
                                       ? widget.iconColor
-                                      : Colors.white,
+                                      : colors.surfaceSection,
                                   border: Border.all(
                                     color: selected
                                         ? widget.iconColor
-                                        : AppColors.textSecondary.withValues(
+                                        : colors.textSecondary.withValues(
                                             alpha: 0.3,
                                           ),
                                     width: selected ? 0 : 1.5,
                                   ),
                                 ),
                                 child: selected
-                                    ? const Icon(
+                                    ? Icon(
                                         Icons.check,
                                         size: 14,
-                                        color: Colors.white,
+                                        color: colors.onBrandAccent,
                                       )
                                     : null,
                               ),
@@ -1314,7 +1327,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                     fontWeight: selected
                                         ? FontWeight.w600
                                         : FontWeight.w400,
-                                    color: AppColors.textPrimary,
+                                    color: colors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -1340,7 +1353,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                         decoration: BoxDecoration(
                           color: _isOther
                               ? widget.iconColor.withValues(alpha: 0.06)
-                              : AppColors.surface,
+                              : colors.surfaceInteractive,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: _isOther
@@ -1357,21 +1370,21 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                 shape: BoxShape.circle,
                                 color: _isOther
                                     ? widget.iconColor
-                                    : Colors.white,
+                                    : colors.surfaceSection,
                                 border: Border.all(
                                   color: _isOther
                                       ? widget.iconColor
-                                      : AppColors.textSecondary.withValues(
+                                      : colors.textSecondary.withValues(
                                           alpha: 0.3,
                                         ),
                                   width: _isOther ? 0 : 1.5,
                                 ),
                               ),
                               child: _isOther
-                                  ? const Icon(
+                                  ? Icon(
                                       Icons.check,
                                       size: 14,
-                                      color: Colors.white,
+                                      color: colors.onBrandAccent,
                                     )
                                   : null,
                             ),
@@ -1383,7 +1396,7 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                                 fontWeight: _isOther
                                     ? FontWeight.w600
                                     : FontWeight.w400,
-                                color: AppColors.textPrimary,
+                                color: colors.textPrimary,
                               ),
                             ),
                           ],

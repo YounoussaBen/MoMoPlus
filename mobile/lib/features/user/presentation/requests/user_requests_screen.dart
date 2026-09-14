@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../../../core/ui/theme/app_theme.dart';
+import '../../../../core/ui/theme/app_theme_extension.dart';
 
 class UserRequestsScreen extends StatelessWidget {
   const UserRequestsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(backgroundColor: AppColors.primary, toolbarHeight: 12),
+      backgroundColor: colors.canvas,
+      appBar: AppBar(backgroundColor: colors.canvas, toolbarHeight: 12),
       body: Padding(
         padding: const EdgeInsets.only(bottom: 100),
         child: Center(
@@ -18,7 +19,7 @@ class UserRequestsScreen extends StatelessWidget {
               Icon(
                 Icons.swap_horiz_rounded,
                 size: 64,
-                color: AppColors.textSecondary.withValues(alpha: 0.4),
+                color: colors.textSecondary.withValues(alpha: 0.4),
               ),
               const SizedBox(height: 16),
               Text(
@@ -29,7 +30,7 @@ class UserRequestsScreen extends StatelessWidget {
               Text(
                 'Pending requests, active requests,\nand repayment actions.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                style: TextStyle(fontSize: 14, color: colors.textSecondary),
               ),
             ],
           ),

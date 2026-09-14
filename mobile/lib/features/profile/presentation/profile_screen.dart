@@ -53,10 +53,13 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.space4),
-        Text(
-          displayName,
-          textAlign: TextAlign.center,
-          style: context.appTextTheme.headlineMedium,
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            displayName,
+            textAlign: TextAlign.center,
+            style: context.appTextTheme.headlineMedium,
+          ),
         ),
         const SizedBox(height: AppSpacing.space2),
         Center(

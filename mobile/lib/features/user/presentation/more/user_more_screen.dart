@@ -190,12 +190,23 @@ class _ProfileHeader extends StatelessWidget {
           radius: 36,
         ),
         const SizedBox(height: 12),
-        Text(displayName, style: context.appTextTheme.headlineMedium),
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            displayName,
+            textAlign: TextAlign.center,
+            style: context.appTextTheme.headlineMedium,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(
-          appUser.contactLabel,
-          style: context.appTextTheme.bodyMedium?.copyWith(
-            color: context.appColors.textSecondary,
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            appUser.contactLabel,
+            textAlign: TextAlign.center,
+            style: context.appTextTheme.bodyMedium?.copyWith(
+              color: context.appColors.textSecondary,
+            ),
           ),
         ),
       ],

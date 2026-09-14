@@ -49,8 +49,21 @@ class NearbyAgent {
       totalRatings: json['total_ratings'] as int? ?? 0,
       agentType: json['agent_type'] as String? ?? 'self_enrolled',
       distanceKm: _toDouble(json['distance_km']) ?? 0,
-      selfieUrl: json['selfie_url'] as String?,
+      selfieUrl: _readImageUrl(
+        json['selfie_url'] ?? json['selfieUrl'] ?? json['profile_picture_url'],
+      ),
     );
+  }
+
+  static String? _readImageUrl(dynamic value) {
+    if (value is String) {
+      final url = value.trim();
+      return url.isEmpty ? null : url;
+    }
+    if (value is Map) {
+      return _readImageUrl(value['url'] ?? value['signed_url']);
+    }
+    return null;
   }
 
   static double? _toDouble(dynamic v) {

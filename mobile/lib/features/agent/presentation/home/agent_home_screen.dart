@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import '../../../../core/ui/theme/app_theme.dart';
 import '../../../../core/ui/theme/app_theme_extension.dart';
 import '../../../../core/ui/widgets/app_logo.dart';
 import '../../../../core/ui/widgets/app_section.dart';
@@ -476,6 +475,7 @@ class _ActiveFundsSpotlight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     final remaining = loan.timeRemaining;
     final isOverdue = loan.isOverdue;
 
@@ -497,8 +497,8 @@ class _ActiveFundsSpotlight extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isOverdue
-                ? [AppColors.error, const Color(0xFFD32F2F)]
-                : [AppColors.primary, const Color(0xFF4AA025)],
+                ? [colors.error, colors.error.withValues(alpha: 0.82)]
+                : [colors.brandAccent, colors.brandStrong],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -684,11 +684,12 @@ class _ActiveCashServiceSpotlight extends StatelessWidget {
 class _EmptySpotlight extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final colors = context.appColors;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, Color(0xFF4AA025)],
+        gradient: LinearGradient(
+          colors: [colors.brandAccent, colors.brandStrong],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

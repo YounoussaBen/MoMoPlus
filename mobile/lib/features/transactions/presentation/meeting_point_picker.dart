@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
-import '../../../core/ui/theme/app_theme.dart';
+import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/theme/app_map_style.dart';
 
 class MeetingPointResult {
@@ -94,13 +94,14 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
   Widget build(BuildContext context) {
     final safeTop = MediaQuery.of(context).padding.top;
     final safeBottom = MediaQuery.of(context).viewPadding.bottom;
+    final colors = context.appColors;
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: colors.canvas,
       body: _isLocating
-          ? const Center(
+          ? Center(
               child: CircularProgressIndicator(
-                color: AppColors.primary,
+                color: colors.brandStrong,
                 strokeWidth: 2,
               ),
             )
@@ -155,7 +156,7 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                           child: Icon(
                             Icons.location_on,
                             size: _isMoving ? 48 : 44,
-                            color: AppColors.error,
+                            color: colors.error,
                           ),
                         ),
                       ),
@@ -200,7 +201,7 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: colors.surfaceSection,
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
@@ -213,8 +214,8 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: _isMoving
-                                  ? AppColors.textSecondary
-                                  : AppColors.textPrimary,
+                                  ? colors.textSecondary
+                                  : colors.textPrimary,
                             ),
                           ),
                         ),
@@ -240,8 +241,8 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                   bottom: 0,
                   child: Container(
                     padding: EdgeInsets.fromLTRB(20, 20, 20, 16 + safeBottom),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: colors.surfaceSection,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(24),
                       ),
@@ -250,29 +251,29 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Meeting Point',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: colors.textPrimary,
                             letterSpacing: -0.3,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           'Drag the map to place the pin, then add a description.',
                           style: TextStyle(
                             fontSize: 14,
-                            color: AppColors.textSecondary,
+                            color: colors.textSecondary,
                           ),
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: _descCtrl,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             hintText: 'e.g. By the market entrance',
-                            prefixIcon: Icon(
+                            prefixIcon: const Icon(
                               Icons.edit_location_alt_outlined,
                               size: 20,
                             ),
@@ -289,24 +290,24 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                                     vertical: 14,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.surface,
+                                    color: colors.surfaceInteractive,
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.my_location,
                                         size: 18,
-                                        color: AppColors.primary,
+                                        color: colors.brandStrong,
                                       ),
-                                      SizedBox(width: 8),
+                                      const SizedBox(width: 8),
                                       Text(
                                         'Use My Location',
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: AppColors.primary,
+                                          color: colors.brandStrong,
                                         ),
                                       ),
                                     ],
@@ -349,10 +350,10 @@ class _CircleButton extends StatelessWidget {
         width: 44,
         height: 44,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.appColors.surfaceSection,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: Icon(icon, size: 22, color: AppColors.textPrimary),
+        child: Icon(icon, size: 22, color: context.appColors.textPrimary),
       ),
     );
   }
