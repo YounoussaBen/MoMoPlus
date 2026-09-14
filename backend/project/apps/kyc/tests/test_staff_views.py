@@ -1,6 +1,7 @@
 import pytest
 from rest_framework import status
 
+from project.apps.files.models import FileAsset
 from project.apps.kyc.models import KycSubmission
 from project.apps.kyc.services import approve_kyc
 
@@ -299,3 +300,85 @@ class TestStaffGhanaCardRegistry:
         assert response.data["is_active"] is False
         record.refresh_from_db()
         assert record.is_active is False
+
+    @pytest.mark.django_db
+    def test_staff_can_view_registry_detail_with_images(self, staff_client, media_root):
+        client, staff = staff_client
+        record = make_ghana_card_record(staff)
+
+        response = client.get(f"/api/staff/kyc/ghana-cards/{record.id}/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["card_number"] == record.card_number
+        assert response.data["card_front_url"]["url"]
+        assert response.data["card_back_url"]["url"]
+
+    @pytest.mark.django_db
+    def test_staff_can_edit_registry_details_and_replace_images(self, staff_client, media_root):
+        client, staff = staff_client
+        record = make_ghana_card_record(staff)
+        old_front_id = record.card_front_id
+        old_back_id = record.card_back_id
+        replacement_assets = make_submission_asset_ids(staff)
+
+        response = client.patch(
+            f"/api/staff/kyc/ghana-cards/{record.id}/",
+            {
+                "card_number": "GHA-728430143-5",
+                "first_names": "Ama",
+                "surname": "Owusu",
+                "date_of_birth": "2001-01-02",
+                "sex": "f",
+                "card_front_id": replacement_assets["id_front_id"],
+                "card_back_id": replacement_assets["id_back_id"],
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["card_number"] == "GHA-728430143-5"
+        assert response.data["first_names"] == "Ama"
+        assert response.data["surname"] == "Owusu"
+        assert response.data["sex"] == "F"
+        record.refresh_from_db()
+        assert str(record.card_front_id) == replacement_assets["id_front_id"]
+        assert str(record.card_back_id) == replacement_assets["id_back_id"]
+        assert FileAsset.objects.get(pk=old_front_id).status == FileAsset.Status.DELETED
+        assert FileAsset.objects.get(pk=old_back_id).status == FileAsset.Status.DELETED
+
+    @pytest.mark.django_db
+    def test_staff_can_delete_registry_record_and_images(self, staff_client, media_root):
+        client, staff = staff_client
+        record = make_ghana_card_record(staff)
+        front_id = record.card_front_id
+        back_id = record.card_back_id
+
+        response = client.delete(f"/api/staff/kyc/ghana-cards/{record.id}/")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert not type(record).objects.filter(pk=record.id).exists()
+        assert FileAsset.objects.get(pk=front_id).status == FileAsset.Status.DELETED
+        assert FileAsset.objects.get(pk=back_id).status == FileAsset.Status.DELETED
+
+    @pytest.mark.django_db
+    def test_non_staff_cannot_edit_or_delete_registry_record(
+        self,
+        user_factory,
+        authenticated_client,
+        staff_client,
+        media_root,
+    ):
+        _, staff = staff_client
+        record = make_ghana_card_record(staff)
+
+        patch_response = authenticated_client.patch(
+            f"/api/staff/kyc/ghana-cards/{record.id}/",
+            {"first_names": "Not Allowed"},
+            format="json",
+        )
+        delete_response = authenticated_client.delete(
+            f"/api/staff/kyc/ghana-cards/{record.id}/",
+        )
+
+        assert patch_response.status_code == status.HTTP_403_FORBIDDEN
+        assert delete_response.status_code == status.HTTP_403_FORBIDDEN

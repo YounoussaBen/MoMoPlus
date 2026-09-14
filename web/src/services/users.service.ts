@@ -1,4 +1,5 @@
 import { UsersRepository } from "@/repositories/users.repository";
+import type { UpdateUserReviewDataInput } from "@/lib/types";
 import type { TableQueryInput } from "@/utils/query-params";
 import { buildTableQueryParams } from "@/utils/query-params";
 
@@ -11,6 +12,10 @@ export class UsersService {
 
   getUserDetail(id: string) {
     return this.usersRepository.getById(id);
+  }
+
+  updateReviewData(id: string, input: UpdateUserReviewDataInput) {
+    return this.usersRepository.updateReviewData(id, input);
   }
 
   approveAgent(id: string) {

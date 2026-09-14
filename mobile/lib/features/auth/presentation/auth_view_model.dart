@@ -85,6 +85,7 @@ class AuthViewModel extends ChangeNotifier {
     if (!_isAuthenticated) {
       _profileRefreshGeneration++;
       _profileRefreshFuture = null;
+      _clearPendingOtp();
       _bootstrapStatus = AuthBootstrapStatus.signedOut;
       _appUser = null;
       _resolvedKycStatus = null;
@@ -289,9 +290,7 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   void editPhone() {
-    _pendingPhone = null;
-    _resendTimer?.cancel();
-    _resendSeconds = 0;
+    _clearPendingOtp();
     _clearError();
   }
 
@@ -328,6 +327,9 @@ class AuthViewModel extends ChangeNotifier {
     _setLoading(true);
     try {
       await _authRepository.signOut();
+      // Do not let the sign-in screen reopen on a stale verification step
+      // after the router redirects the signed-out session.
+      _clearPendingOtp();
       _clearError();
       return true;
     } catch (_) {
@@ -406,6 +408,13 @@ class AuthViewModel extends ChangeNotifier {
   void _clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  void _clearPendingOtp() {
+    _pendingPhone = null;
+    _resendTimer?.cancel();
+    _resendTimer = null;
+    _resendSeconds = 0;
   }
 
   void _startResendCooldown() {

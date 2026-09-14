@@ -57,6 +57,23 @@ void main() {
     await tester.pump();
   });
 
+  test('sign out clears a pending OTP flow', () async {
+    final repository = _FakeAuthRepository(session: null);
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
+
+    expect(await viewModel.sendPhoneOtp('0241234567'), isTrue);
+    expect(viewModel.isAwaitingOtp, isTrue);
+
+    expect(await viewModel.signOut(), isTrue);
+
+    expect(viewModel.isAwaitingOtp, isFalse);
+    expect(viewModel.pendingPhone, isNull);
+    expect(viewModel.resendSeconds, 0);
+    expect(viewModel.canResendOtp, isFalse);
+  });
+
   test(
     'authenticated startup stays loading until the profile is hydrated',
     () async {

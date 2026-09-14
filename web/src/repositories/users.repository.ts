@@ -1,5 +1,6 @@
 import type { AxiosInstance } from "axios";
 import { apiClient } from "@/repositories/api/client";
+import type { UpdateUserReviewDataInput } from "@/lib/types";
 import type { ApiQueryParamValue } from "@/utils/query-params";
 import {
   appUserDetailSchema,
@@ -17,6 +18,11 @@ export class UsersRepository {
 
   async getById(id: string) {
     const { data } = await this.client.get(`/api/staff/users/${id}/`);
+    return appUserDetailSchema.parse(data);
+  }
+
+  async updateReviewData(id: string, input: UpdateUserReviewDataInput) {
+    const { data } = await this.client.patch(`/api/staff/users/${id}/`, input);
     return appUserDetailSchema.parse(data);
   }
 

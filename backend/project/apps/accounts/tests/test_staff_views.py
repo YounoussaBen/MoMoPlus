@@ -241,6 +241,107 @@ class TestStaffUserDetail:
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
+    @pytest.mark.django_db
+    def test_staff_can_correct_pending_review_data(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="review-data@example.com",
+            username="review-data",
+            first_name="Wrong",
+            last_name="Name",
+            kyc_status=KycStatus.PENDING,
+        )
+        submission = KycSubmission.objects.create(
+            user=target,
+            status=KycSubmission.Status.PENDING,
+            id_type=KycSubmission.IdType.NATIONAL_ID,
+            ghana_card_number="GHA-728430143-4",
+        )
+
+        response = client.patch(
+            f"/api/staff/users/{target.id}/",
+            {
+                "first_name": " Ama ",
+                "last_name": " Owusu ",
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        target.refresh_from_db()
+        submission.refresh_from_db()
+        assert target.first_name == "Ama"
+        assert target.last_name == "Owusu"
+        assert submission.ghana_card_number == "GHA-728430143-4"
+        assert response.data["first_name"] == "Ama"
+        assert response.data["kyc_submission"]["id"] == str(submission.id)
+        assert response.data["kyc_submission"]["ghana_card_number"] == "GHA-728430143-4"
+
+    @pytest.mark.django_db
+    def test_ghana_card_number_is_not_editable_from_user_detail(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="card-read-only@example.com",
+            username="card-read-only",
+            kyc_status=KycStatus.PENDING,
+        )
+        KycSubmission.objects.create(
+            user=target,
+            status=KycSubmission.Status.PENDING,
+            id_type=KycSubmission.IdType.NATIONAL_ID,
+            ghana_card_number="GHA-728430143-4",
+        )
+
+        response = client.patch(
+            f"/api/staff/users/{target.id}/",
+            {"ghana_card_number": "GHA-728430143-5"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.django_db
+    def test_cannot_correct_approved_review_data(self, api_client, user_factory):
+        client, _ = _staff_client(api_client, user_factory)
+        target = user_factory(
+            email="approved-review-data@example.com",
+            username="approved-review-data",
+            kyc_status=KycStatus.APPROVED,
+        )
+        submission = KycSubmission.objects.create(
+            user=target,
+            status=KycSubmission.Status.APPROVED,
+            id_type=KycSubmission.IdType.NATIONAL_ID,
+            ghana_card_number="GHA-728430143-4",
+        )
+
+        response = client.patch(
+            f"/api/staff/users/{target.id}/",
+            {"first_name": "Changed"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        target.refresh_from_db()
+        submission.refresh_from_db()
+        assert target.first_name == "Test"
+        assert submission.ghana_card_number == "GHA-728430143-4"
+
+    @pytest.mark.django_db
+    def test_non_staff_cannot_correct_review_data(self, user_factory, authenticated_client):
+        target = user_factory(
+            email="forbidden-review-data@example.com",
+            username="forbidden-review-data",
+            kyc_status=KycStatus.PENDING,
+        )
+        response = authenticated_client.patch(
+            f"/api/staff/users/{target.id}/",
+            {"first_name": "Changed"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
 
 # ---------------------------------------------------------------------------
 # Approve Agent  POST /api/staff/users/{id}/approve-agent/

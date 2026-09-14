@@ -58,6 +58,30 @@ class StaffUserDetailSerializer(StaffUserListSerializer):
         read_only_fields = fields
 
 
+class StaffUserReviewUpdateSerializer(serializers.Serializer):
+    """Fields staff can correct before a user's KYC is approved."""
+
+    first_name = serializers.CharField(max_length=150, required=False)
+    last_name = serializers.CharField(max_length=150, required=False)
+
+    def validate(self, attrs: dict) -> dict:
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one field to update.")
+        return attrs
+
+    def validate_first_name(self, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("First name is required.")
+        return value
+
+    def validate_last_name(self, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Last name is required.")
+        return value
+
+
 class AgentRejectSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="")
 

@@ -102,9 +102,15 @@ export function useUserDetail(id: string) {
   };
 }
 
-export function ProfileSection({ user }: { user: AppUserDetail }) {
+export function ProfileSection({
+  user,
+  action,
+}: {
+  user: AppUserDetail;
+  action?: React.ReactNode;
+}) {
   return (
-    <Section icon={Users} title="Profile Information">
+    <Section icon={Users} title="Profile Information" action={action}>
       <div className="grid gap-4 sm:grid-cols-2">
         <InfoRow label="Full Name">
           {user.first_name} {user.last_name}

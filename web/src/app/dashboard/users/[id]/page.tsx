@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { Ban, CheckCircle, FileCheck, Phone, Users, XCircle } from "lucide-react";
+import { Ban, CheckCircle, FileCheck, Pencil, Phone, Users, XCircle } from "lucide-react";
 import {
   DetailHeader,
   DetailNotFound,
@@ -18,8 +18,11 @@ import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { RejectModal } from "@/components/modals/reject-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { useApproveKyc, useKycSubmissionDetail, useRejectKyc } from "@/hooks/use-kyc";
-import { useDeactivateUser, useUserGuarantors } from "@/hooks/use-users";
+import { useDeactivateUser, useUpdateUserReviewData, useUserGuarantors } from "@/hooks/use-users";
 import { formatDate, formatPhone } from "@/lib/format";
 import type { LoanGuarantor } from "@/lib/types";
 
@@ -80,17 +83,47 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   const { user, loading } = useUserDetail(id);
   const viewer = useContentViewer();
   const [action, setAction] = useState<UserAction>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const kycQuery = useKycSubmissionDetail(user?.kyc_submission?.id ?? "");
   const approveKycMutation = useApproveKyc();
   const rejectKycMutation = useRejectKyc();
   const deactivateUserMutation = useDeactivateUser();
+  const updateReviewDataMutation = useUpdateUserReviewData();
   const actionLoading =
-    approveKycMutation.isPending || rejectKycMutation.isPending || deactivateUserMutation.isPending;
+    approveKycMutation.isPending ||
+    rejectKycMutation.isPending ||
+    deactivateUserMutation.isPending ||
+    updateReviewDataMutation.isPending;
 
   if (loading || (user?.kyc_submission && kycQuery.isLoading)) return <UserDetailSkeleton />;
   if (!user) return <DetailNotFound backHref="/dashboard/users" />;
 
   const kyc = kycQuery.data ?? null;
+  const canEditReviewData =
+    !user.is_staff &&
+    !user.is_superuser &&
+    user.kyc_status !== "approved" &&
+    kyc?.status !== "approved";
+
+  const handleReviewDataSave = async (formData: FormData) => {
+    const firstName = String(formData.get("first_name") ?? "").trim();
+    const lastName = String(formData.get("last_name") ?? "").trim();
+
+    if (!firstName || !lastName) return;
+
+    try {
+      await updateReviewDataMutation.mutateAsync({
+        id: user.id,
+        input: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      });
+      setIsEditOpen(false);
+    } catch {
+      // The mutation displays the API error as a toast and keeps the form open.
+    }
+  };
 
   const handleAction = async (reason?: string) => {
     if (!action) return;
@@ -130,7 +163,17 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
   return (
     <div className="space-y-6">
       <DetailHeader user={user} backHref="/dashboard/users" />
-      <ProfileSection user={user} />
+      <ProfileSection
+        user={user}
+        action={
+          canEditReviewData ? (
+            <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
+              <Pencil size={14} />
+              Edit details
+            </Button>
+          ) : undefined
+        }
+      />
 
       <Section
         icon={FileCheck}
@@ -214,6 +257,65 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         isOpen={viewer.isOpen}
         onClose={viewer.close}
       />
+
+      {isEditOpen && (
+        <Modal
+          open
+          onClose={() => setIsEditOpen(false)}
+          title="Edit user details"
+          description="Correct the user's name before completing the identity review."
+          closeDisabled={updateReviewDataMutation.isPending}
+          className="max-w-lg"
+        >
+          <form
+            key={`${user.id}:${user.updated_at}:${kyc?.updated_at ?? "no-kyc"}`}
+            className="flex min-h-0 flex-col"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleReviewDataSave(new FormData(event.currentTarget));
+            }}
+          >
+            <div className="space-y-5 overflow-y-auto px-5 py-6 sm:px-7">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="review-first-name">First name</Label>
+                  <Input
+                    id="review-first-name"
+                    name="first_name"
+                    defaultValue={user.first_name}
+                    autoComplete="given-name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="review-last-name">Last name</Label>
+                  <Input
+                    id="review-last-name"
+                    name="last_name"
+                    defaultValue={user.last_name}
+                    autoComplete="family-name"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-border/70 flex flex-col-reverse gap-3 border-t px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditOpen(false)}
+                disabled={updateReviewDataMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateReviewDataMutation.isPending}>
+                {updateReviewDataMutation.isPending ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {action === "approve-kyc" && (
         <ConfirmModal

@@ -13,6 +13,17 @@ export interface GhanaCardRecordInput {
   card_back_id: string;
 }
 
+export interface GhanaCardRecordUpdateInput {
+  card_number?: string;
+  first_names?: string;
+  surname?: string;
+  date_of_birth?: string | null;
+  sex?: string;
+  card_front_id?: string;
+  card_back_id?: string;
+  is_active?: boolean;
+}
+
 interface FileUploadResponse {
   file: { id: string };
   upload: { signed_url: string | null };
@@ -29,6 +40,20 @@ export class GhanaCardsRepository {
   async create(input: GhanaCardRecordInput) {
     const { data } = await this.client.post("/api/staff/kyc/ghana-cards/", input);
     return ghanaCardRecordDetailSchema.parse(data);
+  }
+
+  async getById(id: string) {
+    const { data } = await this.client.get(`/api/staff/kyc/ghana-cards/${id}/`);
+    return ghanaCardRecordDetailSchema.parse(data);
+  }
+
+  async update(id: string, input: GhanaCardRecordUpdateInput) {
+    const { data } = await this.client.patch(`/api/staff/kyc/ghana-cards/${id}/`, input);
+    return ghanaCardRecordDetailSchema.parse(data);
+  }
+
+  async delete(id: string) {
+    await this.client.delete(`/api/staff/kyc/ghana-cards/${id}/`);
   }
 
   async uploadImage(file: File) {
@@ -66,9 +91,6 @@ export class GhanaCardsRepository {
   }
 
   async setActive(id: string, isActive: boolean) {
-    const { data } = await this.client.patch(`/api/staff/kyc/ghana-cards/${id}/`, {
-      is_active: isActive,
-    });
-    return ghanaCardRecordDetailSchema.parse(data);
+    return this.update(id, { is_active: isActive });
   }
 }

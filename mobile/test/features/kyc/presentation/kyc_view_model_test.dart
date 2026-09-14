@@ -71,6 +71,32 @@ void main() {
       expect(viewModel.screenState, KycScreenState.pending);
       expect(viewModel.errorMessage, isNotNull);
     });
+
+    test('resubmit flow starts at the beginning of the wizard', () async {
+      kycRepository.status = const KycSubmission(
+        id: 'kyc-rejected',
+        status: 'rejected',
+        idType: 'national_id',
+        ghanaCardNumber: 'GHA-123456789-0',
+        idFrontId: 'front-id',
+        idBackId: 'back-id',
+        selfieId: 'selfie-id',
+        proofOfAddressId: 'proof-id',
+        rejectionReason: 'Name mismatch',
+      );
+      final resubmitViewModel = KycViewModel(
+        repository: kycRepository,
+        authViewModel: authViewModel,
+        startInResubmitFlow: true,
+      );
+      addTearDown(resubmitViewModel.dispose);
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(resubmitViewModel.screenState, KycScreenState.wizard);
+      expect(resubmitViewModel.step, 0);
+      expect(resubmitViewModel.ghanaCardNumber, 'GHA-123456789-0');
+    });
   });
 }
 

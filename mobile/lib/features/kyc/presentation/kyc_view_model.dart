@@ -58,9 +58,16 @@ class KycViewModel extends ChangeNotifier {
     required KycRepositoryContract repository,
     required AuthViewModel authViewModel,
     bool autoLoad = true,
+    bool startInResubmitFlow = false,
   }) : _repository = repository,
        _authViewModel = authViewModel {
-    if (autoLoad) unawaited(refreshStatus(showLoading: true));
+    if (autoLoad) {
+      unawaited(
+        startInResubmitFlow
+            ? _loadResubmitFlow()
+            : refreshStatus(showLoading: true),
+      );
+    }
   }
 
   KycScreenState get screenState => _screenState;
@@ -118,6 +125,13 @@ class KycViewModel extends ChangeNotifier {
     } finally {
       _isRefreshing = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _loadResubmitFlow() async {
+    await refreshStatus(showLoading: true);
+    if (_submission?.status == 'rejected') {
+      await startResubmit();
     }
   }
 

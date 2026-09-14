@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
@@ -16,6 +17,7 @@ from .staff_serializers import (
     AgentRejectSerializer,
     StaffUserDetailSerializer,
     StaffUserListSerializer,
+    StaffUserReviewUpdateSerializer,
 )
 
 
@@ -123,6 +125,7 @@ def user_list(request: Request) -> Response:
 
 
 @extend_schema(
+    methods=["GET"],
     tags=["Staff — Users"],
     responses={
         status.HTTP_200_OK: StaffUserDetailSerializer,
@@ -131,13 +134,61 @@ def user_list(request: Request) -> Response:
         status.HTTP_404_NOT_FOUND: OpenApiResponse(description="User not found"),
     },
 )
-@api_view(["GET"])
+@extend_schema(
+    methods=["PATCH"],
+    tags=["Staff — Users"],
+    request=StaffUserReviewUpdateSerializer,
+    responses={
+        status.HTTP_200_OK: StaffUserDetailSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(
+            description="Validation error or the user's KYC has already been approved"
+        ),
+        status.HTTP_401_UNAUTHORIZED: OpenApiResponse(description="Authentication required"),
+        status.HTTP_403_FORBIDDEN: OpenApiResponse(description="Staff access required"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="User not found"),
+    },
+)
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAdminUser])
 def user_detail(request: Request, user_id: str) -> Response:
-    """Retrieve a single user's full profile."""
+    """Retrieve or correct a user's review data."""
     user = _get_user_or_404(user_id)
     if user is None:
         return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "PATCH":
+        serializer = StaffUserReviewUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        with transaction.atomic():
+            user = User.objects.select_for_update().get(pk=user.pk)
+            submission = KycSubmission.objects.select_for_update().filter(user_id=user.pk).first()
+
+            if user.is_staff or user.is_superuser:
+                return Response(
+                    {"detail": "Staff accounts cannot be edited here."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if user.kyc_status == KycStatus.APPROVED or (
+                submission and submission.status == KycSubmission.Status.APPROVED
+            ):
+                return Response(
+                    {"detail": "Approved KYC data cannot be edited."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            validated = serializer.validated_data
+            update_fields: list[str] = []
+            for field in ("first_name", "last_name"):
+                if field in validated:
+                    setattr(user, field, validated[field])
+                    update_fields.append(field)
+
+            if update_fields:
+                update_fields.append("updated_at")
+                user.save(update_fields=update_fields)
+
     return Response(StaffUserDetailSerializer(user).data)
 
 

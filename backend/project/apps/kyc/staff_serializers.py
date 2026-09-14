@@ -110,7 +110,24 @@ class GhanaCardRecordCreateSerializer(serializers.Serializer):
 
 
 class GhanaCardRecordUpdateSerializer(serializers.Serializer):
-    is_active = serializers.BooleanField()
+    card_number = GhanaCardNumberField(max_length=32, required=False)
+    first_names = serializers.CharField(max_length=255, required=False)
+    surname = serializers.CharField(max_length=255, required=False)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    sex = serializers.CharField(max_length=16, required=False, allow_blank=True)
+    card_front_id = serializers.UUIDField(required=False)
+    card_back_id = serializers.UUIDField(required=False)
+    is_active = serializers.BooleanField(required=False)
+
+    def validate_first_names(self, value: str) -> str:
+        if not value.strip():
+            raise serializers.ValidationError("First names are required.")
+        return value.strip()
+
+    def validate_surname(self, value: str) -> str:
+        if not value.strip():
+            raise serializers.ValidationError("Surname is required.")
+        return value.strip()
 
 
 class GhanaCardRecordListSerializer(serializers.ModelSerializer):

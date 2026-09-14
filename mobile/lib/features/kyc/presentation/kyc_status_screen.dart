@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/ui/theme/app_theme_extension.dart';
 import '../../../core/ui/widgets/app_button.dart';
+import '../../../core/ui/widgets/sign_out_sheet.dart';
 import '../../auth/presentation/auth_view_model.dart';
 import 'kyc_view_model.dart';
 
@@ -99,7 +100,11 @@ class _PendingView extends StatelessWidget {
         AppButton(
           label: 'Sign out',
           variant: AppButtonVariant.ghost,
-          onPressed: authVm.isLoading ? null : authVm.signOut,
+          onPressed: authVm.isLoading
+              ? null
+              : () async {
+                  await showSignOutDialog(context, onConfirm: authVm.signOut);
+                },
         ),
       ],
     );
@@ -160,7 +165,11 @@ class _ErrorView extends StatelessWidget {
         AppButton(
           label: 'Sign out',
           variant: AppButtonVariant.ghost,
-          onPressed: authVm.isLoading ? null : authVm.signOut,
+          onPressed: authVm.isLoading
+              ? null
+              : () async {
+                  await showSignOutDialog(context, onConfirm: authVm.signOut);
+                },
         ),
       ],
     );
@@ -213,8 +222,8 @@ class _RejectedView extends StatelessWidget {
         ] else
           const SizedBox(height: 16),
         AppButton(
-          label: 'Resubmit documents',
-          onPressed: () => context.read<KycViewModel>().startResubmit(),
+          label: 'Update details and resubmit',
+          onPressed: () => context.go('/auth/profile-setup?resubmit=1'),
         ),
       ],
     );

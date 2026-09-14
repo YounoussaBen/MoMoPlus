@@ -2,7 +2,10 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { container } from "@/di/container";
-import type { GhanaCardRecordInput } from "@/repositories/ghana-cards.repository";
+import type {
+  GhanaCardRecordInput,
+  GhanaCardRecordUpdateInput,
+} from "@/repositories/ghana-cards.repository";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/components/ui/toast";
 import { ghanaCardsKeys } from "@/utils/query-keys";
@@ -13,6 +16,14 @@ export function useGhanaCardsList(input: TableQueryInput) {
     queryKey: ghanaCardsKeys.list(input),
     queryFn: () => container.ghanaCardsService.list(input),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useGhanaCardDetail(id: string) {
+  return useQuery({
+    queryKey: ghanaCardsKeys.detail(id),
+    queryFn: () => container.ghanaCardsService.getById(id),
+    enabled: !!id,
   });
 }
 
@@ -60,6 +71,40 @@ export function useToggleGhanaCard() {
     },
     onError: (mutationError) => {
       error("Could not update card", getErrorMessage(mutationError, "Please try again."));
+    },
+  });
+}
+
+export function useUpdateGhanaCard() {
+  const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: GhanaCardRecordUpdateInput }) =>
+      container.ghanaCardsService.update(id, input),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ghanaCardsKeys.all });
+      queryClient.invalidateQueries({ queryKey: ghanaCardsKeys.detail(id) });
+      success("Card updated", "The verification registry record has been updated.");
+    },
+    onError: (mutationError) => {
+      error("Could not update card", getErrorMessage(mutationError, "Please try again."));
+    },
+  });
+}
+
+export function useDeleteGhanaCard() {
+  const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => container.ghanaCardsService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ghanaCardsKeys.all });
+      success("Card deleted", "The verification registry record has been removed.");
+    },
+    onError: (mutationError) => {
+      error("Could not delete card", getErrorMessage(mutationError, "Please try again."));
     },
   });
 }

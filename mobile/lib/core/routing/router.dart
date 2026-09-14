@@ -204,6 +204,8 @@ class AppRouter {
 
         final isAuthRoute = path.startsWith('/auth');
         final isProfileSetupRoute = path == '/auth/profile-setup';
+        final isProfileResubmission =
+            isProfileSetupRoute && state.uri.queryParameters['resubmit'] == '1';
         final isKycRoute = path.startsWith('/kyc');
 
         // Onboarding is only available before authentication.
@@ -220,6 +222,7 @@ class AppRouter {
         }
 
         if (isProfileSetupRoute) {
+          if (isProfileResubmission) return null;
           return appUser?.isOnboarded == true
               ? _authenticatedDestination(authViewModel)
               : null;
@@ -297,7 +300,12 @@ class AppRouter {
           path: '/auth/profile-setup',
           builder: (context, state) => const ProfileSetupScreen(),
         ),
-        GoRoute(path: '/kyc', builder: (context, state) => const KycScreen()),
+        GoRoute(
+          path: '/kyc',
+          builder: (context, state) => KycScreen(
+            startInResubmitFlow: state.uri.queryParameters['resubmit'] == '1',
+          ),
+        ),
         GoRoute(
           path: '/guarantors',
           builder: (context, state) => const GuarantorsOnboardingScreen(),

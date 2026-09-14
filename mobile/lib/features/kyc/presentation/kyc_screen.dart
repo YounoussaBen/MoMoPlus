@@ -13,7 +13,9 @@ import 'steps/step3_address_screen.dart';
 import 'widgets/kyc_progress_bar.dart';
 
 class KycScreen extends StatelessWidget {
-  const KycScreen({super.key});
+  const KycScreen({super.key, this.startInResubmitFlow = false});
+
+  final bool startInResubmitFlow;
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +26,7 @@ class KycScreen extends StatelessWidget {
           uploadService: ctx.read<FileUploadService>(),
         ),
         authViewModel: ctx.read<AuthViewModel>(),
+        startInResubmitFlow: startInResubmitFlow,
       ),
       child: const _KycView(),
     );

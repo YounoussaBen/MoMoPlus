@@ -8,7 +8,13 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .models import GhanaCardRecord, KycSubmission
-from .services import approve_kyc, create_ghana_card_record, reject_kyc
+from .services import (
+    approve_kyc,
+    create_ghana_card_record,
+    delete_ghana_card_record,
+    reject_kyc,
+    update_ghana_card_record,
+)
 from .staff_serializers import (
     GhanaCardRecordCreateSerializer,
     GhanaCardRecordDetailSerializer,
@@ -242,17 +248,35 @@ def ghana_card_list_create(request: Request) -> Response:
         status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Ghana Card not found"),
     },
 )
-@api_view(["GET", "PATCH"])
+@extend_schema(
+    methods=["DELETE"],
+    tags=["Staff — Ghana Cards"],
+    responses={
+        status.HTTP_204_NO_CONTENT: OpenApiResponse(description="Ghana Card deleted"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Ghana Card not found"),
+    },
+)
+@api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([IsAdminUser])
 def ghana_card_detail(request: Request, record_id: str) -> Response:
     record = _get_ghana_card_or_404(record_id)
     if record is None:
         return Response({"detail": "Ghana Card not found."}, status=status.HTTP_404_NOT_FOUND)
 
+    if request.method == "DELETE":
+        delete_ghana_card_record(record=record, actor=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     if request.method == "PATCH":
-        serializer = GhanaCardRecordUpdateSerializer(data=request.data)
+        serializer = GhanaCardRecordUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        record.is_active = serializer.validated_data["is_active"]
-        record.save(update_fields=["is_active", "updated_at"])
+        try:
+            record = update_ghana_card_record(
+                record=record,
+                actor=request.user,
+                changes=serializer.validated_data,
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response(GhanaCardRecordDetailSerializer(record, context={"request": request}).data)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from project.apps.accounts.models import KycStatus, User
@@ -231,3 +232,99 @@ def create_ghana_card_record(
         card_back=back_asset,
         created_by=actor,
     )
+
+
+def _delete_registry_asset_if_unreferenced(*, asset: FileAsset, actor: User) -> None:
+    """Remove a registry image only after no KYC submission still references it."""
+    still_referenced = KycSubmission.objects.filter(
+        Q(id_front_id=asset.id) | Q(id_back_id=asset.id) | Q(selfie_id=asset.id) | Q(proof_of_address_id=asset.id)
+    ).exists()
+    if not still_referenced:
+        delete_file_asset(asset=asset, actor=actor)
+
+
+@transaction.atomic
+def update_ghana_card_record(
+    *,
+    record: GhanaCardRecord,
+    actor: User,
+    changes: dict[str, object],
+) -> GhanaCardRecord:
+    """Apply staff edits to a registry record and optionally replace its images."""
+    card_number = record.card_number
+    if "card_number" in changes:
+        try:
+            card_number = normalize_ghana_card_number(str(changes["card_number"]))
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+        if GhanaCardRecord.objects.filter(card_number=card_number).exclude(pk=record.pk).exists():
+            raise ValueError("A Ghana Card with this number is already registered.")
+
+    first_names = record.first_names
+    if "first_names" in changes:
+        first_names = str(changes["first_names"]).strip()
+        if not first_names:
+            raise ValueError("First names are required.")
+
+    surname = record.surname
+    if "surname" in changes:
+        surname = str(changes["surname"]).strip()
+        if not surname:
+            raise ValueError("Surname is required.")
+
+    date_of_birth = changes.get("date_of_birth", record.date_of_birth)
+    sex = record.sex
+    if "sex" in changes:
+        sex = str(changes["sex"]).strip().upper()
+    is_active = changes.get("is_active", record.is_active)
+
+    card_front = record.card_front
+    if "card_front_id" in changes:
+        card_front = _get_ready_asset(
+            actor,
+            str(changes["card_front_id"]),
+            str(FileAsset.FileKind.GHANA_CARD),
+        )
+
+    card_back = record.card_back
+    if "card_back_id" in changes:
+        card_back = _get_ready_asset(
+            actor,
+            str(changes["card_back_id"]),
+            str(FileAsset.FileKind.GHANA_CARD),
+        )
+
+    if card_front.id == card_back.id:
+        raise ValueError("Upload separate front and back Ghana Card images.")
+
+    old_assets = {
+        asset.id: asset
+        for asset in (record.card_front, record.card_back)
+        if asset.id not in {card_front.id, card_back.id}
+    }
+
+    record.card_number = card_number
+    record.first_names = first_names
+    record.surname = surname
+    record.date_of_birth = date_of_birth
+    record.sex = sex
+    record.is_active = is_active
+    record.card_front = card_front
+    record.card_back = card_back
+    record.save()
+
+    for asset in old_assets.values():
+        _delete_registry_asset_if_unreferenced(asset=asset, actor=actor)
+
+    return record
+
+
+@transaction.atomic
+def delete_ghana_card_record(*, record: GhanaCardRecord, actor: User) -> None:
+    """Delete a registry record and clean up its unreferenced card images."""
+    assets = {asset.id: asset for asset in (record.card_front, record.card_back)}
+    record.delete()
+
+    for asset in assets.values():
+        _delete_registry_asset_if_unreferenced(asset=asset, actor=actor)

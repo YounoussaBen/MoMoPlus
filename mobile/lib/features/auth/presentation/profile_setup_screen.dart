@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/ui/theme/app_spacing.dart';
@@ -22,6 +23,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _lastNameController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    final appUser = context.read<AuthViewModel>().appUser;
+    _firstNameController.text = appUser?.firstName ?? '';
+    _lastNameController.text = appUser?.lastName ?? '';
+  }
+
+  @override
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
@@ -30,14 +39,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _continue() async {
     if (!_formKey.currentState!.validate()) return;
-    await context.read<AuthViewModel>().completeProfile(
+    final isResubmission =
+        GoRouterState.of(context).uri.queryParameters['resubmit'] == '1';
+    final didComplete = await context.read<AuthViewModel>().completeProfile(
       firstName: _firstNameController.text,
       lastName: _lastNameController.text,
     );
+    if (didComplete && isResubmission && mounted) {
+      context.go('/kyc?resubmit=1');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isResubmission =
+        GoRouterState.of(context).uri.queryParameters['resubmit'] == '1';
     return AppScreen(
       body: SafeArea(
         child: Consumer<AuthViewModel>(
@@ -54,12 +70,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
               const SizedBox(height: AppSpacing.space10),
               Text(
-                'Complete your profile',
+                isResubmission
+                    ? 'Review your details'
+                    : 'Complete your profile',
                 style: context.appTextTheme.displaySmall,
               ),
               const SizedBox(height: AppSpacing.space3),
               Text(
-                'Enter your details to continue.',
+                isResubmission
+                    ? 'Confirm your name before resubmitting your verification.'
+                    : 'Enter your details to continue.',
                 style: context.appTextTheme.bodyLarge?.copyWith(
                   color: context.appColors.textSecondary,
                   height: 1.45,

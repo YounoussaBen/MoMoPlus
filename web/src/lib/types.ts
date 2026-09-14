@@ -92,6 +92,11 @@ export interface AppUserDetail extends AppUser {
   is_superuser: boolean;
 }
 
+export interface UpdateUserReviewDataInput {
+  first_name?: string;
+  last_name?: string;
+}
+
 // ─── Loan Guarantors ────────────────────────────────────────────────────────
 
 export interface LoanGuarantor {
@@ -152,6 +157,20 @@ export interface GhanaCardRecord {
   date_of_birth: string | null;
   sex: string;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GhanaCardRecordDetail {
+  id: string;
+  card_number: string;
+  first_names: string;
+  surname: string;
+  date_of_birth: string | null;
+  sex: string;
+  is_active: boolean;
+  card_front_url: FileUrl | null;
+  card_back_url: FileUrl | null;
   created_at: string;
   updated_at: string;
 }

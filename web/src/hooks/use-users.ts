@@ -4,7 +4,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { container } from "@/di/container";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/components/ui/toast";
-import { agentsKeys, usersKeys } from "@/utils/query-keys";
+import { agentsKeys, kycKeys, usersKeys } from "@/utils/query-keys";
+import type { UpdateUserReviewDataInput } from "@/lib/types";
 import type { TableQueryInput } from "@/utils/query-params";
 
 export function useUsersList(input: TableQueryInput) {
@@ -20,6 +21,25 @@ export function useUserDetail(id: string) {
     queryKey: usersKeys.detail(id),
     queryFn: () => container.usersService.getUserDetail(id),
     enabled: !!id,
+  });
+}
+
+export function useUpdateUserReviewData() {
+  const queryClient = useQueryClient();
+  const { success, error } = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateUserReviewDataInput }) =>
+      container.usersService.updateReviewData(id, input),
+    onSuccess: (updatedUser, { id }) => {
+      queryClient.setQueryData(usersKeys.detail(id), updatedUser);
+      queryClient.invalidateQueries({ queryKey: usersKeys.all });
+      queryClient.invalidateQueries({ queryKey: kycKeys.all });
+      success("User details updated", "The corrected information is ready for review.");
+    },
+    onError: (mutationError) => {
+      error("Could not update user details", getErrorMessage(mutationError, "Please try again."));
+    },
   });
 }
 

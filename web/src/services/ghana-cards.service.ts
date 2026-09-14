@@ -1,6 +1,7 @@
 import {
   GhanaCardsRepository,
   type GhanaCardRecordInput,
+  type GhanaCardRecordUpdateInput,
 } from "@/repositories/ghana-cards.repository";
 import type { TableQueryInput } from "@/utils/query-params";
 import { buildTableQueryParams } from "@/utils/query-params";
@@ -14,6 +15,18 @@ export class GhanaCardsService {
 
   create(input: GhanaCardRecordInput) {
     return this.repository.create(input);
+  }
+
+  getById(id: string) {
+    return this.repository.getById(id);
+  }
+
+  update(id: string, input: GhanaCardRecordUpdateInput) {
+    return this.repository.update(id, input);
+  }
+
+  delete(id: string) {
+    return this.repository.delete(id);
   }
 
   uploadImage(file: File) {
