@@ -41,6 +41,7 @@ class FileAsset(BaseModel):
     class FileKind(models.TextChoices):
         PROFILE_PICTURE = "profile_picture", "Profile picture"
         PASSPORT = "passport", "Passport"
+        GHANA_CARD = "ghana_card", "Ghana Card"
         DOCUMENT = "document", "Document"
         SELFIE = "selfie", "Selfie"
         OTHER = "other", "Other"

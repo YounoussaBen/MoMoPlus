@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useApproveKyc, useKycSubmissionDetail, useRejectKyc } from "@/hooks/use-kyc";
 import { useDeactivateUser, useUserGuarantors } from "@/hooks/use-users";
-import { formatDate, formatIdType, formatPhone } from "@/lib/format";
+import { formatDate, formatPhone } from "@/lib/format";
 import type { LoanGuarantor } from "@/lib/types";
 
 function GuarantorsSection({ userId }: { userId: string }) {
@@ -143,7 +143,9 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
         {kyc ? (
           <div className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-3">
-              <InfoRow label="ID Type">{formatIdType(kyc.id_type)}</InfoRow>
+              <InfoRow label="Identity">Ghana Card</InfoRow>
+              <InfoRow label="Ghana Card number">{kyc.ghana_card_number || "—"}</InfoRow>
+              <InfoRow label="Verification method">{kyc.verification_method}</InfoRow>
               <InfoRow label="Submitted">{formatDate(kyc.created_at)}</InfoRow>
               <InfoRow label="Reviewed">
                 {kyc.reviewed_at ? formatDate(kyc.reviewed_at) : "—"}
@@ -159,12 +161,12 @@ export default function UserDetailPage({ params }: { params: Promise<{ id: strin
               <p className="text-foreground mb-3 text-sm font-medium">Verification documents</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <DocCard
-                  label="ID Front"
+                  label="Ghana Card front"
                   fileUrl={kyc.id_front_url}
                   onView={(url, title) => viewer.open(url, title, "IMAGE")}
                 />
                 <DocCard
-                  label="ID Back"
+                  label="Ghana Card back"
                   fileUrl={kyc.id_back_url}
                   onView={(url, title) => viewer.open(url, title, "IMAGE")}
                 />

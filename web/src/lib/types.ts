@@ -32,12 +32,15 @@ export interface PaginatedResponse<T> {
 export type UserRole = "user" | "agent";
 export type AgentStatus = "none" | "pending" | "approved" | "rejected";
 export type KycStatus = "none" | "pending" | "approved" | "rejected";
-export type IdType = "national_id" | "passport" | "drivers_license";
+// Historical submissions may contain a legacy value; new submissions are Ghana Card only.
+export type IdType = string;
 
 export interface UserKycSummary {
   id: string;
   status: KycStatus;
   id_type: IdType;
+  ghana_card_number: string;
+  verification_method: string;
   rejection_reason: string;
   reviewed_at: string | null;
   created_at: string;
@@ -126,6 +129,8 @@ export interface KycSubmission {
   user: EmbeddedUser;
   status: KycStatus;
   id_type: IdType;
+  ghana_card_number: string;
+  verification_method: string;
   created_at: string;
   updated_at: string;
 }
@@ -137,6 +142,18 @@ export interface KycSubmissionDetail extends KycSubmission {
   proof_of_address_url: FileUrl | null;
   rejection_reason: string;
   reviewed_at: string | null;
+}
+
+export interface GhanaCardRecord {
+  id: string;
+  masked_card_number: string;
+  first_names: string;
+  surname: string;
+  date_of_birth: string | null;
+  sex: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Agents ──────────────────────────────────────────────────────────────────

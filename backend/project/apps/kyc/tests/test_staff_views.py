@@ -4,6 +4,8 @@ from rest_framework import status
 from project.apps.kyc.models import KycSubmission
 from project.apps.kyc.services import approve_kyc
 
+from .conftest import make_ghana_card_record, make_submission_asset_ids
+
 
 class TestStaffKycList:
     @pytest.mark.django_db
@@ -238,3 +240,62 @@ class TestStaffKycReject:
         )
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+
+
+class TestStaffGhanaCardRegistry:
+    @pytest.mark.django_db
+    def test_staff_can_list_registered_cards(self, staff_client, media_root):
+        client, staff = staff_client
+        make_ghana_card_record(staff)
+
+        response = client.get("/api/staff/kyc/ghana-cards/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["masked_card_number"] == "GHA-******34"
+        assert response.data["results"][0]["first_names"] == "Kwame"
+
+    @pytest.mark.django_db
+    def test_staff_can_create_card_from_ready_images(self, staff_client, media_root):
+        client, staff = staff_client
+        asset_ids = make_submission_asset_ids(staff)
+
+        response = client.post(
+            "/api/staff/kyc/ghana-cards/",
+            {
+                "card_number": "GHA-728430143-5",
+                "first_names": "Ama",
+                "surname": "Owusu",
+                "date_of_birth": "2001-01-02",
+                "sex": "f",
+                "card_front_id": asset_ids["id_front_id"],
+                "card_back_id": asset_ids["id_back_id"],
+            },
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["card_number"] == "GHA-728430143-5"
+        assert response.data["sex"] == "F"
+
+    @pytest.mark.django_db
+    def test_non_staff_cannot_manage_registry(self, authenticated_client):
+        response = authenticated_client.get("/api/staff/kyc/ghana-cards/")
+
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    @pytest.mark.django_db
+    def test_staff_can_deactivate_registered_card(self, staff_client, media_root):
+        client, staff = staff_client
+        record = make_ghana_card_record(staff)
+
+        response = client.patch(
+            f"/api/staff/kyc/ghana-cards/{record.id}/",
+            {"is_active": False},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["is_active"] is False
+        record.refresh_from_db()
+        assert record.is_active is False

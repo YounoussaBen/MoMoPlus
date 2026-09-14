@@ -30,7 +30,7 @@ def submit(request: Request) -> Response:
     try:
         submission = submit_kyc(
             user=request.user,
-            id_type=d["id_type"],
+            ghana_card_number=d["ghana_card_number"],
             id_front_id=str(d["id_front_id"]),
             id_back_id=str(d["id_back_id"]),
             selfie_id=str(d["selfie_id"]),

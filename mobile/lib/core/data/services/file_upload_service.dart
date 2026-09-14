@@ -4,7 +4,7 @@ import 'backend_api_service.dart';
 /// Reusable 3-step file upload service.
 ///
 /// Usage from any feature:
-///   final id = await fileUploadService.upload(file: file, kind: 'passport', contentType: 'image/jpeg');
+///   final id = await fileUploadService.upload(file: file, kind: 'ghana_card', contentType: 'image/jpeg');
 ///
 /// Steps performed internally:
 ///   1. POST /api/files/ — Django creates a pending FileAsset and returns a signed Supabase URL.

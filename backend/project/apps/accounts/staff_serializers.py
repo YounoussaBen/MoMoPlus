@@ -12,6 +12,8 @@ class StaffUserKycSummarySerializer(serializers.ModelSerializer):
             "id",
             "status",
             "id_type",
+            "ghana_card_number",
+            "verification_method",
             "rejection_reason",
             "reviewed_at",
             "created_at",

@@ -58,7 +58,8 @@ void main() {
       kycRepository.status = const KycSubmission(
         id: 'kyc-1',
         status: 'pending',
-        idType: 'ghana_card',
+        idType: 'national_id',
+        ghanaCardNumber: 'GHA-728430143-4',
         rejectionReason: '',
       );
       await viewModel.refreshStatus(showLoading: true);
@@ -105,7 +106,7 @@ class _FakeKycRepository implements KycRepositoryContract {
 
   @override
   Future<void> submit({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,
@@ -165,7 +166,7 @@ class _FakeAuthRepository implements AuthRepository {
 
   @override
   Future<void> submitKyc({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,

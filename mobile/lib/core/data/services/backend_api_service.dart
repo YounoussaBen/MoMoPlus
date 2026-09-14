@@ -147,7 +147,7 @@ class BackendApiService {
 
   /// Submit KYC using pre-uploaded file asset IDs (JSON, no multipart).
   Future<void> submitKyc({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,
@@ -159,7 +159,7 @@ class BackendApiService {
       uri,
       headers: _headers,
       body: jsonEncode({
-        'id_type': idType,
+        'ghana_card_number': ghanaCardNumber,
         'id_front_id': idFrontId,
         'id_back_id': idBackId,
         'selfie_id': selfieId,

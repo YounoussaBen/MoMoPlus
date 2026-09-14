@@ -31,6 +31,13 @@ export const kycKeys = {
   submission: (id: string) => ["kyc", "submission", id] as const,
 };
 
+export const ghanaCardsKeys = {
+  all: ["ghana-cards"] as const,
+  lists: () => ["ghana-cards", "list"] as const,
+  list: (input: TableQueryInput) => ["ghana-cards", "list", input] as const,
+  detail: (id: string) => ["ghana-cards", "detail", id] as const,
+};
+
 export const getFundsKeys = {
   all: ["get-funds"] as const,
   lists: () => ["get-funds", "list"] as const,

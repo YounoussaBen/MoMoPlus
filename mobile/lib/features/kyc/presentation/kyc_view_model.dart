@@ -45,9 +45,10 @@ class KycViewModel extends ChangeNotifier {
   bool _isSubmitting = false;
   bool _isGoingHome = false;
   bool _isRefreshing = false;
+  Timer? _draftSaveTimer;
 
   int _step = 0;
-  String? _idType;
+  String _ghanaCardNumber = '';
   FileUploadState? _idFront;
   FileUploadState? _idBack;
   FileUploadState? _selfie;
@@ -69,7 +70,11 @@ class KycViewModel extends ChangeNotifier {
   bool get isGoingHome => _isGoingHome;
   bool get isRefreshing => _isRefreshing;
   int get step => _step;
-  String? get idType => _idType;
+  String get ghanaCardNumber => _ghanaCardNumber;
+  bool get isGhanaCardNumberValid => RegExp(
+    r'^GHA(?:[\s-]?\d){10}$',
+    caseSensitive: false,
+  ).hasMatch(_ghanaCardNumber.trim());
 
   FileUploadState? get idFront => _idFront;
   FileUploadState? get idBack => _idBack;
@@ -77,7 +82,7 @@ class KycViewModel extends ChangeNotifier {
   FileUploadState? get proofOfAddress => _proofOfAddress;
 
   bool get canAdvanceStep1 =>
-      _idType != null &&
+      isGhanaCardNumberValid &&
       (_idFront?.isReady ?? false) &&
       (_idBack?.isReady ?? false);
   bool get canAdvanceStep2 => _selfie?.isReady ?? false;
@@ -120,7 +125,7 @@ class KycViewModel extends ChangeNotifier {
     try {
       final draft = <String, dynamic>{
         'step': _step,
-        if (_idType != null) 'id_type': _idType,
+        if (_ghanaCardNumber.isNotEmpty) 'ghana_card_number': _ghanaCardNumber,
         if (_idFront?.assetId != null) 'id_front_id': _idFront!.assetId,
         if (_idBack?.assetId != null) 'id_back_id': _idBack!.assetId,
         if (_selfie?.assetId != null) 'selfie_id': _selfie!.assetId,
@@ -136,7 +141,7 @@ class KycViewModel extends ChangeNotifier {
       final draft = await _repository.getDraft();
       if (draft.isEmpty) return;
       _step = (draft['step'] as int?) ?? 0;
-      _idType = draft['id_type'] as String?;
+      _ghanaCardNumber = draft['ghana_card_number'] as String? ?? '';
       await Future.wait([
         if (draft['id_front_id'] != null)
           _restoreSlot(draft['id_front_id'] as String, (s) => _idFront = s),
@@ -171,7 +176,7 @@ class KycViewModel extends ChangeNotifier {
   /// Fetch signed URLs for each file in the submission and populate the wizard slots.
   /// Called when entering the resubmit wizard so existing uploads are visible.
   Future<void> _restoreFromSubmission(KycSubmission submission) async {
-    _idType = submission.idType;
+    _ghanaCardNumber = submission.ghanaCardNumber;
     await Future.wait([
       if (submission.idFrontId != null)
         _restoreSlot(submission.idFrontId!, (s) => _idFront = s),
@@ -200,9 +205,10 @@ class KycViewModel extends ChangeNotifier {
 
   // ─── Navigation ───────────────────────────────────────────────────────────
 
-  void selectIdType(String type) {
-    _idType = type;
-    _saveDraft();
+  void setGhanaCardNumber(String value) {
+    _ghanaCardNumber = value.toUpperCase();
+    _draftSaveTimer?.cancel();
+    _draftSaveTimer = Timer(const Duration(milliseconds: 400), _saveDraft);
     notifyListeners();
   }
 
@@ -227,7 +233,7 @@ class KycViewModel extends ChangeNotifier {
   /// Shared upload logic for gallery selections and the dedicated selfie camera screen.
   ///
   /// [getState] / [setState] address the specific slot so there is no ambiguity
-  /// when two slots share the same [kind] (e.g. both id_front and id_back use 'passport').
+  /// when two slots share the same [kind] (both Ghana Card sides use 'ghana_card').
   Future<void> _uploadFile({
     required File file,
     required String kind,
@@ -287,7 +293,7 @@ class KycViewModel extends ChangeNotifier {
   Future<void> pickIdFront() async {
     await _pickAndUpload(
       source: ImageSource.gallery,
-      kind: 'passport',
+      kind: 'ghana_card',
       contentType: 'image/jpeg',
       getState: () => _idFront,
       setState: (s) => _idFront = s,
@@ -297,7 +303,7 @@ class KycViewModel extends ChangeNotifier {
   Future<void> pickIdBack() async {
     await _pickAndUpload(
       source: ImageSource.gallery,
-      kind: 'passport',
+      kind: 'ghana_card',
       contentType: 'image/jpeg',
       getState: () => _idBack,
       setState: (s) => _idBack = s,
@@ -327,13 +333,13 @@ class KycViewModel extends ChangeNotifier {
   // ─── Submit ───────────────────────────────────────────────────────────────
 
   Future<void> submit() async {
-    if (_idType == null || !canSubmit) return;
+    if (!canAdvanceStep1 || !canAdvanceStep2 || !canSubmit) return;
     _isSubmitting = true;
     _errorMessage = null;
     notifyListeners();
     try {
       await _repository.submit(
-        idType: _idType!,
+        ghanaCardNumber: _ghanaCardNumber.trim(),
         idFrontId: _idFront!.assetId!,
         idBackId: _idBack!.assetId!,
         selfieId: _selfie!.assetId!,
@@ -341,7 +347,13 @@ class KycViewModel extends ChangeNotifier {
       );
       await _authViewModel.refreshProfile();
       await _clearDraft();
-      _screenState = KycScreenState.pending;
+      final submission = await _repository.getStatus();
+      if (submission != null) {
+        _submission = submission;
+        _screenState = _parseState(submission.status);
+      } else {
+        _screenState = KycScreenState.pending;
+      }
     } catch (e) {
       _errorMessage = friendlyErrorMessage(e);
     } finally {
@@ -354,7 +366,7 @@ class KycViewModel extends ChangeNotifier {
   Future<void> startResubmit() async {
     await _clearDraft();
     _step = 0;
-    _idType = null;
+    _ghanaCardNumber = '';
     _idFront = null;
     _idBack = null;
     _selfie = null;
@@ -387,5 +399,11 @@ class KycViewModel extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _draftSaveTimer?.cancel();
+    super.dispose();
   }
 }

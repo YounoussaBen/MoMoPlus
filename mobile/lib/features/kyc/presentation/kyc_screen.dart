@@ -79,7 +79,7 @@ class _KycViewState extends State<_KycView> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: context.appColors.canvas,
       appBar: AppBar(
-        title: const Text('Identity Verification'),
+        title: const Text('Ghana Card Verification'),
         leading: isWizard && vm.step > 0
             ? BackButton(
                 onPressed: () => context.read<KycViewModel>().prevStep(),
@@ -134,9 +134,9 @@ class _KycViewState extends State<_KycView> with WidgetsBindingObserver {
   }
 
   Widget _stepWidget(int step) => switch (step) {
-    0 => const Step1IdTypeScreen(),
+    0 => const Step1GhanaCardScreen(),
     1 => const Step2SelfieScreen(),
     2 => const Step3AddressScreen(),
-    _ => const Step1IdTypeScreen(),
+    _ => const Step1GhanaCardScreen(),
   };
 }

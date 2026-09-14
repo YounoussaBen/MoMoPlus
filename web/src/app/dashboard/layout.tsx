@@ -4,11 +4,20 @@ import { AuthGuard } from "@/components/auth-guard";
 import { DashboardShell } from "@/components/dashboard/shell";
 import { useAuth } from "@/context/auth-context";
 import { useTheme } from "@/context/theme-context";
-import { LayoutDashboard, Users, UserCog, ArrowLeftRight, Wallet, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  UserCog,
+  ArrowLeftRight,
+  Wallet,
+  CreditCard,
+  Settings,
+} from "lucide-react";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard", exact: true },
   { icon: Users, label: "User Management", href: "/dashboard/users" },
+  { icon: CreditCard, label: "Ghana Cards", href: "/dashboard/ghana-cards" },
   { icon: UserCog, label: "Agent Management", href: "/dashboard/agents" },
   { icon: Wallet, label: "Get Funds", href: "/dashboard/get-funds" },
   { icon: ArrowLeftRight, label: "Cash Services", href: "/dashboard/cash-services" },

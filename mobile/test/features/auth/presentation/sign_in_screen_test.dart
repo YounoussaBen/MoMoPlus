@@ -149,7 +149,7 @@ class _PhoneAuthRepository implements AuthRepository {
 
   @override
   Future<void> submitKyc({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,

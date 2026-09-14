@@ -106,17 +106,8 @@ class TestStaffUserList:
         assert all(not u["is_active"] for u in response.data["results"])
 
     @pytest.mark.django_db
-    def test_filter_by_kyc_status_and_id_type(self, api_client, user_factory):
+    def test_filter_by_kyc_status_and_ghana_card_type(self, api_client, user_factory):
         client, _ = _staff_client(api_client, user_factory)
-        passport_user = user_factory(
-            email="passport@example.com",
-            username="passport",
-            kyc_status=KycStatus.PENDING,
-        )
-        KycSubmission.objects.create(
-            user=passport_user,
-            id_type=KycSubmission.IdType.PASSPORT,
-        )
         card_user = user_factory(
             email="card@example.com",
             username="card",
@@ -127,14 +118,14 @@ class TestStaffUserList:
             id_type=KycSubmission.IdType.NATIONAL_ID,
         )
 
-        response = client.get("/api/staff/users/?kyc_status=pending&id_type=passport")
+        response = client.get("/api/staff/users/?kyc_status=pending&id_type=national_id")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["count"] == 1
         result = response.data["results"][0]
-        assert result["id"] == str(passport_user.id)
+        assert result["id"] == str(card_user.id)
         assert result["kyc_status"] == KycStatus.PENDING
-        assert result["kyc_submission"]["id_type"] == KycSubmission.IdType.PASSPORT
+        assert result["kyc_submission"]["id_type"] == KycSubmission.IdType.NATIONAL_ID
 
     @pytest.mark.django_db
     def test_search_by_phone(self, api_client, user_factory):
@@ -195,7 +186,7 @@ class TestStaffUserList:
         )
         submission = KycSubmission.objects.create(
             user=target,
-            id_type=KycSubmission.IdType.DRIVERS_LICENSE,
+            id_type=KycSubmission.IdType.NATIONAL_ID,
         )
 
         response = client.get("/api/staff/users/?search=241112222")
@@ -204,7 +195,7 @@ class TestStaffUserList:
         summary = response.data["results"][0]["kyc_submission"]
         assert summary["id"] == str(submission.id)
         assert summary["status"] == KycSubmission.Status.PENDING
-        assert summary["id_type"] == KycSubmission.IdType.DRIVERS_LICENSE
+        assert summary["id_type"] == KycSubmission.IdType.NATIONAL_ID
 
     @pytest.mark.django_db
     def test_superusers_excluded_from_list(self, api_client, user_factory):

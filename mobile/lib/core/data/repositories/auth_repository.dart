@@ -23,7 +23,7 @@ abstract class AuthRepository {
   Future<void> saveKycDraft(Map<String, dynamic> draft);
 
   Future<void> submitKyc({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,
@@ -100,13 +100,13 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> submitKyc({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,
     required String proofOfAddressId,
   }) => _backendService.submitKyc(
-    idType: idType,
+    ghanaCardNumber: ghanaCardNumber,
     idFrontId: idFrontId,
     idBackId: idBackId,
     selfieId: selfieId,

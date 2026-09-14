@@ -1,22 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../../core/ui/theme/app_spacing.dart';
 import '../../../../core/ui/theme/app_theme_extension.dart';
 import '../../../../core/ui/widgets/app_button.dart';
+import '../../../../core/ui/widgets/app_text_field.dart';
 import '../kyc_view_model.dart';
 import '../widgets/photo_picker_tile.dart';
 
-class Step1IdTypeScreen extends StatelessWidget {
-  const Step1IdTypeScreen({super.key});
+class Step1GhanaCardScreen extends StatefulWidget {
+  const Step1GhanaCardScreen({super.key});
 
-  static const _options = [
-    ('national_id', 'Ghana Card'),
-    ('passport', 'Passport'),
-    ('drivers_license', "Driver's License"),
-  ];
+  @override
+  State<Step1GhanaCardScreen> createState() => _Step1GhanaCardScreenState();
+}
+
+class _Step1GhanaCardScreenState extends State<Step1GhanaCardScreen> {
+  late final TextEditingController _cardNumberController;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardNumberController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final value = context.read<KycViewModel>().ghanaCardNumber;
+    if (_cardNumberController.text != value) {
+      _cardNumberController.value = TextEditingValue(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _cardNumberController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<KycViewModel>();
+    if (_cardNumberController.text != vm.ghanaCardNumber) {
+      _cardNumberController.value = TextEditingValue(
+        text: vm.ghanaCardNumber,
+        selection: TextSelection.collapsed(offset: vm.ghanaCardNumber.length),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -24,28 +58,45 @@ class Step1IdTypeScreen extends StatelessWidget {
           'Verify your identity',
           style: context.appTextTheme.headlineMedium,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: AppSpacing.space1),
         Text(
-          'Select an ID type and upload photos of both sides.',
+          'Enter your Ghana Card number and upload clear photos of the front and back.',
           style: context.appTextTheme.bodyMedium?.copyWith(
             color: context.appColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 24),
-        _IdTypeDropdown(selectedType: vm.idType, options: _options),
-        const SizedBox(height: 28),
-        Text('Document photos', style: context.appTextTheme.titleSmall),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.space5),
+        AppTextField(
+          label: 'Ghana Card number',
+          hint: 'GHA-728430143-4',
+          controller: _cardNumberController,
+          keyboardType: TextInputType.text,
+          textCapitalization: TextCapitalization.characters,
+          textInputAction: TextInputAction.done,
+          maxLength: 15,
+          helperText: 'Use the number printed on your Ghana Card.',
+          onChanged: context.read<KycViewModel>().setGhanaCardNumber,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) return null;
+            return vm.isGhanaCardNumberValid
+                ? null
+                : 'Enter a valid Ghana Card number, for example GHA-728430143-4.';
+          },
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+        const SizedBox(height: AppSpacing.space4),
+        Text('Ghana Card photos', style: context.appTextTheme.titleSmall),
+        const SizedBox(height: AppSpacing.space2),
         PhotoPickerTile(
-          label: 'Front',
+          label: 'Front of Ghana Card',
           filePath: vm.idFront?.displayPath,
           isUploading: vm.idFront?.uploading ?? false,
           uploadError: vm.idFront?.error,
           onTap: () => context.read<KycViewModel>().pickIdFront(),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppSpacing.space3),
         PhotoPickerTile(
-          label: 'Back',
+          label: 'Back of Ghana Card',
           filePath: vm.idBack?.displayPath,
           isUploading: vm.idBack?.uploading ?? false,
           uploadError: vm.idBack?.error,
@@ -58,121 +109,8 @@ class Step1IdTypeScreen extends StatelessWidget {
               ? () => context.read<KycViewModel>().nextStep()
               : null,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.space1),
       ],
-    );
-  }
-}
-
-class _IdTypeDropdown extends StatelessWidget {
-  final String? selectedType;
-  final List<(String, String)> options;
-
-  const _IdTypeDropdown({required this.selectedType, required this.options});
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedLabel = options
-        .firstWhere((o) => o.$1 == selectedType, orElse: () => ('', ''))
-        .$2;
-
-    return GestureDetector(
-      onTap: () => _showPicker(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: context.appColors.surfaceSection,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selectedType != null
-                ? context.appColors.brandStrong
-                : Colors.transparent,
-            width: 1.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                selectedLabel.isEmpty ? 'Select ID type' : selectedLabel,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: selectedType != null
-                      ? FontWeight.w500
-                      : FontWeight.w400,
-                  color: selectedType != null
-                      ? context.appColors.textPrimary
-                      : context.appColors.textSecondary,
-                ),
-              ),
-            ),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: selectedType != null
-                  ? context.appColors.brandStrong
-                  : context.appColors.textSecondary,
-              size: 22,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPicker(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.appColors.surfaceSection,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: context.appColors.surfaceInteractive,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              ...options.map(
-                (opt) => ListTile(
-                  title: Text(
-                    opt.$2,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: selectedType == opt.$1
-                          ? FontWeight.w600
-                          : FontWeight.w400,
-                      color: selectedType == opt.$1
-                          ? context.appColors.brandStrong
-                          : context.appColors.textPrimary,
-                    ),
-                  ),
-                  trailing: selectedType == opt.$1
-                      ? Icon(
-                          Icons.check_circle,
-                          color: context.appColors.brandStrong,
-                          size: 20,
-                        )
-                      : null,
-                  onTap: () {
-                    context.read<KycViewModel>().selectIdType(opt.$1);
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

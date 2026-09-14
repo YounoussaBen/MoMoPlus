@@ -10,7 +10,7 @@ from .conftest import make_submission_asset_ids
 
 def _submit_payload(user):
     """Build a JSON-serialisable submit payload using pre-uploaded file asset IDs."""
-    return {"id_type": KycSubmission.IdType.NATIONAL_ID, **make_submission_asset_ids(user)}
+    return {"ghana_card_number": "GHA-728430143-4", **make_submission_asset_ids(user)}
 
 
 class TestKycSubmit:
@@ -24,8 +24,9 @@ class TestKycSubmit:
         response = kyc_client.post("/api/kyc/submit/", _submit_payload(kyc_user), format="json")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["status"] == KycSubmission.Status.PENDING
-        assert response.data["id_type"] == KycSubmission.IdType.NATIONAL_ID
+        assert response.data["status"] == "pending"
+        assert response.data["id_type"] == "national_id"
+        assert response.data["ghana_card_number"] == "GHA-728430143-4"
 
     @pytest.mark.django_db
     def test_submit_sets_user_kyc_status_pending(self, kyc_client, kyc_user, media_root):
@@ -79,8 +80,9 @@ class TestKycStatus:
         response = kyc_client.get("/api/kyc/status/")
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["status"] == KycSubmission.Status.PENDING
+        assert response.data["status"] == "pending"
         assert "id_type" in response.data
+        assert response.data["verification_method"] == "manual_review"
 
     @pytest.mark.django_db
     def test_includes_rejection_reason_when_rejected(self, kyc_client, kyc_user, kyc_submission_factory, media_root):

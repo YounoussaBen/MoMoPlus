@@ -50,16 +50,6 @@ export function formatNetwork(network: string): string {
   return NETWORK_LABEL[network] ?? network;
 }
 
-export const ID_TYPE_LABEL: Record<string, string> = {
-  national_id: "Ghana Card",
-  passport: "Passport",
-  drivers_license: "Driver's License",
-};
-
-export function formatIdType(idType: string): string {
-  return ID_TYPE_LABEL[idType] ?? idType;
-}
-
 const LOAN_STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
   approved: "Approved",

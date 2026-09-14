@@ -7,9 +7,17 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .models import KycSubmission
-from .services import approve_kyc, reject_kyc
-from .staff_serializers import KycRejectSerializer, StaffKycDetailSerializer, StaffKycListSerializer
+from .models import GhanaCardRecord, KycSubmission
+from .services import approve_kyc, create_ghana_card_record, reject_kyc
+from .staff_serializers import (
+    GhanaCardRecordCreateSerializer,
+    GhanaCardRecordDetailSerializer,
+    GhanaCardRecordListSerializer,
+    GhanaCardRecordUpdateSerializer,
+    KycRejectSerializer,
+    StaffKycDetailSerializer,
+    StaffKycListSerializer,
+)
 
 
 def _get_submission_or_404(submission_id: str) -> KycSubmission | None:
@@ -145,3 +153,106 @@ def reject(request: Request, submission_id: str) -> Response:
 
     serializer = StaffKycDetailSerializer(submission, context={"request": request})
     return Response(serializer.data)
+
+
+def _get_ghana_card_or_404(record_id: str) -> GhanaCardRecord | None:
+    try:
+        return GhanaCardRecord.objects.select_related("card_front", "card_back", "created_by").get(id=record_id)
+    except (GhanaCardRecord.DoesNotExist, Exception):
+        return None
+
+
+@extend_schema(
+    methods=["GET"],
+    tags=["Staff — Ghana Cards"],
+    parameters=[
+        OpenApiParameter("search", str, description="Search by Ghana Card number or cardholder name"),
+        OpenApiParameter("is_active", str, description="Filter by active status: true | false"),
+        OpenApiParameter("page", int, description="Page number"),
+    ],
+    responses={status.HTTP_200_OK: GhanaCardRecordListSerializer(many=True)},
+)
+@extend_schema(
+    methods=["POST"],
+    tags=["Staff — Ghana Cards"],
+    request=GhanaCardRecordCreateSerializer,
+    responses={
+        status.HTTP_201_CREATED: GhanaCardRecordDetailSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error or duplicate card"),
+    },
+)
+@api_view(["GET", "POST"])
+@permission_classes([IsAdminUser])
+def ghana_card_list_create(request: Request) -> Response:
+    """List registered Ghana Cards or add a new card to the verification registry."""
+    if request.method == "GET":
+        qs = GhanaCardRecord.objects.all().order_by("-created_at")
+        active_filter = request.query_params.get("is_active")
+        if active_filter in {"true", "false"}:
+            qs = qs.filter(is_active=active_filter == "true")
+
+        search = request.query_params.get("search", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(card_number__icontains=search) | Q(first_names__icontains=search) | Q(surname__icontains=search)
+            )
+
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = GhanaCardRecordListSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    serializer = GhanaCardRecordCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    try:
+        record = create_ghana_card_record(
+            actor=request.user,
+            card_number=serializer.validated_data["card_number"],
+            first_names=serializer.validated_data["first_names"],
+            surname=serializer.validated_data["surname"],
+            date_of_birth=serializer.validated_data.get("date_of_birth"),
+            sex=serializer.validated_data.get("sex", ""),
+            card_front_id=str(serializer.validated_data["card_front_id"]),
+            card_back_id=str(serializer.validated_data["card_back_id"]),
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        GhanaCardRecordDetailSerializer(record, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@extend_schema(
+    methods=["GET"],
+    tags=["Staff — Ghana Cards"],
+    responses={
+        status.HTTP_200_OK: GhanaCardRecordDetailSerializer,
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Ghana Card not found"),
+    },
+)
+@extend_schema(
+    methods=["PATCH"],
+    tags=["Staff — Ghana Cards"],
+    request=GhanaCardRecordUpdateSerializer,
+    responses={
+        status.HTTP_200_OK: GhanaCardRecordDetailSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Ghana Card not found"),
+    },
+)
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAdminUser])
+def ghana_card_detail(request: Request, record_id: str) -> Response:
+    record = _get_ghana_card_or_404(record_id)
+    if record is None:
+        return Response({"detail": "Ghana Card not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "PATCH":
+        serializer = GhanaCardRecordUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        record.is_active = serializer.validated_data["is_active"]
+        record.save(update_fields=["is_active", "updated_at"])
+
+    return Response(GhanaCardRecordDetailSerializer(record, context={"request": request}).data)

@@ -4,23 +4,34 @@ from project.apps.accounts.models import KycStatus
 from project.apps.kyc.models import KycSubmission
 from project.apps.kyc.services import approve_kyc, reject_kyc, submit_kyc
 
-from .conftest import make_submission_asset_ids
+from .conftest import make_ghana_card_record, make_submission_asset_ids
+
+DEFAULT_CARD_NUMBER = "GHA-728430143-4"
 
 
 class TestSubmitKyc:
     @pytest.mark.django_db
     def test_creates_pending_submission(self, user_factory, media_root):
         user = user_factory()
-        submission = submit_kyc(user=user, id_type=KycSubmission.IdType.NATIONAL_ID, **make_submission_asset_ids(user))
+        submission = submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
 
         assert submission.status == KycSubmission.Status.PENDING
         assert submission.id_type == KycSubmission.IdType.NATIONAL_ID
+        assert submission.ghana_card_number == DEFAULT_CARD_NUMBER
         assert submission.user == user
 
     @pytest.mark.django_db
     def test_sets_user_kyc_status_pending(self, user_factory, media_root):
         user = user_factory()
-        submit_kyc(user=user, id_type=KycSubmission.IdType.PASSPORT, **make_submission_asset_ids(user))
+        submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
 
         user.refresh_from_db()
         assert user.kyc_status == KycStatus.PENDING
@@ -28,7 +39,11 @@ class TestSubmitKyc:
     @pytest.mark.django_db
     def test_all_four_file_assets_created(self, user_factory, media_root):
         user = user_factory()
-        submission = submit_kyc(user=user, id_type=KycSubmission.IdType.NATIONAL_ID, **make_submission_asset_ids(user))
+        submission = submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
 
         assert submission.id_front_id is not None
         assert submission.id_back_id is not None
@@ -41,7 +56,11 @@ class TestSubmitKyc:
         kyc_submission_factory(user)
 
         with pytest.raises(ValueError, match="already pending"):
-            submit_kyc(user=user, id_type=KycSubmission.IdType.NATIONAL_ID, **make_submission_asset_ids(user))
+            submit_kyc(
+                user=user,
+                ghana_card_number=DEFAULT_CARD_NUMBER,
+                **make_submission_asset_ids(user),
+            )
 
     @pytest.mark.django_db
     def test_raises_if_already_approved(self, user_factory, kyc_submission_factory):
@@ -50,7 +69,11 @@ class TestSubmitKyc:
         approve_kyc(submission=submission, reviewer=user)
 
         with pytest.raises(ValueError, match="already approved"):
-            submit_kyc(user=user, id_type=KycSubmission.IdType.NATIONAL_ID, **make_submission_asset_ids(user))
+            submit_kyc(
+                user=user,
+                ghana_card_number=DEFAULT_CARD_NUMBER,
+                **make_submission_asset_ids(user),
+            )
 
     @pytest.mark.django_db
     def test_resubmission_replaces_rejected_submission(self, user_factory, kyc_submission_factory):
@@ -59,12 +82,15 @@ class TestSubmitKyc:
         reject_kyc(submission=submission, reviewer=user, reason="Bad docs")
 
         new_submission = submit_kyc(
-            user=user, id_type=KycSubmission.IdType.DRIVERS_LICENSE, **make_submission_asset_ids(user)
+            user=user,
+            ghana_card_number="GHA-728430143-5",
+            **make_submission_asset_ids(user),
         )
 
         assert new_submission.pk == submission.pk
         assert new_submission.status == KycSubmission.Status.PENDING
-        assert new_submission.id_type == KycSubmission.IdType.DRIVERS_LICENSE
+        assert new_submission.id_type == KycSubmission.IdType.NATIONAL_ID
+        assert new_submission.ghana_card_number == "GHA-728430143-5"
         assert new_submission.rejection_reason == ""
 
     @pytest.mark.django_db
@@ -73,10 +99,31 @@ class TestSubmitKyc:
         submission = kyc_submission_factory(user)
         reject_kyc(submission=submission, reviewer=user, reason="Bad docs")
 
-        submit_kyc(user=user, id_type=KycSubmission.IdType.NATIONAL_ID, **make_submission_asset_ids(user))
+        submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
 
         user.refresh_from_db()
         assert user.kyc_status == KycStatus.PENDING
+
+    @pytest.mark.django_db
+    def test_auto_approves_when_card_is_in_registry(self, user_factory, media_root):
+        registry_owner = user_factory(email="registry@example.com", username="registry")
+        make_ghana_card_record(registry_owner)
+        user = user_factory(email="matched@example.com", username="matched")
+
+        submission = submit_kyc(
+            user=user,
+            ghana_card_number=DEFAULT_CARD_NUMBER,
+            **make_submission_asset_ids(user),
+        )
+
+        assert submission.status == KycSubmission.Status.APPROVED
+        assert submission.verification_method == KycSubmission.VerificationMethod.GHANA_CARD_REGISTRY
+        user.refresh_from_db()
+        assert user.kyc_status == KycStatus.APPROVED
 
 
 class TestApproveKyc:

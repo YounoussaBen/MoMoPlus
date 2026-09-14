@@ -7,8 +7,11 @@ mobile_staged_files="$(git diff --cached --name-only --diff-filter=ACMR -- mobil
 
 if [ -n "$web_staged_files" ]; then
   printf '%s\n' "Running web staged checks..."
-  pnpm --dir web lint:staged
-  pnpm --dir web typecheck
+  (
+    cd web
+    pnpm lint:staged
+    pnpm typecheck
+  )
 fi
 
 if [ -n "$backend_staged_files" ]; then

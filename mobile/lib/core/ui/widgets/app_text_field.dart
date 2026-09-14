@@ -8,6 +8,7 @@ class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final bool obscureText;
   final TextInputType keyboardType;
+  final TextCapitalization textCapitalization;
   final TextInputAction textInputAction;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
@@ -31,6 +32,7 @@ class AppTextField extends StatelessWidget {
     this.controller,
     this.obscureText = false,
     this.keyboardType = TextInputType.text,
+    this.textCapitalization = TextCapitalization.none,
     this.textInputAction = TextInputAction.next,
     this.validator,
     this.onChanged,
@@ -53,6 +55,7 @@ class AppTextField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
       textInputAction: textInputAction,
       validator: validator,
       onChanged: onChanged,

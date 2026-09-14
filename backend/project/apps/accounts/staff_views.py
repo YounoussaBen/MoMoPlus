@@ -90,9 +90,7 @@ def _apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
             "agent_status", str, description="Filter by agent_status: none | pending | approved | rejected"
         ),
         OpenApiParameter("kyc_status", str, description="Filter by KYC status: none | pending | approved | rejected"),
-        OpenApiParameter(
-            "id_type", str, description="Filter by KYC ID type: national_id | passport | drivers_license"
-        ),
+        OpenApiParameter("id_type", str, description="Filter by KYC ID type: national_id (Ghana Card)"),
         OpenApiParameter("is_active", str, description="Filter by active status: true | false"),
         OpenApiParameter("search", str, description="Search by phone number, first name, or last name"),
         OpenApiParameter(

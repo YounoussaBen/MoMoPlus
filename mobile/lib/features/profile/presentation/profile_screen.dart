@@ -146,8 +146,12 @@ class ProfileScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AppListRow(
-                  title: 'ID type',
-                  subtitle: _formatIdType(submission['id_type']?.toString()),
+                  title: 'Ghana Card number',
+                  subtitle:
+                      submission['ghana_card_number']?.toString().isNotEmpty ==
+                          true
+                      ? submission['ghana_card_number'].toString()
+                      : 'Not provided',
                   leading: const AppIconTile(icon: Icons.contact_page_outlined),
                 ),
                 const SizedBox(height: AppSpacing.space4),
@@ -161,11 +165,11 @@ class ProfileScreen extends StatelessWidget {
                         SizedBox(
                           width: itemWidth,
                           child: _DocumentCard(
-                            label: 'ID front',
+                            label: 'Ghana Card front',
                             imageUrl: documentUrls['id_front_id'],
                             onTap: _previewAction(
                               context,
-                              'ID front',
+                              'Ghana Card front',
                               documentUrls['id_front_id'],
                             ),
                           ),
@@ -173,11 +177,11 @@ class ProfileScreen extends StatelessWidget {
                         SizedBox(
                           width: itemWidth,
                           child: _DocumentCard(
-                            label: 'ID back',
+                            label: 'Ghana Card back',
                             imageUrl: documentUrls['id_back_id'],
                             onTap: _previewAction(
                               context,
-                              'ID back',
+                              'Ghana Card back',
                               documentUrls['id_back_id'],
                             ),
                           ),
@@ -363,18 +367,6 @@ class _DocumentUnavailable extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatIdType(String? value) {
-  if (value == null || value.isEmpty) return 'Not provided';
-  return value
-      .split('_')
-      .map(
-        (part) => part.isEmpty
-            ? part
-            : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
-      )
-      .join(' ');
 }
 
 String _statusLabel(KycStatus status) => switch (status) {

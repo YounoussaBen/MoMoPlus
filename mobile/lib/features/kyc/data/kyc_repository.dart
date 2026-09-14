@@ -11,7 +11,7 @@ abstract interface class KycRepositoryContract {
   Future<void> saveDraft(Map<String, dynamic> draft);
   Future<void> deleteFile(String assetId);
   Future<void> submit({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,
@@ -60,13 +60,13 @@ class KycRepository implements KycRepositoryContract {
 
   @override
   Future<void> submit({
-    required String idType,
+    required String ghanaCardNumber,
     required String idFrontId,
     required String idBackId,
     required String selfieId,
     required String proofOfAddressId,
   }) => _authRepository.submitKyc(
-    idType: idType,
+    ghanaCardNumber: ghanaCardNumber,
     idFrontId: idFrontId,
     idBackId: idBackId,
     selfieId: selfieId,

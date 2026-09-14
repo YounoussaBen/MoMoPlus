@@ -11,7 +11,7 @@ import {
   useUsersList,
 } from "@/hooks/use-users";
 import { useApproveKyc, useRejectKyc } from "@/hooks/use-kyc";
-import { formatDate, formatIdType, formatPhone } from "@/lib/format";
+import { formatDate, formatPhone } from "@/lib/format";
 import type { AppUser, UserKycSummary } from "@/lib/types";
 import { DataTable, type Column } from "@/components/dashboard/data-table";
 import { FilterBar, type FilterDefinition } from "@/components/dashboard/filter-bar";
@@ -45,15 +45,6 @@ const filters: FilterDefinition[] = [
       { label: "Pending", value: "pending" },
       { label: "Approved", value: "approved" },
       { label: "Rejected", value: "rejected" },
-    ],
-  },
-  {
-    label: "ID Type",
-    key: "id_type",
-    options: [
-      { label: "Ghana Card", value: "national_id" },
-      { label: "Passport", value: "passport" },
-      { label: "Driver's License", value: "drivers_license" },
     ],
   },
 ];
@@ -96,9 +87,9 @@ const columns: Column<AppUser>[] = [
   },
   {
     key: "kyc_submission",
-    label: "ID Type",
+    label: "Identity",
     hideOnMobile: true,
-    render: (_, row) => (row.kyc_submission ? formatIdType(row.kyc_submission.id_type) : "—"),
+    render: (_, row) => (row.kyc_submission ? "Ghana Card" : "—"),
   },
   {
     key: "is_active",

@@ -4,7 +4,9 @@ import { paginatedResponseSchema } from "@/validators/common";
 const userKycSummarySchema = z.object({
   id: z.string(),
   status: z.enum(["none", "pending", "approved", "rejected"]),
-  id_type: z.enum(["national_id", "passport", "drivers_license"]),
+  id_type: z.string(),
+  ghana_card_number: z.string(),
+  verification_method: z.string(),
   rejection_reason: z.string(),
   reviewed_at: z.string().nullable(),
   created_at: z.string(),

@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from project.apps.files.models import FileAsset
 from project.apps.files.services import create_file_asset
-from project.apps.kyc.models import KycSubmission
+from project.apps.kyc.models import GhanaCardRecord
 from project.apps.kyc.services import submit_kyc
 
 # Minimal valid 1×1 PNG — no Pillow required
@@ -45,8 +45,8 @@ def make_submission_asset_ids(user):
         )
 
     return {
-        "id_front_id": str(_asset("front.jpg", FileAsset.FileKind.PASSPORT).id),
-        "id_back_id": str(_asset("back.jpg", FileAsset.FileKind.PASSPORT).id),
+        "id_front_id": str(_asset("front.jpg", FileAsset.FileKind.GHANA_CARD).id),
+        "id_back_id": str(_asset("back.jpg", FileAsset.FileKind.GHANA_CARD).id),
         "selfie_id": str(_asset("selfie.jpg", FileAsset.FileKind.SELFIE).id),
         "proof_of_address_id": str(_asset("proof.jpg", FileAsset.FileKind.DOCUMENT).id),
     }
@@ -54,10 +54,36 @@ def make_submission_asset_ids(user):
 
 @pytest.fixture
 def kyc_submission_factory(media_root):
-    def _make(user, id_type=KycSubmission.IdType.NATIONAL_ID):
-        return submit_kyc(user=user, id_type=id_type, **make_submission_asset_ids(user))
+    def _make(user, ghana_card_number="GHA-728430143-4"):
+        return submit_kyc(
+            user=user,
+            ghana_card_number=ghana_card_number,
+            **make_submission_asset_ids(user),
+        )
 
     return _make
+
+
+def make_ghana_card_record(user, card_number="GHA-728430143-4"):
+    """Create a ready registry record with two Ghana Card image assets."""
+
+    def _asset(name):
+        return create_file_asset(
+            owner=user,
+            uploaded_by=user,
+            uploaded_file=make_image(name),
+            kind=FileAsset.FileKind.GHANA_CARD,
+            visibility=FileAsset.Visibility.PRIVATE,
+        )
+
+    return GhanaCardRecord.objects.create(
+        card_number=card_number,
+        first_names="Kwame",
+        surname="Mensah",
+        card_front=_asset("registry-front.jpg"),
+        card_back=_asset("registry-back.jpg"),
+        created_by=user,
+    )
 
 
 @pytest.fixture
