@@ -167,11 +167,23 @@ make test-html         # Generate coverage report
 ## Production Deployment
 
 1. Set environment variables
-2. Use PostgreSQL database
-3. Configure static file serving
-4. Set up SSL/HTTPS
-5. Configure Paystack webhook with production URL
-6. Monitor with Sentry
+2. Set `DJANGO_SETTINGS_MODULE=project.settings.production` for the web and worker processes
+3. Use PostgreSQL database
+4. Use these Render commands:
+
+   ```bash
+   # Build command
+   pip install '.[prod]' && DJANGO_SETTINGS_MODULE=project.settings.production python manage.py collectstatic --noinput
+
+   # Start command
+   sh -c 'uv run --extra prod celery -A project worker --pool=solo --concurrency=1 --loglevel=info & exec uv run --extra prod gunicorn project.wsgi:application --bind 0.0.0.0:${PORT} --workers 1 --threads 2'
+   ```
+
+   WhiteNoise serves `/static/` from `STATIC_ROOT`, while the Celery worker
+   processes SMS and other background tasks.
+5. Set up SSL/HTTPS
+6. Configure Paystack webhook with production URL
+7. Monitor with Sentry
 
 ---
 

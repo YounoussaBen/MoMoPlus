@@ -64,6 +64,7 @@ WSGI_APPLICATION = "project.wsgi.application"
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -186,6 +187,17 @@ STATICFILES_FINDERS = (
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 )
 
+# Keep the default storage development-friendly. Production overrides the
+# staticfiles backend with WhiteNoise's compressed manifest storage below.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 # ==============================================================================
 # MEDIA FILES SETTINGS
 # ==============================================================================
@@ -307,13 +319,8 @@ SUPABASE_STORAGE_PUBLIC = config("SUPABASE_STORAGE_PUBLIC", default=False, cast=
 SUPABASE_STORAGE_SIGNED_URL_EXPIRY = config("SUPABASE_STORAGE_SIGNED_URL_EXPIRY", default=3600, cast=int)
 
 if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and SUPABASE_STORAGE_BUCKET:
-    STORAGES = {
-        "default": {
-            "BACKEND": "project.storage_backends.SupabaseStorage",
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
+    STORAGES["default"] = {
+        "BACKEND": "project.storage_backends.SupabaseStorage",
     }
 
 # ==============================================================================

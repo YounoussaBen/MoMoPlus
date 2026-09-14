@@ -45,7 +45,9 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _verifyCode() async {
-    await context.read<AuthViewModel>().verifyPhoneOtp(_otpController.text);
+    final viewModel = context.read<AuthViewModel>();
+    if (viewModel.isLoading) return;
+    await viewModel.verifyPhoneOtp(_otpController.text);
   }
 
   void _editPhone(AuthViewModel viewModel) {
@@ -82,7 +84,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       viewModel: viewModel,
                       controller: _otpController,
                       focusNode: _otpFocusNode,
-                      onVerify: _verifyCode,
+                      onComplete: _verifyCode,
                       onEditPhone: () => _editPhone(viewModel),
                     )
                   : _PhoneStep(
@@ -479,14 +481,14 @@ class _OtpStep extends StatelessWidget {
     required this.viewModel,
     required this.controller,
     required this.focusNode,
-    required this.onVerify,
+    required this.onComplete,
     required this.onEditPhone,
   });
 
   final AuthViewModel viewModel;
   final TextEditingController controller;
   final FocusNode focusNode;
-  final VoidCallback onVerify;
+  final VoidCallback onComplete;
   final VoidCallback onEditPhone;
 
   @override
@@ -517,18 +519,25 @@ class _OtpStep extends StatelessWidget {
           _OtpEntry(
             controller: controller,
             focusNode: focusNode,
-            onComplete: onVerify,
+            onComplete: onComplete,
           ),
           if (viewModel.errorMessage != null) ...[
             const SizedBox(height: AppSpacing.space4),
             _ErrorNotice(message: viewModel.errorMessage!),
           ],
-          const SizedBox(height: AppSpacing.space5),
-          AppButton(
-            label: 'Verify and continue',
-            onPressed: onVerify,
-            isLoading: viewModel.isLoading,
-          ),
+          if (viewModel.isLoading) ...[
+            const SizedBox(height: AppSpacing.space5),
+            Center(
+              child: Semantics(
+                label: 'Verifying code',
+                liveRegion: true,
+                child: SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.space3),
           Center(
             child: viewModel.canResendOtp

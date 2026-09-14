@@ -8,6 +8,15 @@ from sentry_sdk.integrations.redis import RedisIntegration
 
 from .base import *
 
+# WhiteNoise serves the files collected into STATIC_ROOT when the application
+# runs behind Gunicorn without a separate Nginx/static-files service.
+STORAGES = {
+    **STORAGES,
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
 # ==============================================================================
 # SECURITY SETTINGS
 # ==============================================================================

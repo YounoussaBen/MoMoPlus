@@ -65,6 +65,7 @@ void main() {
     expect(find.text('Verification'), findsOneWidget);
     expect(find.text('Enter your 6-digit code to continue.'), findsOneWidget);
     expect(find.text('Verification code'), findsOneWidget);
+    expect(find.text('Verify and continue'), findsNothing);
     expect(find.byIcon(Icons.verified_user_outlined), findsNothing);
 
     final otpField = tester.widget<TextField>(
