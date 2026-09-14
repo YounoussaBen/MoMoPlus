@@ -115,7 +115,9 @@ dmypy.json
 # Django specific
 media/
 staticfiles/
-static/
+# Keep app-owned static assets (for example project/static/logo.png) in git.
+# Only ignore a top-level development static directory here.
+/static/
 
 .ruff_cache/
 
