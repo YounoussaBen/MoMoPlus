@@ -41,13 +41,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 AppSpacing.space2,
                 0,
               ),
-              child: Row(
-                children: [
-                  const _OnboardingLogo(),
-                  const Spacer(),
-                  TextButton(onPressed: _finish, child: const Text('Skip')),
-                ],
-              ),
+              child: Row(children: [const _OnboardingLogo(), const Spacer()]),
             ),
             const Expanded(child: _OnboardingPage()),
             Padding(

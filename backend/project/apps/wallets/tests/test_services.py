@@ -31,6 +31,14 @@ class TestAddWallet:
 
         assert WalletOtp.objects.filter(wallet=wallet).count() == 1
 
+    def test_queues_otp_delivery_after_transaction_commit(self, user, mocker, django_capture_on_commit_callbacks):
+        enqueue = mocker.patch("project.apps.wallets.services.send_wallet_otp_task.delay")
+
+        with django_capture_on_commit_callbacks(execute=True):
+            add_wallet(user=user, phone_number="0241234567", network="mtn")
+
+        enqueue.assert_called_once_with(phone="+233241234567", otp_code=mocker.ANY)
+
     def test_rejects_duplicate_phone_number(self, user):
         add_wallet(user=user, phone_number="0241234567", network="mtn")
 

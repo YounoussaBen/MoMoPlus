@@ -98,17 +98,17 @@ class _AppearanceSection extends StatelessWidget {
               segments: const [
                 ButtonSegment(
                   value: AppThemePreference.system,
-                  label: Text('System'),
+                  // label: Text('System'),
                   icon: Icon(Icons.brightness_auto_rounded, size: 18),
                 ),
                 ButtonSegment(
                   value: AppThemePreference.light,
-                  label: Text('Light'),
+                  // label: Text('Light'),
                   icon: Icon(Icons.light_mode_rounded, size: 18),
                 ),
                 ButtonSegment(
                   value: AppThemePreference.dark,
-                  label: Text('Dark'),
+                  // label: Text('Dark'),
                   icon: Icon(Icons.dark_mode_rounded, size: 18),
                 ),
               ],

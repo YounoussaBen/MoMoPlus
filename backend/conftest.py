@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from rest_framework.test import APIClient
 
-from project.apps.wallets import services as wallet_services
+from project.apps.wallets import tasks as wallet_tasks
 from project.integrations import paystack
 
 User = get_user_model()
@@ -184,4 +184,4 @@ def mock_paystack_network_calls(monkeypatch):
 def mock_wallet_sms_delivery(monkeypatch):
     """Wallet tests must never spend SMS credit or expose codes in output."""
 
-    monkeypatch.setattr(wallet_services, "send_wallet_otp", lambda **_: None)
+    monkeypatch.setattr(wallet_tasks, "send_wallet_otp", lambda **_: None)

@@ -11,9 +11,9 @@ from django.utils import timezone
 from project.apps.accounts.models import User
 from project.apps.accounts.phone_numbers import normalize_ghana_phone
 from project.integrations import paystack
-from project.integrations.sms_gateway import send_wallet_otp
 
 from .models import Wallet, WalletOtp
+from .tasks import send_wallet_otp_task
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +25,24 @@ def _generate_otp_code() -> str:
 
 
 def _send_otp_message(phone_number: str, code: str) -> None:
-    send_wallet_otp(phone=normalize_ghana_phone(phone_number), otp_code=code)
+    """Queue wallet OTP delivery after the current database transaction commits."""
+
+    normalized_phone = normalize_ghana_phone(phone_number)
+
+    def enqueue_delivery() -> None:
+        try:
+            send_wallet_otp_task.delay(phone=normalized_phone, otp_code=code)
+        except Exception:
+            # The wallet and OTP are already committed when this callback runs.
+            # Keep the request successful and leave the failure visible to the
+            # application logs so the user can request another OTP.
+            logger.exception("Could not queue background wallet SMS delivery.")
+
+    transaction.on_commit(enqueue_delivery)
 
 
 def send_otp(wallet: Wallet) -> WalletOtp:
-    """Generate and send a new OTP for a wallet."""
+    """Generate a new wallet OTP and queue its SMS delivery."""
     code = _generate_otp_code()
     otp = WalletOtp.objects.create(
         wallet=wallet,
@@ -42,7 +55,7 @@ def send_otp(wallet: Wallet) -> WalletOtp:
 
 @transaction.atomic
 def add_wallet(*, user: User, phone_number: str, network: str) -> Wallet:
-    """Add a new wallet and send OTP for verification."""
+    """Add a new wallet and queue its verification OTP."""
     existing_wallet = Wallet.objects.filter(user=user, phone_number=phone_number).first()
     if existing_wallet is not None:
         raise ValueError("This phone number is already added to your account.")
