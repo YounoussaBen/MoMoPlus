@@ -139,7 +139,6 @@ class ProfileScreen extends StatelessWidget {
             ),
           )
         else ...[
-          const AppSectionHeader(title: 'Identity document'),
           const SizedBox(height: AppSpacing.space2),
           AppSection(
             child: Column(

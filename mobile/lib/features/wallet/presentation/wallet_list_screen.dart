@@ -173,6 +173,11 @@ class _WalletTile extends StatelessWidget {
                   label: 'Default',
                   tone: AppStatusTone.brand,
                 ),
+              if (wallet.isSignupWallet)
+                const AppStatusBadge(
+                  label: 'Signup wallet',
+                  tone: AppStatusTone.success,
+                ),
               if (!wallet.isVerified)
                 const AppStatusBadge(
                   label: 'Unverified',
@@ -228,7 +233,7 @@ class _WalletTile extends StatelessWidget {
               },
               child: const Text('Verify'),
             ),
-          if (!isLastVerified)
+          if (!wallet.isSignupWallet && !isLastVerified)
             CupertinoActionSheetAction(
               isDestructiveAction: true,
               onPressed: () {

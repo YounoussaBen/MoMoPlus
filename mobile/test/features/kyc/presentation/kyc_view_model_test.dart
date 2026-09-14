@@ -91,11 +91,17 @@ void main() {
       );
       addTearDown(resubmitViewModel.dispose);
 
+      final observedStates = <KycScreenState>[];
+      resubmitViewModel.addListener(
+        () => observedStates.add(resubmitViewModel.screenState),
+      );
+
       await Future<void>.delayed(Duration.zero);
 
       expect(resubmitViewModel.screenState, KycScreenState.wizard);
       expect(resubmitViewModel.step, 0);
       expect(resubmitViewModel.ghanaCardNumber, 'GHA-123456789-0');
+      expect(observedStates, isNot(contains(KycScreenState.rejected)));
     });
   });
 }

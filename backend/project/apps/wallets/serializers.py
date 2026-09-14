@@ -17,6 +17,7 @@ class WalletSerializer(serializers.ModelSerializer):
             "network",
             "is_verified",
             "is_default",
+            "is_signup_wallet",
             "has_paystack",
             "created_at",
         ]

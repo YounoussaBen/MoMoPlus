@@ -97,7 +97,10 @@ class KycViewModel extends ChangeNotifier {
 
   // ─── Lifecycle ────────────────────────────────────────────────────────────
 
-  Future<void> refreshStatus({bool showLoading = false}) async {
+  Future<void> refreshStatus({
+    bool showLoading = false,
+    bool suppressRejectedState = false,
+  }) async {
     if (_isRefreshing) return;
 
     final previousState = _screenState;
@@ -114,7 +117,12 @@ class KycViewModel extends ChangeNotifier {
         _screenState = KycScreenState.wizard;
       } else {
         _submission = submission;
-        _screenState = _parseState(submission.status);
+        // During a resubmission launch, keep the loading state visible until
+        // the rejected submission has been converted into the wizard. This
+        // prevents a brief rejected/status screen flash before step one.
+        if (!(suppressRejectedState && submission.status == 'rejected')) {
+          _screenState = _parseState(submission.status);
+        }
         await _authViewModel.refreshProfile();
       }
     } catch (error) {
@@ -129,7 +137,7 @@ class KycViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadResubmitFlow() async {
-    await refreshStatus(showLoading: true);
+    await refreshStatus(showLoading: true, suppressRejectedState: true);
     if (_submission?.status == 'rejected') {
       await startResubmit();
     }

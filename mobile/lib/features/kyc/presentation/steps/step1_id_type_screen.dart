@@ -115,7 +115,6 @@ class _Step1GhanaCardScreenState extends State<Step1GhanaCardScreen> {
           inputFormatters: [
             TextInputFormatter.withFunction(_formatGhanaCardInput),
           ],
-          helperText: 'Use the number printed on your Ghana Card.',
           onChanged: (value) {
             final formattedValue = _formatGhanaCardDigits(value);
             context.read<KycViewModel>().setGhanaCardNumber(
@@ -126,7 +125,7 @@ class _Step1GhanaCardScreenState extends State<Step1GhanaCardScreen> {
             if (value == null || value.trim().isEmpty) return null;
             return vm.isGhanaCardNumberValid
                 ? null
-                : 'Enter the 10 digits after GHA-, for example 123456789-0.';
+                : 'Enter the 10 digits after GHA prefix';
           },
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),

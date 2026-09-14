@@ -9,6 +9,7 @@ from project.apps.wallets.models import Wallet, WalletOtp
 from project.apps.wallets.services import (
     add_wallet,
     delete_wallet,
+    ensure_signup_wallet,
     resend_otp,
     set_default_wallet,
     verify_otp,
@@ -53,6 +54,44 @@ class TestAddWallet:
 
         assert other_wallet.user == other_user
         assert other_wallet.phone_number == "0241234567"
+
+    def test_normalizes_phone_number_before_storing(self, user):
+        wallet = add_wallet(user=user, phone_number="+233 24 123 4567", network="mtn")
+
+        assert wallet.phone_number == "0241234567"
+
+
+@pytest.mark.django_db
+class TestEnsureSignupWallet:
+    def test_creates_verified_default_protected_wallet_from_user_phone(self, user_factory):
+        user = user_factory(phone="+233241234567")
+
+        wallet = ensure_signup_wallet(user=user)
+
+        assert wallet is not None
+        assert wallet.phone_number == "0241234567"
+        assert wallet.network == "mtn"
+        assert wallet.is_verified is True
+        assert wallet.is_default is True
+        assert wallet.is_signup_wallet is True
+        assert wallet.paystack_recipient_code
+
+    def test_is_idempotent(self, user_factory):
+        user = user_factory(phone="+233501234567")
+
+        first = ensure_signup_wallet(user=user)
+        second = ensure_signup_wallet(user=user)
+
+        assert first is not None
+        assert second is not None
+        assert first.pk == second.pk
+        assert user.wallets.count() == 1
+
+    def test_skips_unknown_network_prefix(self, user_factory):
+        user = user_factory(phone="+233281234567")
+
+        assert ensure_signup_wallet(user=user) is None
+        assert user.wallets.count() == 0
 
 
 @pytest.mark.django_db
@@ -294,3 +333,12 @@ class TestDeleteWallet:
 
         with pytest.raises(ValueError, match="does not belong"):
             delete_wallet(user=user, wallet=wallet)
+
+    def test_rejects_signup_wallet(self, user_factory):
+        user = user_factory(phone="+233241234567")
+        wallet = ensure_signup_wallet(user=user)
+
+        with pytest.raises(ValueError, match="signup wallet cannot be removed"):
+            delete_wallet(user=user, wallet=wallet)
+
+        assert Wallet.objects.filter(pk=wallet.pk).exists()

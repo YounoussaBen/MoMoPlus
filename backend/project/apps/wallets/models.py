@@ -21,6 +21,7 @@ class Wallet(BaseModel):
     network = models.CharField(max_length=15, choices=Network.choices)
     is_verified = models.BooleanField(default=False)
     is_default = models.BooleanField(default=False)
+    is_signup_wallet = models.BooleanField(default=False)
     paystack_recipient_code = models.CharField(max_length=50, blank=True, default="")
 
     class Meta(BaseModel.Meta):

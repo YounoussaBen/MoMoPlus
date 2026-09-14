@@ -5,8 +5,16 @@ from .models import Wallet, WalletOtp
 
 @admin.register(Wallet)
 class WalletAdmin(admin.ModelAdmin):
-    list_display = ("phone_number", "network", "user", "is_verified", "is_default", "created_at")
-    list_filter = ("network", "is_verified", "is_default")
+    list_display = (
+        "phone_number",
+        "network",
+        "user",
+        "is_verified",
+        "is_default",
+        "is_signup_wallet",
+        "created_at",
+    )
+    list_filter = ("network", "is_verified", "is_default", "is_signup_wallet")
     search_fields = ("phone_number", "user__email")
     readonly_fields = ("id", "created_at", "updated_at")
 

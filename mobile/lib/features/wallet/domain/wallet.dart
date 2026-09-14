@@ -4,6 +4,7 @@ class Wallet {
   final String network;
   final bool isVerified;
   final bool isDefault;
+  final bool isSignupWallet;
   final DateTime createdAt;
 
   const Wallet({
@@ -12,6 +13,7 @@ class Wallet {
     required this.network,
     required this.isVerified,
     required this.isDefault,
+    this.isSignupWallet = false,
     required this.createdAt,
   });
 
@@ -29,6 +31,7 @@ class Wallet {
       network: json['network'] as String,
       isVerified: json['is_verified'] as bool,
       isDefault: json['is_default'] as bool,
+      isSignupWallet: json['is_signup_wallet'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -39,6 +42,7 @@ class Wallet {
     String? network,
     bool? isVerified,
     bool? isDefault,
+    bool? isSignupWallet,
     DateTime? createdAt,
   }) {
     return Wallet(
@@ -47,6 +51,7 @@ class Wallet {
       network: network ?? this.network,
       isVerified: isVerified ?? this.isVerified,
       isDefault: isDefault ?? this.isDefault,
+      isSignupWallet: isSignupWallet ?? this.isSignupWallet,
       createdAt: createdAt ?? this.createdAt,
     );
   }

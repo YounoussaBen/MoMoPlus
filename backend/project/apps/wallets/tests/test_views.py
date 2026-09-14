@@ -9,6 +9,20 @@ from project.apps.wallets.models import Wallet, WalletOtp
 
 @pytest.mark.django_db
 class TestWalletListView:
+    def test_signup_sync_adds_phone_as_first_wallet(self, authenticated_client):
+        sync_response = authenticated_client.post("/api/auth/sync/")
+        assert sync_response.status_code == status.HTTP_200_OK
+
+        response = authenticated_client.get("/api/wallets/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0]["phone_number"] == "0241234567"
+        assert response.data[0]["network"] == "mtn"
+        assert response.data[0]["is_verified"] is True
+        assert response.data[0]["is_default"] is True
+        assert response.data[0]["is_signup_wallet"] is True
+
     def test_returns_empty_list_for_new_user(self, authenticated_client):
         response = authenticated_client.get("/api/wallets/")
 
@@ -251,10 +265,20 @@ class TestWalletSetDefaultView:
 
 @pytest.mark.django_db
 class TestWalletDeleteView:
+    def test_cannot_delete_signup_wallet(self, authenticated_client):
+        authenticated_client.post("/api/auth/sync/")
+        wallet = Wallet.objects.get(phone_number="0241234567")
+
+        response = authenticated_client.delete(f"/api/wallets/{wallet.id}/")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "signup wallet" in response.data["detail"]
+        assert Wallet.objects.filter(pk=wallet.pk).exists()
+
     def test_deletes_wallet(self, authenticated_client):
         create_resp = authenticated_client.post(
             "/api/wallets/add/",
-            {"phone_number": "0241234567", "network": "mtn"},
+            {"phone_number": "0551234567", "network": "mtn"},
             format="json",
         )
         wallet_id = create_resp.data["id"]

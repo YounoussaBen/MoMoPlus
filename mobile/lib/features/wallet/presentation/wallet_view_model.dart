@@ -230,6 +230,7 @@ class WalletViewModel extends ChangeNotifier {
       network: network,
       isVerified: false,
       isDefault: false,
+      isSignupWallet: false,
       createdAt: DateTime.now(),
     );
     _errorMessage = null;

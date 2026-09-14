@@ -9,7 +9,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from project.apps.accounts.models import User
-from project.apps.accounts.phone_numbers import normalize_ghana_phone
+from project.apps.accounts.phone_numbers import (
+    InvalidPhoneNumber,
+    detect_ghana_network,
+    ghana_national_phone,
+    normalize_ghana_phone,
+)
 from project.integrations import paystack
 
 from .models import Wallet, WalletOtp
@@ -56,16 +61,84 @@ def send_otp(wallet: Wallet) -> WalletOtp:
 @transaction.atomic
 def add_wallet(*, user: User, phone_number: str, network: str) -> Wallet:
     """Add a new wallet and queue its verification OTP."""
-    existing_wallet = Wallet.objects.filter(user=user, phone_number=phone_number).first()
+    try:
+        normalized_phone = ghana_national_phone(phone_number)
+    except InvalidPhoneNumber as exc:
+        raise ValueError(str(exc)) from exc
+
+    existing_wallet = _find_wallet_for_phone(user=user, normalized_phone=normalized_phone)
     if existing_wallet is not None:
         raise ValueError("This phone number is already added to your account.")
 
     wallet = Wallet.objects.create(
         user=user,
-        phone_number=phone_number,
+        phone_number=normalized_phone,
         network=network,
     )
     send_otp(wallet)
+    return wallet
+
+
+@transaction.atomic
+def ensure_signup_wallet(*, user: User) -> Wallet | None:
+    """Create or repair the wallet backed by the user's verified signup phone.
+
+    Supabase has already verified this phone before the mobile app calls the
+    backend sync endpoint, so this wallet does not need a second wallet OTP.
+    """
+
+    if not user.phone:
+        return None
+
+    try:
+        phone_number = ghana_national_phone(user.phone)
+        network = detect_ghana_network(user.phone)
+    except InvalidPhoneNumber:
+        logger.warning("Could not create signup wallet for user %s: invalid phone.", user.pk)
+        return None
+
+    if network is None:
+        logger.warning("Could not create signup wallet for user %s: unknown network prefix.", user.pk)
+        return None
+
+    wallet = _find_wallet_for_phone(user=user, normalized_phone=phone_number)
+    if wallet is None:
+        has_verified_wallet = Wallet.objects.filter(user=user, is_verified=True).exists()
+        wallet = Wallet.objects.create(
+            user=user,
+            phone_number=phone_number,
+            network=network,
+            is_verified=True,
+            is_default=not has_verified_wallet,
+            is_signup_wallet=True,
+        )
+    else:
+        update_fields: list[str] = []
+        if not wallet.is_signup_wallet:
+            wallet.is_signup_wallet = True
+            update_fields.append("is_signup_wallet")
+        if not wallet.is_verified:
+            wallet.is_verified = True
+            update_fields.append("is_verified")
+        if not Wallet.objects.filter(user=user, is_default=True).exclude(pk=wallet.pk).exists():
+            if not wallet.is_default:
+                wallet.is_default = True
+                update_fields.append("is_default")
+        if update_fields:
+            update_fields.append("updated_at")
+            wallet.save(update_fields=update_fields)
+
+    # Paystack setup is best-effort here. The signup wallet is already
+    # ownership-verified by the Supabase OTP, and a transient provider issue
+    # must not prevent the user from completing signup. A later sync retries it.
+    if wallet.is_verified and not wallet.paystack_recipient_code:
+        try:
+            _create_paystack_recipient(wallet)
+        except Exception:
+            logger.exception("Could not set up Paystack recipient for signup wallet %s.", wallet.pk)
+        else:
+            wallet.save(update_fields=["paystack_recipient_code", "updated_at"])
+
     return wallet
 
 
@@ -171,6 +244,9 @@ def delete_wallet(*, user: User, wallet: Wallet) -> None:
     if wallet.user_id != user.pk:
         raise ValueError("Wallet does not belong to this user.")
 
+    if wallet.is_signup_wallet or _is_user_phone_wallet(user=user, wallet=wallet):
+        raise ValueError("Your signup wallet cannot be removed.")
+
     if wallet.is_verified:
         verified_count = Wallet.objects.filter(user=user, is_verified=True).count()
         if verified_count <= 1:
@@ -186,3 +262,26 @@ def delete_wallet(*, user: User, wallet: Wallet) -> None:
         if next_default:
             next_default.is_default = True
             next_default.save(update_fields=["is_default", "updated_at"])
+
+
+def _find_wallet_for_phone(*, user: User, normalized_phone: str) -> Wallet | None:
+    """Find a user's wallet while tolerating legacy phone formats."""
+
+    for wallet in Wallet.objects.select_for_update().filter(user=user):
+        try:
+            if ghana_national_phone(wallet.phone_number) == normalized_phone:
+                return wallet
+        except InvalidPhoneNumber:
+            continue
+    return None
+
+
+def _is_user_phone_wallet(*, user: User, wallet: Wallet) -> bool:
+    """Protect legacy signup wallets created before the flag was introduced."""
+
+    if not user.phone:
+        return False
+    try:
+        return ghana_national_phone(user.phone) == ghana_national_phone(wallet.phone_number)
+    except InvalidPhoneNumber:
+        return False

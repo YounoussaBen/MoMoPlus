@@ -11,6 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 
+from project.apps.wallets.services import ensure_signup_wallet
 from project.integrations.sms_dispatcher import SmsDispatchError, dispatch_login_otp
 
 from .models import AgentStatus, LoanGuarantor, UserRole
@@ -145,6 +146,7 @@ def staff_login(request: Request) -> Response:
 @permission_classes([IsAuthenticated])
 def sync_profile(request: Request) -> Response:
     """Ensure the Supabase identity is mapped into Django and return the current profile."""
+    ensure_signup_wallet(user=request.user)
     serializer = UserProfileSerializer(request.user)
     return Response(
         {
@@ -185,6 +187,7 @@ def profile(request: Request) -> Response:
         serializer = UserProfileSerializer(request.user, data=request.data, partial=(request.method == "PATCH"))
         if serializer.is_valid():
             serializer.save()
+            ensure_signup_wallet(user=request.user)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
