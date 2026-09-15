@@ -3,7 +3,7 @@ import uuid
 import pytest
 from rest_framework import status
 
-from project.apps.accounts.models import LoanGuarantor, User
+from project.apps.accounts.models import LoanGuarantor, LoanGuarantorOtp, User
 
 
 class TestAuthenticationViews:
@@ -178,6 +178,43 @@ class TestGuarantorCreate:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    @pytest.mark.django_db
+    def test_rejects_authenticated_users_current_phone(self, auth_client_factory, user_factory):
+        client, _ = _make_guarantor_client(auth_client_factory, user_factory)
+
+        response = client.post(
+            "/api/auth/guarantors/",
+            {"name": "Self", "phone_number": "+233240000001"},
+            format="json",
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert "own current phone" in response.data["detail"]
+
+    @pytest.mark.django_db
+    def test_sends_and_verifies_consent_code(self, auth_client_factory, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
+        client, user = _make_guarantor_client(auth_client_factory, user_factory)
+
+        create_response = client.post(
+            "/api/auth/guarantors/",
+            {"name": "Kwame", "phone_number": "0551234567"},
+            format="json",
+        )
+        guarantor = user.loan_guarantors.get()
+        otp = LoanGuarantorOtp.objects.get(guarantor=guarantor)
+
+        verify_response = client.post(
+            f"/api/auth/guarantors/{guarantor.id}/verify/",
+            {"code": otp.code},
+            format="json",
+        )
+
+        assert create_response.status_code == status.HTTP_201_CREATED
+        assert create_response.data["is_verified"] is False
+        assert verify_response.status_code == status.HTTP_200_OK
+        assert verify_response.data["is_verified"] is True
+
 
 class TestGuarantorBulkCreate:
     @pytest.mark.django_db
@@ -185,8 +222,8 @@ class TestGuarantorBulkCreate:
         client, user = _make_guarantor_client(auth_client_factory, user_factory)
         payload = {
             "guarantors": [
-                {"name": "A", "phone_number": "024"},
-                {"name": "B", "phone_number": "055"},
+                {"name": "A", "phone_number": "0241234567"},
+                {"name": "B", "phone_number": "0551234567"},
             ]
         }
 
@@ -230,10 +267,14 @@ class TestGuarantorUpdate:
         client, user = _make_guarantor_client(auth_client_factory, user_factory)
         g = LoanGuarantor.objects.create(user=user, name="Name", phone_number="024")
 
-        response = client.put(f"/api/auth/guarantors/{g.id}/", {"phone_number": "055"}, format="json")
+        response = client.put(
+            f"/api/auth/guarantors/{g.id}/",
+            {"phone_number": "0551234567"},
+            format="json",
+        )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["phone_number"] == "055"
+        assert response.data["phone_number"] == "+233551234567"
 
     @pytest.mark.django_db
     def test_returns_404_for_other_users_guarantor(self, auth_client_factory, user_factory):
@@ -293,8 +334,8 @@ class TestProfileHasGuarantors:
     @pytest.mark.django_db
     def test_true_with_2_guarantors(self, auth_client_factory, user_factory):
         client, user = _make_guarantor_client(auth_client_factory, user_factory)
-        LoanGuarantor.objects.create(user=user, name="A", phone_number="024")
-        LoanGuarantor.objects.create(user=user, name="B", phone_number="055")
+        LoanGuarantor.objects.create(user=user, name="A", phone_number="+233241234567", is_verified=True)
+        LoanGuarantor.objects.create(user=user, name="B", phone_number="+233551234567", is_verified=True)
 
         response = client.get("/api/auth/profile/")
 

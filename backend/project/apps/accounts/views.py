@@ -22,13 +22,21 @@ from .serializers import (
     GuarantorCreateSerializer,
     GuarantorSerializer,
     GuarantorUpdateSerializer,
+    GuarantorVerifyOtpSerializer,
     MessageSerializer,
     StaffLoginResponseSerializer,
     StaffLoginSerializer,
     StaffUserSerializer,
     UserProfileSerializer,
 )
-from .services import add_guarantor, bulk_create_guarantors, delete_guarantor, update_guarantor
+from .services import (
+    add_guarantor,
+    bulk_create_guarantors,
+    delete_guarantor,
+    resend_guarantor_otp,
+    update_guarantor,
+    verify_guarantor,
+)
 from .webhooks import WebhookSignatureError, verify_standard_webhook
 
 
@@ -266,11 +274,14 @@ def guarantor_list(request: Request) -> Response:
 
     serializer = GuarantorCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    guarantor = add_guarantor(
-        user=request.user,
-        name=serializer.validated_data["name"],
-        phone_number=serializer.validated_data["phone_number"],
-    )
+    try:
+        guarantor = add_guarantor(
+            user=request.user,
+            name=serializer.validated_data["name"],
+            phone_number=serializer.validated_data["phone_number"],
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     return Response(GuarantorSerializer(guarantor).data, status=status.HTTP_201_CREATED)
 
 
@@ -326,11 +337,14 @@ def guarantor_detail(request: Request, guarantor_id: str) -> Response:
     if request.method == "PUT":
         serializer = GuarantorUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        guarantor = update_guarantor(
-            guarantor=guarantor,
-            name=serializer.validated_data.get("name"),
-            phone_number=serializer.validated_data.get("phone_number"),
-        )
+        try:
+            guarantor = update_guarantor(
+                guarantor=guarantor,
+                name=serializer.validated_data.get("name"),
+                phone_number=serializer.validated_data.get("phone_number"),
+            )
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(GuarantorSerializer(guarantor).data)
 
     # DELETE
@@ -339,3 +353,53 @@ def guarantor_detail(request: Request, guarantor_id: str) -> Response:
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@extend_schema(
+    tags=["Guarantors"],
+    request=GuarantorVerifyOtpSerializer,
+    responses={
+        status.HTTP_200_OK: GuarantorSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Invalid or expired OTP"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Guarantor not found"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def guarantor_verify(request: Request, guarantor_id: str) -> Response:
+    try:
+        guarantor = request.user.loan_guarantors.get(id=guarantor_id)
+    except LoanGuarantor.DoesNotExist:
+        return Response({"detail": "Guarantor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = GuarantorVerifyOtpSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    try:
+        guarantor = verify_guarantor(guarantor=guarantor, code=serializer.validated_data["code"])
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(GuarantorSerializer(guarantor).data)
+
+
+@extend_schema(
+    tags=["Guarantors"],
+    request=None,
+    responses={
+        status.HTTP_200_OK: OpenApiResponse(description="OTP resent"),
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Guarantor already verified"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Guarantor not found"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def guarantor_resend_otp(request: Request, guarantor_id: str) -> Response:
+    try:
+        guarantor = request.user.loan_guarantors.get(id=guarantor_id)
+    except LoanGuarantor.DoesNotExist:
+        return Response({"detail": "Guarantor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        resend_guarantor_otp(guarantor=guarantor)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({"detail": "A new consent code has been sent."})

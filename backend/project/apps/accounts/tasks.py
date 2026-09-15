@@ -6,7 +6,7 @@ import logging
 
 from celery import shared_task
 
-from project.integrations.sms_gateway import SmsDeliveryError, send_login_otp
+from project.integrations.sms_gateway import SmsDeliveryError, send_guarantor_otp, send_login_otp
 
 logger = logging.getLogger(__name__)
 
@@ -24,3 +24,15 @@ def send_login_otp_task(*, phone: str, otp_code: str) -> None:
         logger.warning("Background login SMS delivery failed.")
     except Exception:
         logger.exception("Unexpected background login SMS delivery failure.")
+
+
+@shared_task(name="accounts.send_guarantor_otp")
+def send_guarantor_otp_task(*, phone: str, otp_code: str, borrower_name: str) -> None:
+    """Deliver a guarantor consent OTP from a Celery worker."""
+
+    try:
+        send_guarantor_otp(phone=phone, otp_code=otp_code, borrower_name=borrower_name)
+    except SmsDeliveryError:
+        logger.warning("Background guarantor consent SMS delivery failed.")
+    except Exception:
+        logger.exception("Unexpected background guarantor consent SMS delivery failure.")

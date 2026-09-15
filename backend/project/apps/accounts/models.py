@@ -57,11 +57,32 @@ class LoanGuarantor(BaseModel):
     )
     name: models.CharField = models.CharField(max_length=200)
     phone_number: models.CharField = models.CharField(max_length=20)
+    is_verified: models.BooleanField = models.BooleanField(default=False)
 
     class Meta(BaseModel.Meta):
         indexes = [
-            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["user", "created_at"], name="accounts_lo_user_id_b5b3fe_idx"),
+            models.Index(fields=["user", "is_verified"], name="accounts_lo_user_id_51c70c_idx"),
         ]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.phone_number})"
+
+
+class LoanGuarantorOtp(BaseModel):
+    guarantor: models.ForeignKey = models.ForeignKey(
+        LoanGuarantor,
+        on_delete=models.CASCADE,
+        related_name="otps",
+    )
+    code: models.CharField = models.CharField(max_length=6)
+    expires_at: models.DateTimeField = models.DateTimeField()
+    used: models.BooleanField = models.BooleanField(default=False)
+
+    class Meta(BaseModel.Meta):
+        indexes = [
+            models.Index(fields=["guarantor", "used", "expires_at"], name="accounts_lo_guarantor_otp_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Guarantor OTP({self.guarantor.phone_number}, used={self.used})"

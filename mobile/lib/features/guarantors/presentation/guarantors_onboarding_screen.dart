@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/data/services/backend_api_service.dart';
@@ -7,6 +9,8 @@ import '../../../core/ui/widgets/ghana_phone_field.dart';
 import '../../../core/utils/error_helpers.dart';
 import '../../../core/utils/ghana_phone.dart';
 import '../../auth/presentation/auth_view_model.dart';
+import '../data/guarantor_model.dart';
+import 'guarantor_verification_sheet.dart';
 
 class _GuarantorEntry {
   final TextEditingController nameController = TextEditingController();
@@ -45,10 +49,40 @@ class _GuarantorsOnboardingScreenState
     extends State<GuarantorsOnboardingScreen> {
   final List<_GuarantorEntry> _entries = [_GuarantorEntry(), _GuarantorEntry()];
   bool _isSubmitting = false;
+  bool _isLoadingExisting = true;
+  bool _hasCreatedGuarantors = false;
+  List<Guarantor> _pendingVerification = [];
   String? _errorMessage;
 
   bool get _canSubmit =>
-      !_isSubmitting && _entries.where((e) => e.isValid).length >= 2;
+      !_isSubmitting &&
+      !_isLoadingExisting &&
+      (_pendingVerification.isNotEmpty ||
+          (!_hasCreatedGuarantors &&
+              _entries.where((e) => e.isValid).length >= 2));
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadExistingGuarantors());
+  }
+
+  Future<void> _loadExistingGuarantors() async {
+    try {
+      final data = await context.read<BackendApiService>().getGuarantors();
+      if (!mounted) return;
+      setState(() {
+        _pendingVerification = data
+            .map((g) => Guarantor.fromJson(g as Map<String, dynamic>))
+            .where((g) => !g.isVerified)
+            .toList();
+        _hasCreatedGuarantors = _pendingVerification.isNotEmpty;
+        _isLoadingExisting = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingExisting = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -64,12 +98,36 @@ class _GuarantorsOnboardingScreenState
       _errorMessage = null;
     });
     try {
-      final validEntries = _entries
-          .where((e) => e.isValid)
-          .map((e) => e.toJson())
-          .toList();
       final api = context.read<BackendApiService>();
-      await api.bulkCreateGuarantors(validEntries);
+      if (_pendingVerification.isEmpty && !_hasCreatedGuarantors) {
+        final validEntries = _entries
+            .where((e) => e.isValid)
+            .map((e) => e.toJson())
+            .toList();
+        final created = await api.bulkCreateGuarantors(validEntries);
+        _pendingVerification = created
+            .map((g) => Guarantor.fromJson(g as Map<String, dynamic>))
+            .where((g) => !g.isVerified)
+            .toList();
+        _hasCreatedGuarantors = true;
+      }
+
+      while (_pendingVerification.isNotEmpty) {
+        if (!mounted) return;
+        final guarantor = _pendingVerification.first;
+        final verified = await showGuarantorVerificationSheet(
+          context,
+          api: api,
+          guarantor: guarantor,
+        );
+        if (verified != true) {
+          throw Exception('Verify each guarantor consent code to continue.');
+        }
+        if (mounted) {
+          setState(() => _pendingVerification.removeAt(0));
+        }
+      }
+
       if (mounted) {
         await context.read<AuthViewModel>().refreshProfile();
       }
@@ -126,7 +184,7 @@ class _GuarantorsOnboardingScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Add at least 2 guarantors for your loan applications. They may be contacted for verification.',
+                          'Add at least 2 guarantors. Each one will receive an SMS consent code that they must share with you. Codes expire in 5 minutes.',
                           style: TextStyle(
                             fontSize: 13,
                             color: context.appColors.textPrimary,
@@ -205,7 +263,9 @@ class _GuarantorsOnboardingScreenState
               ],
             ),
             child: AppButton(
-              label: 'Continue',
+              label: _pendingVerification.isNotEmpty
+                  ? 'Verify guarantors'
+                  : 'Continue',
               onPressed: _canSubmit ? _submit : null,
               isLoading: _isSubmitting,
             ),

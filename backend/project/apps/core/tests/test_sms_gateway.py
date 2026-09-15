@@ -7,7 +7,7 @@ from urllib.error import HTTPError
 import pytest
 from django.test import override_settings
 
-from project.integrations.sms_gateway import SmsDeliveryError, send_login_otp, send_sms
+from project.integrations.sms_gateway import SmsDeliveryError, send_guarantor_otp, send_login_otp, send_sms
 
 
 class _Response:
@@ -78,6 +78,29 @@ def test_login_template_uses_supabase_code(mocker):
     send_login_otp(phone="+233241234567", otp_code="123456")
     message = send.call_args.kwargs["message"]
     assert "123456" in message
+    assert "Do not share" in message
+
+
+@override_settings(
+    ARKESEL_API_KEY="test-api-key",
+    ARKESEL_SENDER_ID="MoMoPlus",
+    ARKESEL_API_URL="https://sms.example.test/api/v2/sms/send",
+    ARKESEL_HTTP_TIMEOUT=4,
+)
+def test_guarantor_template_explains_consent(mocker):
+    send = mocker.patch("project.integrations.sms_gateway.send_sms")
+
+    send_guarantor_otp(
+        phone="+233551234567",
+        otp_code="123456",
+        borrower_name="Ama Mensah",
+    )
+
+    message = send.call_args.kwargs["message"]
+    assert "Ama Mensah" in message
+    assert "loan guarantor" in message
+    assert "123456" in message
+    assert "consent" in message
     assert "Do not share" in message
 
 

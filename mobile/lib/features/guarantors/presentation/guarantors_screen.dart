@@ -7,6 +7,7 @@ import '../../../core/ui/widgets/ghana_phone_field.dart';
 import '../../../core/utils/error_helpers.dart';
 import '../../../core/utils/ghana_phone.dart';
 import '../data/guarantor_model.dart';
+import 'guarantor_verification_sheet.dart';
 
 String _nationalPhoneForInput(String? value) {
   if (value == null || value.isEmpty) return '';
@@ -62,6 +63,7 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
   }
 
   Future<void> _addGuarantor() async {
+    Guarantor? created;
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -70,14 +72,28 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
         title: 'Add Guarantor',
         onSave: (name, phone) async {
           final api = context.read<BackendApiService>();
-          await api.addGuarantor(name: name, phoneNumber: phone);
+          final data = await api.addGuarantor(name: name, phoneNumber: phone);
+          created = Guarantor.fromJson(data);
         },
       ),
     );
-    if (result == true) _load();
+    if (result == true && created != null && mounted) {
+      final verified = await showGuarantorVerificationSheet(
+        context,
+        api: context.read<BackendApiService>(),
+        guarantor: created!,
+      );
+      if (verified != true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Guarantor consent is still pending.')),
+        );
+      }
+      _load();
+    }
   }
 
   Future<void> _editGuarantor(Guarantor g) async {
+    Guarantor? updated;
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -88,11 +104,41 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
         initialPhone: _stripCountryCode(g.phoneNumber),
         onSave: (name, phone) async {
           final api = context.read<BackendApiService>();
-          await api.updateGuarantor(g.id, name: name, phoneNumber: phone);
+          final data = await api.updateGuarantor(
+            g.id,
+            name: name,
+            phoneNumber: phone,
+          );
+          updated = Guarantor.fromJson(data);
         },
       ),
     );
-    if (result == true) _load();
+    if (result == true && updated != null && mounted) {
+      if (!updated!.isVerified) {
+        final verified = await showGuarantorVerificationSheet(
+          context,
+          api: context.read<BackendApiService>(),
+          guarantor: updated!,
+        );
+        if (verified != true && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Guarantor consent is still pending.'),
+            ),
+          );
+        }
+      }
+      _load();
+    }
+  }
+
+  Future<void> _verifyGuarantor(Guarantor guarantor) async {
+    final verified = await showGuarantorVerificationSheet(
+      context,
+      api: context.read<BackendApiService>(),
+      guarantor: guarantor,
+    );
+    if (verified == true) _load();
   }
 
   Future<void> _deleteGuarantor(Guarantor g) async {
@@ -196,6 +242,7 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
                         _GuarantorTile(
                           guarantor: _guarantors[i],
                           canDelete: _guarantors.length > 2,
+                          onVerify: () => _verifyGuarantor(_guarantors[i]),
                           onEdit: () => _editGuarantor(_guarantors[i]),
                           onDelete: () => _deleteGuarantor(_guarantors[i]),
                         ),
@@ -219,12 +266,14 @@ class _GuarantorsScreenState extends State<GuarantorsScreen> {
 class _GuarantorTile extends StatelessWidget {
   final Guarantor guarantor;
   final bool canDelete;
+  final VoidCallback onVerify;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _GuarantorTile({
     required this.guarantor,
     required this.canDelete,
+    required this.onVerify,
     required this.onEdit,
     required this.onDelete,
   });
@@ -232,6 +281,7 @@ class _GuarantorTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: guarantor.isVerified ? null : onVerify,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Container(
         width: 40,
@@ -250,9 +300,29 @@ class _GuarantorTile extends StatelessWidget {
         guarantor.name,
         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
       ),
-      subtitle: Text(
-        guarantor.phoneNumber,
-        style: TextStyle(color: context.appColors.textSecondary, fontSize: 13),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            guarantor.phoneNumber,
+            style: TextStyle(
+              color: context.appColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            guarantor.isVerified
+                ? 'Consent confirmed'
+                : 'Consent pending • tap to verify',
+            style: TextStyle(
+              color: guarantor.isVerified
+                  ? context.appColors.success
+                  : context.appColors.warning,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

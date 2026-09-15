@@ -1,15 +1,19 @@
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
 from django.db import IntegrityError
+from django.utils import timezone
 
-from project.apps.accounts.models import LoanGuarantor, User
+from project.apps.accounts.models import LoanGuarantor, LoanGuarantorOtp, User
 from project.apps.accounts.services import (
     add_guarantor,
     bulk_create_guarantors,
     delete_guarantor,
+    resend_guarantor_otp,
     sync_user_from_supabase_claims,
     update_guarantor,
+    verify_guarantor,
 )
 
 
@@ -123,7 +127,8 @@ class TestSupabaseUserSync:
 
 class TestBulkCreateGuarantors:
     @pytest.mark.django_db
-    def test_creates_multiple_guarantors(self, user_factory):
+    def test_creates_multiple_guarantors(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
         user = user_factory(email="g1@example.com", username="g1")
         data = [
             {"name": "John Doe", "phone_number": "0241234567"},
@@ -145,14 +150,82 @@ class TestBulkCreateGuarantors:
 
 class TestAddGuarantor:
     @pytest.mark.django_db
-    def test_creates_one_guarantor(self, user_factory):
+    def test_creates_one_guarantor(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
         user = user_factory(email="g3@example.com", username="g3")
 
         guarantor = add_guarantor(user=user, name="Kwame", phone_number="0551234567")
 
         assert guarantor.name == "Kwame"
-        assert guarantor.phone_number == "0551234567"
+        assert guarantor.phone_number == "+233551234567"
         assert guarantor.user == user
+
+    @pytest.mark.django_db
+    def test_rejects_users_current_phone_as_guarantor(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
+        user = user_factory(phone="+233241234567")
+
+        with pytest.raises(ValueError, match="own current phone"):
+            add_guarantor(user=user, name="Self", phone_number="0241234567")
+
+
+class TestGuarantorConsent:
+    @pytest.mark.django_db
+    def test_creates_five_minute_otp_and_queues_sms(self, user_factory, mocker, django_capture_on_commit_callbacks):
+        enqueue = mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
+        user = user_factory(first_name="Ama", last_name="Mensah")
+
+        before = timezone.now()
+        with django_capture_on_commit_callbacks(execute=True):
+            guarantor = add_guarantor(user=user, name="Friend", phone_number="0551234567")
+        otp = LoanGuarantorOtp.objects.get(guarantor=guarantor)
+
+        assert otp.used is False
+        assert otp.expires_at >= before + timedelta(minutes=5)
+        enqueue.assert_called_once_with(
+            phone="+233551234567",
+            otp_code=otp.code,
+            borrower_name="Ama Mensah",
+        )
+
+    @pytest.mark.django_db
+    def test_verifies_with_latest_code(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
+        user = user_factory()
+        guarantor = add_guarantor(user=user, name="Friend", phone_number="0551234567")
+        otp = LoanGuarantorOtp.objects.get(guarantor=guarantor)
+
+        verified = verify_guarantor(guarantor=guarantor, code=otp.code)
+
+        assert verified.is_verified is True
+        otp.refresh_from_db()
+        assert otp.used is True
+
+    @pytest.mark.django_db
+    def test_rejects_expired_code(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
+        user = user_factory()
+        guarantor = add_guarantor(user=user, name="Friend", phone_number="0551234567")
+        otp = LoanGuarantorOtp.objects.get(guarantor=guarantor)
+        otp.expires_at = timezone.now() - timedelta(minutes=1)
+        otp.save(update_fields=["expires_at", "updated_at"])
+
+        with pytest.raises(ValueError, match="Invalid or expired"):
+            verify_guarantor(guarantor=guarantor, code=otp.code)
+
+    @pytest.mark.django_db
+    def test_resend_invalidates_old_code(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
+        user = user_factory()
+        guarantor = add_guarantor(user=user, name="Friend", phone_number="0551234567")
+        old_otp = LoanGuarantorOtp.objects.get(guarantor=guarantor)
+
+        new_otp = resend_guarantor_otp(guarantor=guarantor)
+
+        old_otp.refresh_from_db()
+        assert old_otp.used is True
+        assert new_otp.code != old_otp.code or new_otp.pk != old_otp.pk
+        assert new_otp.used is False
 
 
 class TestUpdateGuarantor:
@@ -167,13 +240,14 @@ class TestUpdateGuarantor:
         assert updated.phone_number == "024"
 
     @pytest.mark.django_db
-    def test_updates_phone(self, user_factory):
+    def test_updates_phone(self, user_factory, mocker):
+        mocker.patch("project.apps.accounts.services.send_guarantor_otp_task.delay")
         user = user_factory(email="g5@example.com", username="g5")
         guarantor = LoanGuarantor.objects.create(user=user, name="Name", phone_number="024")
 
-        updated = update_guarantor(guarantor=guarantor, phone_number="055")
+        updated = update_guarantor(guarantor=guarantor, phone_number="0551234567")
 
-        assert updated.phone_number == "055"
+        assert updated.phone_number == "+233551234567"
         assert updated.name == "Name"
 
 

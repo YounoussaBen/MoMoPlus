@@ -291,6 +291,34 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> verifyGuarantorOtp({
+    required String guarantorId,
+    required String code,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/$guarantorId/verify/');
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'code': code}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Consent verification failed.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<void> resendGuarantorOtp(String guarantorId) async {
+    if (_accessToken == null) return;
+    final uri = Uri.parse(
+      '$_baseUrl/api/auth/guarantors/$guarantorId/resend-otp/',
+    );
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to resend the consent code.');
+    }
+  }
+
   Future<void> deleteGuarantor(String id) async {
     if (_accessToken == null) return;
     final uri = Uri.parse('$_baseUrl/api/auth/guarantors/$id/');

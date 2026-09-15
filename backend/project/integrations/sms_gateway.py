@@ -159,3 +159,16 @@ def send_wallet_otp(*, phone: str, otp_code: str) -> None:
         phone=phone,
         message=(f"MoMo Plus: Your wallet verification code is {otp_code}. " "Do not share this code with anyone."),
     )
+
+
+def send_guarantor_otp(*, phone: str, otp_code: str, borrower_name: str) -> None:
+    """Tell a proposed guarantor what sharing the OTP authorizes."""
+
+    send_sms(
+        phone=phone,
+        message=(
+            f"MoMo Plus: {borrower_name} added you as a loan guarantor. "
+            f"Code: {otp_code}. Sharing this code confirms your consent. "
+            "Do not share it if you do not agree."
+        ),
+    )
