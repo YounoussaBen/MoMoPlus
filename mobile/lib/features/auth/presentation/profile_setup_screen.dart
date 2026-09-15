@@ -92,7 +92,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppTextField(
-                      hint: 'First name',
+                      hint: 'First names',
                       controller: _firstNameController,
                       autofillHints: const [AutofillHints.givenName],
                       validator: _requiredName,
