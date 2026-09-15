@@ -28,6 +28,7 @@ class NearbyAgent {
   });
 
   bool get isCertified => agentType == 'certified';
+  bool get canProvideGetFunds => maxAmount != null && maxAmount! > 0;
 
   String get distanceLabel {
     if (distanceKm < 1) {

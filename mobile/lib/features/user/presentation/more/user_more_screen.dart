@@ -37,6 +37,9 @@ class _UserMoreScreenState extends State<UserMoreScreen> {
     }
   }
 
+  Future<void> _refresh() =>
+      context.read<AuthViewModel>().refreshProfile(loadKycDetails: true);
+
   @override
   void dispose() {
     _scrollController
@@ -67,83 +70,91 @@ class _UserMoreScreenState extends State<UserMoreScreen> {
                 strokeWidth: 2,
               ),
             )
-          : ListView(
-              controller: _scrollController,
-              padding: const EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 20,
-                bottom: 100,
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              color: context.appColors.brandStrong,
+              child: ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 20,
+                  bottom: 100,
+                ),
+                children: [
+                  _ProfileHeader(appUser: appUser),
+                  const SizedBox(height: 20),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.person_outline,
+                        title: 'Profile',
+                        subtitle: 'Personal information',
+                        onTap: () => context.push('/profile'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _AgentApplicationSection(appUser: appUser, authVm: authVm),
+                  const SizedBox(height: 20),
+                  _SectionHeader(title: 'Activity'),
+                  const SizedBox(height: 8),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'Wallet',
+                        subtitle: 'Manage your wallet',
+                        onTap: () => context.push('/wallet'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.people_outline,
+                        title: 'Loan Guarantors',
+                        subtitle: 'Manage your guarantors',
+                        onTap: () => context.push('/guarantors/manage'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Activity',
+                        subtitle: 'View all your activity',
+                        onTap: () => context.go('/user/activity'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _SectionHeader(title: 'Account'),
+                  const SizedBox(height: 8),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.settings_outlined,
+                        title: 'Settings',
+                        subtitle: 'App preferences',
+                        onTap: () => context.push('/settings'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.help_outline,
+                        title: 'Support',
+                        subtitle: 'Get help',
+                        onTap: () => context.push('/support'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  AppButton(
+                    label: 'Sign out',
+                    variant: AppButtonVariant.destructive,
+                    onPressed: () async {
+                      await showSignOutDialog(
+                        context,
+                        onConfirm: authVm.signOut,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
-              children: [
-                _ProfileHeader(appUser: appUser),
-                const SizedBox(height: 20),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.person_outline,
-                      title: 'Profile',
-                      subtitle: 'Personal information',
-                      onTap: () => context.push('/profile'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _AgentApplicationSection(appUser: appUser, authVm: authVm),
-                const SizedBox(height: 20),
-                _SectionHeader(title: 'Activity'),
-                const SizedBox(height: 8),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Wallet',
-                      subtitle: 'Manage your wallet',
-                      onTap: () => context.push('/wallet'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.people_outline,
-                      title: 'Loan Guarantors',
-                      subtitle: 'Manage your guarantors',
-                      onTap: () => context.push('/guarantors/manage'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Activity',
-                      subtitle: 'View all your activity',
-                      onTap: () => context.go('/user/activity'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(title: 'Account'),
-                const SizedBox(height: 8),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.settings_outlined,
-                      title: 'Settings',
-                      subtitle: 'App preferences',
-                      onTap: () => context.push('/settings'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.help_outline,
-                      title: 'Support',
-                      subtitle: 'Get help',
-                      onTap: () => context.push('/support'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                AppButton(
-                  label: 'Sign out',
-                  variant: AppButtonVariant.destructive,
-                  onPressed: () async {
-                    await showSignOutDialog(context, onConfirm: authVm.signOut);
-                  },
-                ),
-                const SizedBox(height: 32),
-              ],
             ),
     );
   }

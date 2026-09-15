@@ -9,6 +9,8 @@ from django.utils import timezone
 
 from project.apps.accounts.models import User
 from project.apps.agents.models import AgentProfile, AgentType
+from project.apps.notifications.models import NotificationKind
+from project.apps.notifications.services import create_notification
 from project.apps.wallets.models import Wallet
 
 from .models import PhysicalTransaction, TransactionStatus, TransactionType
@@ -22,6 +24,66 @@ def _generate_verification_code() -> str:
 
 def _normalize_coordinate(value: Decimal | float | str) -> Decimal:
     return Decimal(str(value)).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+
+
+def _display_user_name(user: User) -> str:
+    name = f"{user.first_name} {user.last_name}".strip()
+    return name or user.email or "A user"
+
+
+def _amount_label(amount: Decimal) -> str:
+    return f"GHS {amount:,.2f}"
+
+
+def _transaction_label(transaction_type: str) -> str:
+    return "Cash Out" if transaction_type == TransactionType.CASH_OUT else "Cash Deposit"
+
+
+def _notify_transaction(
+    *,
+    txn: PhysicalTransaction,
+    user: User,
+    kind: str,
+    title: str,
+    message: str,
+    event: str,
+) -> None:
+    create_notification(
+        user=user,
+        kind=kind,
+        title=title,
+        message=message,
+        resource_type="transaction",
+        resource_id=str(txn.pk),
+        metadata={"status": txn.status},
+        dedupe_key=f"transaction:{txn.pk}:{event}",
+    )
+
+
+def _notify_transaction_parties(
+    *,
+    txn: PhysicalTransaction,
+    event: str,
+    title: str,
+    user_message: str,
+    agent_message: str,
+) -> None:
+    _notify_transaction(
+        txn=txn,
+        user=txn.user,
+        kind=NotificationKind.TRANSACTION_STATUS,
+        title=title,
+        message=user_message,
+        event=f"{event}:user",
+    )
+    _notify_transaction(
+        txn=txn,
+        user=txn.agent.user,
+        kind=NotificationKind.TRANSACTION_STATUS,
+        title=title,
+        message=agent_message,
+        event=f"{event}:agent",
+    )
 
 
 @transaction.atomic
@@ -68,7 +130,7 @@ def create_physical_transaction(
     ).exists():
         raise ValueError("You already have a pending transaction with this agent.")
 
-    return PhysicalTransaction.objects.create(
+    txn = PhysicalTransaction.objects.create(
         user=user,
         agent=agent,
         transaction_type=transaction_type,
@@ -79,6 +141,16 @@ def create_physical_transaction(
         verification_code=_generate_verification_code(),
         expires_at=timezone.now() + timedelta(minutes=TRANSACTION_EXPIRY_MINUTES),
     )
+    label = _transaction_label(transaction_type)
+    _notify_transaction(
+        txn=txn,
+        user=agent.user,
+        kind=NotificationKind.TRANSACTION_REQUEST,
+        title="New Cash Service request",
+        message=f"{_display_user_name(user)} requested {label} for {_amount_label(amount)}.",
+        event="request",
+    )
+    return txn
 
 
 def get_user_transactions(*, user: User, status: str | None = None) -> list[PhysicalTransaction]:
@@ -139,6 +211,15 @@ def accept_transaction(
             "updated_at",
         ]
     )
+    label = _transaction_label(txn.transaction_type)
+    _notify_transaction(
+        txn=txn,
+        user=txn.user,
+        kind=NotificationKind.TRANSACTION_STATUS,
+        title="Cash Service request accepted",
+        message=f"Your {label} request for {_amount_label(txn.amount)} was accepted.",
+        event="accepted",
+    )
     return txn
 
 
@@ -159,6 +240,16 @@ def reject_transaction(
     txn.status = TransactionStatus.REJECTED
     txn.cancellation_reason = reason
     txn.save(update_fields=["status", "cancellation_reason", "updated_at"])
+    label = _transaction_label(txn.transaction_type)
+    reason_text = f" Reason: {reason}" if reason else ""
+    _notify_transaction(
+        txn=txn,
+        user=txn.user,
+        kind=NotificationKind.TRANSACTION_STATUS,
+        title="Cash Service request declined",
+        message=f"Your {label} request for {_amount_label(txn.amount)} was declined.{reason_text}",
+        event="rejected",
+    )
     return txn
 
 
@@ -220,6 +311,15 @@ def confirm_transaction(
 
     if verification_error:
         raise ValueError(verification_error)
+    if txn.status == TransactionStatus.COMPLETED:
+        label = _transaction_label(txn.transaction_type)
+        _notify_transaction_parties(
+            txn=txn,
+            event="completed",
+            title="Cash Service completed",
+            user_message=f"Your {label} for {_amount_label(txn.amount)} is complete.",
+            agent_message=f"The {label} for {_amount_label(txn.amount)} is complete.",
+        )
     return txn
 
 
@@ -244,4 +344,21 @@ def cancel_transaction(
     txn.cancelled_by = user
     txn.cancellation_reason = reason
     txn.save(update_fields=["status", "cancelled_by", "cancellation_reason", "updated_at"])
+    label = _transaction_label(txn.transaction_type)
+    actor_name = _display_user_name(user)
+    _notify_transaction_parties(
+        txn=txn,
+        event="cancelled",
+        title="Cash Service cancelled",
+        user_message=(
+            f"You cancelled the {label} request for {_amount_label(txn.amount)}."
+            if is_user
+            else f"{actor_name} cancelled the {label} request for {_amount_label(txn.amount)}."
+        ),
+        agent_message=(
+            f"You cancelled the {label} request for {_amount_label(txn.amount)}."
+            if is_agent
+            else f"{actor_name} cancelled the {label} request for {_amount_label(txn.amount)}."
+        ),
+    )
     return txn

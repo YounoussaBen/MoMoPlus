@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "project.apps.agents",
     "project.apps.transactions",
     "project.apps.loans",
+    "project.apps.notifications",
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

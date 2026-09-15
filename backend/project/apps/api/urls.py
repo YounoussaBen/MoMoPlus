@@ -18,6 +18,7 @@ urlpatterns = [
     path("staff/transactions/", include("project.apps.transactions.staff_urls")),
     path("loans/", include("project.apps.loans.urls")),
     path("staff/loans/", include("project.apps.loans.staff_urls")),
+    path("notifications/", include("project.apps.notifications.urls")),
     # API Documentation
     path(
         "schema/",

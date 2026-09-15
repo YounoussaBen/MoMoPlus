@@ -215,6 +215,14 @@ class TestUpdateAgentProfile:
         assert profile.bio == "I am a trusted agent"
         assert profile.is_available is True
 
+    def test_allows_resetting_limits_to_zero(self, user):
+        AgentProfile.objects.create(user=user, min_amount=10, max_amount=500)
+
+        profile = update_agent_profile(user=user, min_amount=0, max_amount=0)
+
+        assert profile.min_amount == 0
+        assert profile.max_amount == 0
+
 
 @pytest.mark.django_db
 class TestToggleAvailability:
@@ -237,6 +245,19 @@ class TestToggleAvailability:
 
         with pytest.raises(ValueError, match="transaction limits"):
             toggle_availability(user=user)
+
+    def test_certified_agent_can_go_online_without_get_funds_limits(self, agent_user):
+        AgentProfile.objects.create(
+            user=agent_user,
+            agent_type=AgentType.CERTIFIED,
+            is_available=False,
+            min_amount=0,
+            max_amount=0,
+        )
+
+        profile = toggle_availability(user=agent_user)
+
+        assert profile.is_available is True
 
 
 # ---------------------------------------------------------------------------

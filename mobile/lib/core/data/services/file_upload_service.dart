@@ -23,35 +23,46 @@ class FileUploadService {
   }) async {
     final bytes = await file.readAsBytes();
     final name = file.path.split('/').last;
+    String? fileAssetId;
 
-    // Step 1 — initiate
-    final initiated = await _api.initiateUpload(
-      originalName: name,
-      contentType: contentType,
-      size: bytes.length,
-      kind: kind,
-    );
+    try {
+      // Step 1 — Django creates the asset and signs the Supabase upload URL.
+      final initiated = await _api.initiateUpload(
+        originalName: name,
+        contentType: contentType,
+        size: bytes.length,
+        kind: kind,
+      );
 
-    final fileAssetId =
-        (initiated['file'] as Map<String, dynamic>)['id'] as String;
-    final upload = initiated['upload'] as Map<String, dynamic>;
-    final bucket = upload['bucket'] as String;
-    final path = upload['path'] as String;
-    final token = upload['token'] as String;
+      fileAssetId = (initiated['file'] as Map<String, dynamic>)['id'] as String;
+      final upload = initiated['upload'] as Map<String, dynamic>;
+      final signedUrl = upload['signed_url'] as String?;
+      if (signedUrl == null || signedUrl.isEmpty) {
+        throw Exception('The storage service did not return an upload URL.');
+      }
 
-    // Step 2 — direct upload to Supabase
-    await _api.uploadToSignedUrl(
-      bucket: bucket,
-      path: path,
-      token: token,
-      contentType: contentType,
-      bytes: bytes,
-    );
+      // Step 2 — upload directly to the URL issued by Django/Supabase.
+      await _api.uploadToSignedUrl(
+        signedUrl: signedUrl,
+        contentType: contentType,
+        bytes: bytes,
+      );
 
-    // Step 3 — finalize
-    await _api.finalizeUpload(fileAssetId);
+      // Step 3 — Django verifies the object and marks the asset ready.
+      await _api.finalizeUpload(fileAssetId);
 
-    return fileAssetId;
+      return fileAssetId;
+    } catch (error) {
+      // Do not leave orphaned pending assets when an upload or finalization
+      // fails. Cleanup is best-effort; the original error is more useful.
+      final cleanupId = fileAssetId;
+      if (cleanupId != null) {
+        try {
+          await _api.deleteFile(cleanupId);
+        } catch (_) {}
+      }
+      rethrow;
+    }
   }
 
   /// Fetch a short-lived signed URL so a private file can be displayed.

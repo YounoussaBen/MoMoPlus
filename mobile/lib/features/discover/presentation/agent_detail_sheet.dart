@@ -250,7 +250,7 @@ class AgentDetailSheet extends StatelessWidget {
                   context.push('/loans/${activeLoan!.id}');
                 },
               )
-            else
+            else if (agent.canProvideGetFunds)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -272,6 +272,16 @@ class AgentDetailSheet extends StatelessWidget {
                   label: const Text('Get Funds'),
                 ),
               ),
+            if (activeLoan == null && !agent.canProvideGetFunds) ...[
+              if (agent.isCertified) const SizedBox(height: 10),
+              Text(
+                'Get Funds is unavailable for this agent right now.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: context.appColors.textSecondary,
+                ),
+              ),
+            ],
             if (agent.isCertified) ...[
               const SizedBox(height: 10),
               if (activeTransaction != null)

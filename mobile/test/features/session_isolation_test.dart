@@ -119,6 +119,32 @@ void main() {
     expect(viewModel.hasLimitsSet, isTrue);
     expect(await viewModel.validateAvailabilityChange(true), isNull);
   });
+
+  test(
+    'certified agents can stay eligible for cash service with zero limits',
+    () async {
+      final api = _ControlledFinancialApi();
+      api.wallets = const [
+        {'is_verified': true},
+      ];
+      final viewModel = AgentProfileViewModel(api, autoStart: false);
+      addTearDown(viewModel.dispose);
+
+      viewModel.setSession('agent-a');
+      api.agentProfileRequests.single.complete(
+        _agentProfileJson(
+          'agent-a',
+          minAmount: 0,
+          maxAmount: 0,
+          agentType: 'certified',
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(viewModel.hasLimitsSet, isTrue);
+      expect(await viewModel.validateAvailabilityChange(true), isNull);
+    },
+  );
 }
 
 class _ControlledFinancialApi extends BackendApiService {
@@ -168,6 +194,7 @@ Map<String, dynamic> _agentProfileJson(
   String id, {
   double minAmount = 50,
   double? maxAmount = 500,
+  String agentType = 'self_enrolled',
 }) => {
   'id': id,
   'full_name': 'Ama Mensah',
@@ -179,7 +206,7 @@ Map<String, dynamic> _agentProfileJson(
   'bio': '',
   'rating': 0,
   'total_ratings': 0,
-  'agent_type': 'self_enrolled',
+  'agent_type': agentType,
 };
 
 Map<String, dynamic> _loanJson(String id) => {

@@ -4,6 +4,7 @@ import pytest
 
 from project.apps.accounts.models import AgentStatus, UserRole
 from project.apps.agents.models import AgentProfile, AgentType
+from project.apps.notifications.models import Notification, NotificationKind
 from project.apps.transactions.models import TransactionStatus
 from project.apps.transactions.services import (
     accept_transaction,
@@ -89,6 +90,28 @@ class TestCreatePhysicalTransaction:
         assert txn.transaction_type == "cash_out"
         assert len(txn.verification_code) == 6
         assert txn.expires_at is not None
+        assert Notification.objects.filter(
+            user=agent_profile.user,
+            kind=NotificationKind.TRANSACTION_REQUEST,
+            resource_id=str(txn.pk),
+        ).exists()
+
+    def test_certified_agent_with_zero_get_funds_limit_can_provide_cash_service(
+        self, borrower, agent_profile, verified_wallet
+    ):
+        agent_profile.max_amount = Decimal("0.00")
+        agent_profile.save(update_fields=["max_amount"])
+
+        txn = create_physical_transaction(
+            user=borrower,
+            agent_profile_id=str(agent_profile.pk),
+            transaction_type="cash_out",
+            amount=Decimal("100.00"),
+            network="mtn",
+            wallet_id=str(verified_wallet.pk),
+        )
+
+        assert txn.status == TransactionStatus.PENDING
 
     def test_deposit_type(self, borrower, agent_profile, verified_wallet):
         txn = create_physical_transaction(

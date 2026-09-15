@@ -47,9 +47,10 @@ class AgentProfileViewModel extends ChangeNotifier {
   bool get hasVerifiedWallet => _hasVerifiedWallet;
   bool get hasLimitsSet =>
       _profile != null &&
-      _profile!.minAmount > 0 &&
-      _profile!.maxAmount != null &&
-      _profile!.maxAmount! > 0;
+      (_profile!.isCertified ||
+          (_profile!.minAmount > 0 &&
+              _profile!.maxAmount != null &&
+              _profile!.maxAmount! > 0));
   bool get isLoading => _isLoading;
   bool get isSaving => _isSaving;
   String? get errorMessage => _errorMessage;

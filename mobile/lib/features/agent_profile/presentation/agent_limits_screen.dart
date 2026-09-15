@@ -43,9 +43,7 @@ class _LimitsBodyState extends State<_LimitsBody> {
     if (_didInitialize || viewModel.profile == null) return;
     _didInitialize = true;
     final profile = viewModel.profile!;
-    _minimumController.text = profile.minAmount > 0
-        ? profile.minAmount.toStringAsFixed(0)
-        : '';
+    _minimumController.text = profile.minAmount.toStringAsFixed(0);
     _maximumController.text = profile.maxAmount?.toStringAsFixed(0) ?? '';
   }
 
@@ -62,10 +60,11 @@ class _LimitsBodyState extends State<_LimitsBody> {
       return;
     }
 
-    if (minimum <= 0 || maximum <= 0) {
+    if (minimum < 0 || maximum < 0) {
       _showError(
         title: 'Invalid amounts',
-        message: 'Both amounts must be greater than zero.',
+        message:
+            'Amounts cannot be negative. Use 0 to pause get-funds requests.',
       );
       return;
     }

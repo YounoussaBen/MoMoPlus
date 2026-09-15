@@ -203,6 +203,7 @@
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
+				6E4B7C8D9A0F123456789ABC /* Generate Native Asset dSYMs */,
 				1D1335A3824AF92C018FAC0E /* [CP] Embed Pods Frameworks */,
 				79BDBED6D6D4F8BAB7985B45 /* [CP] Copy Pods Resources */,
 			);
@@ -308,6 +309,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+		};
+		6E4B7C8D9A0F123456789ABC /* Generate Native Asset dSYMs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework/objective_c",
+			);
+			name = "Generate Native Asset dSYMs";
+			outputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/objective_c.framework.dSYM/Contents/Resources/DWARF/objective_c",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/Runner/generate_native_asset_dsyms.sh\"";
+			showEnvVarsInLog = 0;
 		};
 		69BABBE4861B141EB5EF772B /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;

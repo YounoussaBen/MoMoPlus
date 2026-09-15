@@ -11,6 +11,8 @@ from django.utils import timezone
 
 from project.apps.accounts.models import User
 from project.apps.agents.models import AgentProfile
+from project.apps.notifications.models import NotificationKind
+from project.apps.notifications.services import create_notification
 from project.apps.wallets.models import Wallet
 from project.integrations import paystack
 
@@ -177,6 +179,96 @@ def _compute_deadline() -> tuple[timedelta, int]:
     return timedelta(hours=hours), hours
 
 
+def _display_user_name(user: User) -> str:
+    name = f"{user.first_name} {user.last_name}".strip()
+    return name or user.email or "A user"
+
+
+def _amount_label(amount: Decimal) -> str:
+    return f"GHS {amount:,.2f}"
+
+
+def _notify_loan(
+    *,
+    loan: Loan,
+    user: User,
+    kind: str,
+    title: str,
+    message: str,
+    event: str,
+) -> None:
+    create_notification(
+        user=user,
+        kind=kind,
+        title=title,
+        message=message,
+        resource_type="loan",
+        resource_id=str(loan.pk),
+        metadata={"status": loan.status},
+        dedupe_key=f"loan:{loan.pk}:{event}",
+    )
+
+
+def _notify_loan_parties(
+    *,
+    loan: Loan,
+    event: str,
+    title: str,
+    borrower_message: str,
+    agent_message: str,
+) -> None:
+    _notify_loan(
+        loan=loan,
+        user=loan.borrower,
+        kind=NotificationKind.LOAN_STATUS,
+        title=title,
+        message=borrower_message,
+        event=f"{event}:borrower",
+    )
+    _notify_loan(
+        loan=loan,
+        user=loan.agent.user,
+        kind=NotificationKind.LOAN_STATUS,
+        title=title,
+        message=agent_message,
+        event=f"{event}:agent",
+    )
+
+
+def _notify_loan_payment_failure(
+    *,
+    loan: Loan,
+    payment: LoanPayment,
+    event: str,
+    transfer: bool = False,
+) -> None:
+    if payment.payment_type == PaymentType.DISBURSEMENT:
+        _notify_loan_parties(
+            loan=loan,
+            event=event,
+            title="Get Funds failed",
+            borrower_message="Your Get Funds request could not be funded.",
+            agent_message="The Get Funds request could not be funded.",
+        )
+        return
+
+    _notify_loan_parties(
+        loan=loan,
+        event=event,
+        title="Repayment transfer failed" if transfer else "Repayment failed",
+        borrower_message=(
+            "Your repayment was charged but could not be transferred yet."
+            if transfer
+            else "Your repayment could not be processed."
+        ),
+        agent_message=(
+            "A repayment was charged but could not be transferred yet."
+            if transfer
+            else "The borrower repayment could not be processed."
+        ),
+    )
+
+
 # ── Loan Request ─────────────────────────────────────────────────────────────
 
 
@@ -204,7 +296,9 @@ def request_loan(
     # Validate amount against agent limits
     if agent.min_amount and amount < agent.min_amount:
         raise ValueError(f"Minimum loan amount for this agent is GHS {agent.min_amount}.")
-    if agent.max_amount and amount > agent.max_amount:
+    if agent.max_amount is not None and agent.max_amount <= 0:
+        raise ValueError("This agent is not accepting get-funds requests.")
+    if agent.max_amount is not None and amount > agent.max_amount:
         raise ValueError(f"Maximum loan amount for this agent is GHS {agent.max_amount}.")
 
     try:
@@ -228,7 +322,7 @@ def request_loan(
 
     pricing = _loan_pricing(amount)
 
-    return Loan.objects.create(
+    loan = Loan.objects.create(
         borrower=borrower,
         agent=agent,
         amount=amount,
@@ -243,6 +337,15 @@ def request_loan(
         network=network,
         status=LoanStatus.PENDING,
     )
+    _notify_loan(
+        loan=loan,
+        user=agent.user,
+        kind=NotificationKind.LOAN_REQUEST,
+        title="New Get Funds request",
+        message=f"{_display_user_name(borrower)} requested {_amount_label(amount)} from you.",
+        event="request",
+    )
+    return loan
 
 
 # ── Agent Actions ────────────────────────────────────────────────────────────
@@ -277,6 +380,14 @@ def accept_loan(
     loan.status = LoanStatus.APPROVED
     loan.approved_at = timezone.now()
     loan.save(update_fields=["agent_wallet", "status", "approved_at", "updated_at"])
+    _notify_loan(
+        loan=loan,
+        user=loan.borrower,
+        kind=NotificationKind.LOAN_STATUS,
+        title="Get Funds request accepted",
+        message=f"Your request for {_amount_label(loan.amount)} was accepted by {_display_user_name(agent_user)}.",
+        event="accepted",
+    )
     return loan
 
 
@@ -297,6 +408,15 @@ def reject_loan(
     loan.status = LoanStatus.REJECTED
     loan.rejection_reason = reason
     loan.save(update_fields=["status", "rejection_reason", "updated_at"])
+    reason_text = f" Reason: {reason}" if reason else ""
+    _notify_loan(
+        loan=loan,
+        user=loan.borrower,
+        kind=NotificationKind.LOAN_STATUS,
+        title="Get Funds request declined",
+        message=f"Your request for {_amount_label(loan.amount)} was declined.{reason_text}",
+        event="rejected",
+    )
     return loan
 
 
@@ -320,6 +440,22 @@ def cancel_loan(
     loan.cancelled_by = user
     loan.rejection_reason = reason
     loan.save(update_fields=["status", "cancelled_by", "rejection_reason", "updated_at"])
+    actor_name = _display_user_name(user)
+    _notify_loan_parties(
+        loan=loan,
+        event="cancelled",
+        title="Get Funds request cancelled",
+        borrower_message=(
+            f"You cancelled the Get Funds request for {_amount_label(loan.amount)}."
+            if is_borrower
+            else f"{actor_name} cancelled the Get Funds request for {_amount_label(loan.amount)}."
+        ),
+        agent_message=(
+            f"You cancelled the Get Funds request for {_amount_label(loan.amount)}."
+            if is_agent
+            else f"{actor_name} cancelled the Get Funds request for {_amount_label(loan.amount)}."
+        ),
+    )
     return loan
 
 
@@ -367,6 +503,14 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
         loan.status = LoanStatus.DISBURSING
         loan.save(update_fields=["status", "updated_at"])
 
+    _notify_loan_parties(
+        loan=loan,
+        event="disbursing",
+        title="Get Funds in progress",
+        borrower_message=f"Your Get Funds request for {_amount_label(loan.amount)} is being funded.",
+        agent_message=f"Funding for {_amount_label(loan.amount)} is being processed.",
+    )
+
     # Call Paystack outside the atomic block so failure handling persists
     try:
         resp = paystack.charge_mobile_money(
@@ -395,6 +539,11 @@ def initiate_disbursement(*, loan: Loan) -> LoanPayment:
         payment.save(update_fields=["status", "paystack_response", "updated_at"])
         loan.status = LoanStatus.FAILED
         loan.save(update_fields=["status", "updated_at"])
+        _notify_loan_payment_failure(
+            loan=loan,
+            payment=payment,
+            event="disbursement_failed",
+        )
         raise ValueError(f"Disbursement failed: {exc}")
 
     return payment
@@ -450,6 +599,14 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
         loan.status = LoanStatus.REPAYING
         loan.save(update_fields=["status", "updated_at"])
 
+    _notify_loan_parties(
+        loan=loan,
+        event=f"repayment:{payment.pk}:processing",
+        title="Repayment in progress",
+        borrower_message=f"Your repayment of {_amount_label(payment.amount)} is being processed.",
+        agent_message=f"A repayment of {_amount_label(payment.amount)} is being processed.",
+    )
+
     try:
         resp = paystack.charge_mobile_money(
             amount_pesewas=_pesewas(payment.charge_amount),
@@ -477,6 +634,11 @@ def initiate_repayment(*, loan: Loan, amount: Decimal | None = None) -> LoanPaym
         payment.save(update_fields=["status", "paystack_response", "updated_at"])
         loan.status = LoanStatus.ACTIVE
         loan.save(update_fields=["status", "updated_at"])
+        _notify_loan_payment_failure(
+            loan=loan,
+            payment=payment,
+            event=f"repayment:{payment.pk}:failed",
+        )
         raise ValueError(f"Repayment initiation failed: {exc}")
 
     return payment
@@ -522,6 +684,11 @@ def handle_charge_success(*, reference: str, paystack_data: dict) -> None:
             payment.save(update_fields=["status", "paystack_response", "updated_at"])
             loan.status = failure_status
             loan.save(update_fields=["status", "updated_at"])
+            _notify_loan_payment_failure(
+                loan=loan,
+                payment=payment,
+                event=f"payment:{payment.pk}:recipient_failed",
+            )
             logger.error("Payment %s cannot continue: recipient wallet has no transfer recipient code.", reference)
             return
 
@@ -548,6 +715,11 @@ def handle_charge_success(*, reference: str, paystack_data: dict) -> None:
             payment.save(update_fields=["status", "paystack_response", "updated_at"])
             loan.status = failure_status
             loan.save(update_fields=["status", "updated_at"])
+            _notify_loan_payment_failure(
+                loan=loan,
+                payment=payment,
+                event=f"payment:{payment.pk}:balance_failed",
+            )
             logger.error("Transfer for payment %s blocked by insufficient Paystack balance.", reference)
             return
 
@@ -569,6 +741,12 @@ def handle_charge_success(*, reference: str, paystack_data: dict) -> None:
             payment.save(update_fields=["status", "paystack_response", "updated_at"])
             loan.status = failure_status
             loan.save(update_fields=["status", "updated_at"])
+            _notify_loan_payment_failure(
+                loan=loan,
+                payment=payment,
+                event=f"payment:{payment.pk}:transfer_failed",
+                transfer=payment.payment_type == PaymentType.REPAYMENT,
+            )
             logger.exception("Transfer initiation failed for payment %s", reference)
             return
 
@@ -618,6 +796,13 @@ def _handle_disbursement_success(loan: Loan) -> None:
     loan.disbursed_at = now
     loan.deadline_at = now + deadline_delta
     loan.save(update_fields=["status", "disbursed_at", "deadline_at", "updated_at"])
+    _notify_loan_parties(
+        loan=loan,
+        event="disbursed",
+        title="Get Funds completed",
+        borrower_message=f"You received {_amount_label(loan.amount)}.",
+        agent_message=f"{_amount_label(loan.amount)} was sent to the borrower.",
+    )
     logger.info("Loan %s activated, deadline at %s", loan.pk, loan.deadline_at)
 
 
@@ -632,13 +817,26 @@ def _handle_repayment_success(loan: Loan, payment: LoanPayment) -> None:
         loan.agent_receivable_balance = Decimal("0.00")
         loan.status = LoanStatus.COMPLETED
         loan.completed_at = timezone.now()
+        title = "Get Funds completed"
+        borrower_message = "Your Get Funds repayment is complete."
+        agent_message = f"The borrower repaid {_amount_label(payment.amount)} in full."
         logger.info("Loan %s fully repaid and closed.", loan.pk)
     else:
         loan.status = LoanStatus.ACTIVE
+        title = "Repayment received"
+        borrower_message = f"Your repayment of {_amount_label(payment.amount)} was received."
+        agent_message = f"You received a repayment of {_amount_label(payment.amount)}."
         logger.info("Loan %s partial repayment, remaining: %s", loan.pk, loan.outstanding_balance)
 
     loan.save(
         update_fields=["outstanding_balance", "agent_receivable_balance", "status", "completed_at", "updated_at"]
+    )
+    _notify_loan_parties(
+        loan=loan,
+        event=f"repayment:{payment.pk}:success",
+        title=title,
+        borrower_message=borrower_message,
+        agent_message=agent_message,
     )
 
 
@@ -662,9 +860,19 @@ def handle_charge_failed(*, reference: str, paystack_data: dict) -> None:
     if payment.payment_type == PaymentType.DISBURSEMENT:
         loan.status = LoanStatus.FAILED
         loan.save(update_fields=["status", "updated_at"])
+        _notify_loan_payment_failure(
+            loan=loan,
+            payment=payment,
+            event=f"payment:{payment.pk}:charge_failed",
+        )
     elif payment.payment_type == PaymentType.REPAYMENT:
         loan.status = LoanStatus.ACTIVE
         loan.save(update_fields=["status", "updated_at"])
+        _notify_loan_payment_failure(
+            loan=loan,
+            payment=payment,
+            event=f"payment:{payment.pk}:charge_failed",
+        )
 
 
 @transaction.atomic
@@ -691,6 +899,12 @@ def handle_transfer_failed(*, reference: str, paystack_data: dict) -> None:
         # Borrower was already charged, so keep the loan in repayment for manual resolution.
         loan.status = LoanStatus.REPAYING
     loan.save(update_fields=["status", "updated_at"])
+    _notify_loan_payment_failure(
+        loan=loan,
+        payment=payment,
+        event=f"payment:{payment.pk}:transfer_failed",
+        transfer=payment.payment_type == PaymentType.REPAYMENT,
+    )
 
 
 # ── Penalties & Defaults ─────────────────────────────────────────────────────
@@ -740,13 +954,26 @@ def flag_defaulted_loans() -> int:
     """Flag loans as defaulted after 7 days past deadline."""
     now = timezone.now()
     threshold = now - timedelta(days=DEFAULT_DAYS)
-    updated = Loan.objects.filter(
-        status=LoanStatus.ACTIVE,
-        deadline_at__lt=threshold,
-    ).update(status=LoanStatus.DEFAULTED, defaulted_at=now, updated_at=now)
-    if updated:
-        logger.info("Flagged %d loans as defaulted.", updated)
-    return updated
+    loans = list(
+        Loan.objects.filter(
+            status=LoanStatus.ACTIVE,
+            deadline_at__lt=threshold,
+        ).select_related("borrower", "agent__user")
+    )
+    for loan in loans:
+        loan.status = LoanStatus.DEFAULTED
+        loan.defaulted_at = now
+        loan.save(update_fields=["status", "defaulted_at", "updated_at"])
+        _notify_loan_parties(
+            loan=loan,
+            event="defaulted",
+            title="Get Funds overdue",
+            borrower_message="Your Get Funds repayment is overdue and the loan is now in default.",
+            agent_message="A Get Funds loan is now in default.",
+        )
+    if loans:
+        logger.info("Flagged %d loans as defaulted.", len(loans))
+    return len(loans)
 
 
 # ── Earnings ────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:momoplus/core/data/repositories/auth_repository.dart';
+import 'package:momoplus/core/data/services/backend_api_service.dart';
 import 'package:momoplus/features/auth/presentation/auth_view_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -149,7 +150,7 @@ void main() {
   });
 
   test(
-    'unsafe local profile link failure signs out the Supabase session',
+    'temporary profile link failure preserves the Supabase session',
     () async {
       final repository = _FakeAuthRepository(
         session: _session('user-1'),
@@ -161,12 +162,29 @@ void main() {
 
       await viewModel.refreshProfile();
 
-      expect(repository.signOutCalls, 1);
-      expect(viewModel.isAuthenticated, isFalse);
+      expect(repository.signOutCalls, 0);
+      expect(viewModel.isAuthenticated, isTrue);
       expect(viewModel.appUser, isNull);
-      expect(viewModel.errorMessage, contains('securely link'));
+      expect(viewModel.hasConnectionError, isTrue);
+      expect(viewModel.errorMessage, contains('session is still saved'));
     },
   );
+
+  test('invalid backend session signs out the Supabase session', () async {
+    final repository = _FakeAuthRepository(
+      session: _session('user-1'),
+      syncError: const BackendApiException(401, 'Expired session'),
+    );
+    final viewModel = AuthViewModel(repository);
+    addTearDown(viewModel.dispose);
+    addTearDown(repository.close);
+
+    await viewModel.refreshProfile();
+
+    expect(repository.signOutCalls, 1);
+    expect(viewModel.isAuthenticated, isFalse);
+    expect(viewModel.appUser, isNull);
+  });
 
   test('approved KYC at login skips the verified screen', () async {
     const approval = {

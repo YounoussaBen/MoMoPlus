@@ -10,6 +10,8 @@ import '../../../../core/ui/widgets/network_logo.dart';
 import '../../../auth/presentation/auth_view_model.dart';
 import '../../../loans/domain/loan.dart';
 import '../../../loans/presentation/loan_view_model.dart';
+import '../../../notifications/presentation/notification_bell.dart';
+import '../../../notifications/presentation/notifications_screen.dart';
 import '../../../transactions/domain/physical_transaction.dart';
 import '../../../transactions/presentation/transaction_view_model.dart';
 
@@ -71,9 +73,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
         ? appUser.firstName
         : appUser.email.split('@').first;
 
-    final activeTransactions = txnVm.transactions
-        .where((t) => t.isActive)
-        .toList();
+    final activeTransactions = txnVm.activeTransactions;
 
     return Scaffold(
       backgroundColor: context.appColors.canvas,
@@ -83,15 +83,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
         title: const AppLogo(size: 100),
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: 'Notifications',
-            icon: Icon(
-              Icons.notifications_none_rounded,
-              size: 26,
-              color: context.appColors.textPrimary,
-            ),
-            onPressed: () => _showNotifications(context),
-          ),
+          NotificationBell(onPressed: () => _showNotifications(context)),
           const SizedBox(width: 8),
         ],
       ),
@@ -117,11 +109,18 @@ class _UserHomeScreenState extends State<UserHomeScreen>
           const SizedBox(height: 28),
           _QuickActions(),
           const SizedBox(height: 28),
-          _GetFundsSection(loans: loanVm.ongoingLoans, isAgent: false),
+          _GetFundsSection(
+            loans: loanVm.recentLoans,
+            isAgent: false,
+            errorMessage: loanVm.errorMessage,
+            onRetry: loanVm.loadLoans,
+          ),
           const SizedBox(height: 28),
           _CashServicesSection(
-            transactions: activeTransactions,
+            transactions: txnVm.recentTransactions,
             isAgent: false,
+            errorMessage: txnVm.errorMessage,
+            onRetry: txnVm.loadTransactions,
           ),
           const SizedBox(height: 24),
         ],
@@ -132,7 +131,7 @@ class _UserHomeScreenState extends State<UserHomeScreen>
   void _showNotifications(BuildContext context) {
     Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const _NotificationsPage()));
+    ).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
   }
 }
 
@@ -719,8 +718,15 @@ class _ActionTile extends StatelessWidget {
 class _GetFundsSection extends StatelessWidget {
   final List<Loan> loans;
   final bool isAgent;
+  final String? errorMessage;
+  final Future<void> Function() onRetry;
 
-  const _GetFundsSection({required this.loans, required this.isAgent});
+  const _GetFundsSection({
+    required this.loans,
+    required this.isAgent,
+    required this.errorMessage,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -753,7 +759,9 @@ class _GetFundsSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (loans.isEmpty)
+          if (loans.isEmpty && errorMessage != null)
+            _ActivityErrorSection(message: errorMessage!, onRetry: onRetry)
+          else if (loans.isEmpty)
             _EmptySection(
               icon: Icons.account_balance_wallet_outlined,
               message: 'No activity yet',
@@ -764,7 +772,7 @@ class _GetFundsSection extends StatelessWidget {
                 .map(
                   (loan) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _CompactLoanCard(loan: loan, isAgent: isAgent),
+                    child: _CompactLoanCard(loan: loan),
                   ),
                 ),
         ],
@@ -775,8 +783,7 @@ class _GetFundsSection extends StatelessWidget {
 
 class _CompactLoanCard extends StatelessWidget {
   final Loan loan;
-  final bool isAgent;
-  const _CompactLoanCard({required this.loan, required this.isAgent});
+  const _CompactLoanCard({required this.loan});
 
   @override
   Widget build(BuildContext context) {
@@ -792,7 +799,9 @@ class _CompactLoanCard extends StatelessWidget {
       _ => (context.appColors.textSecondary, Icons.info_outline),
     };
 
-    final displayStatus = loan.status == 'disbursing'
+    final displayStatus = loan.isActive && loan.isOverdue
+        ? 'Overdue'
+        : loan.status == 'disbursing'
         ? 'Sending Funds'
         : loan.statusLabel;
 
@@ -821,45 +830,35 @@ class _CompactLoanCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isAgent ? loan.borrowerName : loan.agentName,
+                    displayStatus,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: context.appColors.textPrimary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '$displayStatus · ${loan.networkLabel}',
+                    loan.networkLabel,
                     style: TextStyle(
                       fontSize: 13,
                       color: context.appColors.textSecondary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  'GHS ${loan.amount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: context.appColors.textPrimary,
-                  ),
-                ),
-                if (loan.isActive && loan.isOverdue)
-                  Text(
-                    'OVERDUE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: context.appColors.error,
-                    ),
-                  ),
-              ],
+            Text(
+              'GHS ${loan.amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: context.appColors.textPrimary,
+              ),
             ),
             const SizedBox(width: 4),
             Icon(
@@ -879,10 +878,14 @@ class _CompactLoanCard extends StatelessWidget {
 class _CashServicesSection extends StatelessWidget {
   final List<PhysicalTransaction> transactions;
   final bool isAgent;
+  final String? errorMessage;
+  final Future<void> Function() onRetry;
 
   const _CashServicesSection({
     required this.transactions,
     required this.isAgent,
+    required this.errorMessage,
+    required this.onRetry,
   });
 
   @override
@@ -916,10 +919,12 @@ class _CashServicesSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (transactions.isEmpty)
+          if (transactions.isEmpty && errorMessage != null)
+            _ActivityErrorSection(message: errorMessage!, onRetry: onRetry)
+          else if (transactions.isEmpty)
             _EmptySection(
               icon: Icons.swap_horiz_outlined,
-              message: 'No active cash services',
+              message: 'No cash services yet',
             )
           else
             ...transactions
@@ -927,7 +932,7 @@ class _CashServicesSection extends StatelessWidget {
                 .map(
                   (txn) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: _CompactTransactionCard(txn: txn, isAgent: isAgent),
+                    child: _CompactTransactionCard(txn: txn),
                   ),
                 ),
         ],
@@ -938,8 +943,7 @@ class _CashServicesSection extends StatelessWidget {
 
 class _CompactTransactionCard extends StatelessWidget {
   final PhysicalTransaction txn;
-  final bool isAgent;
-  const _CompactTransactionCard({required this.txn, required this.isAgent});
+  const _CompactTransactionCard({required this.txn});
 
   @override
   Widget build(BuildContext context) {
@@ -977,33 +981,24 @@ class _CompactTransactionCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${txn.typeLabel} · ${isAgent ? txn.userName : txn.agentName}',
+                    txn.typeLabel,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: context.appColors.textPrimary,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Text(
-                        '${txn.statusLabel} · ',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: context.appColors.textSecondary,
-                        ),
-                      ),
-                      NetworkLogo(network: txn.network, size: 14),
-                      const SizedBox(width: 3),
-                      Text(
-                        txn.networkLabel,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: context.appColors.textSecondary,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    '${txn.statusLabel} · ${txn.networkLabel}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: context.appColors.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -1064,127 +1059,33 @@ class _EmptySection extends StatelessWidget {
   }
 }
 
-class _NotificationsPage extends StatelessWidget {
-  const _NotificationsPage();
+class _ActivityErrorSection extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+
+  const _ActivityErrorSection({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    final notifications = [
-      _NotificationItem(
-        icon: Icons.campaign_rounded,
-        title: 'Welcome to MoMo Plus!',
-        subtitle:
-            'Get started by getting your first funds or finding an agent near you.',
-        time: '2h ago',
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.appColors.errorContainer,
+        borderRadius: BorderRadius.circular(14),
       ),
-      _NotificationItem(
-        icon: Icons.verified_rounded,
-        title: 'Complete your profile',
-        subtitle: 'Add your details to unlock all features.',
-        time: '1d ago',
-      ),
-      _NotificationItem(
-        icon: Icons.local_offer_rounded,
-        title: 'Special offer',
-        subtitle: 'Low rates available for first-time users.',
-        time: '3d ago',
-      ),
-    ];
-
-    return Scaffold(
-      backgroundColor: context.appColors.canvas,
-      appBar: AppBar(
-        backgroundColor: context.appColors.canvas,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Notifications',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        centerTitle: true,
-      ),
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        itemCount: notifications.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (_, index) {
-          final n = notifications[index];
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: context.appColors.surfaceSection,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: context.appColors.brandSoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    n.icon,
-                    color: context.appColors.brandStrong,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        n.title,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: context.appColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        n.subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: context.appColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  n.time,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: context.appColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+      child: Column(
+        children: [
+          Icon(Icons.cloud_off_outlined, color: context.appColors.error),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.appColors.error, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onRetry, child: const Text('Try again')),
+        ],
       ),
     );
   }
-}
-
-class _NotificationItem {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String time;
-
-  const _NotificationItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.time,
-  });
 }

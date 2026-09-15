@@ -19,7 +19,7 @@ def verify_standard_webhook(
     webhook_signature: str | None,
     secret: str,
     tolerance_seconds: int = 300,
-    now: int | None = None,
+    now: int | float | None = None,
 ) -> None:
     if not secret or not webhook_id or not webhook_timestamp or not webhook_signature:
         raise WebhookSignatureError("Invalid webhook signature.")
@@ -29,7 +29,11 @@ def verify_standard_webhook(
     except (TypeError, ValueError) as exc:
         raise WebhookSignatureError("Invalid webhook signature.") from exc
 
-    current_time = int(time.time()) if now is None else now
+    # Keep sub-second precision so a timestamp that is just outside the
+    # tolerance cannot become exactly on the boundary while the request is
+    # being parsed. This also avoids dispatching an invalid webhook to a
+    # downstream service such as Celery/Redis.
+    current_time = time.time() if now is None else now
     if abs(current_time - timestamp) > tolerance_seconds:
         raise WebhookSignatureError("Invalid webhook signature.")
 

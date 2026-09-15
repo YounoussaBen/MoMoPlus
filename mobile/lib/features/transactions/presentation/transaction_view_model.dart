@@ -49,6 +49,15 @@ class TransactionViewModel extends ChangeNotifier {
   List<PhysicalTransaction> get completedTransactions =>
       _transactions.where((t) => !t.isActive).toList();
 
+  /// Transactions are returned newest-first by the API, but sort the cached
+  /// data here as well so the home preview stays correct if that ordering ever
+  /// changes or a newly-created item is inserted locally.
+  List<PhysicalTransaction> get recentTransactions {
+    final recent = List<PhysicalTransaction>.from(_transactions);
+    recent.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return recent;
+  }
+
   /// Switches the cache to an authenticated user, invalidating all work and
   /// data associated with the previous user before loading the new session.
   void setSession(String? sessionId) {

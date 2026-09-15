@@ -22,6 +22,7 @@ from project.apps.loans.services import (
     reject_loan,
     request_loan,
 )
+from project.apps.notifications.models import Notification, NotificationKind
 from project.apps.wallets.models import Wallet
 
 EXPECTED_ORIGINATION_FEE = Decimal("0.00")
@@ -126,6 +127,11 @@ class TestRequestLoan:
         assert loan.origination_fee == EXPECTED_ORIGINATION_FEE
         assert loan.platform_interest_amount == EXPECTED_PLATFORM_INTEREST
         assert loan.agent_receivable_balance == EXPECTED_AGENT_RECEIVABLE
+        assert Notification.objects.filter(
+            user=agent_profile.user,
+            kind=NotificationKind.LOAN_REQUEST,
+            resource_id=str(loan.pk),
+        ).exists()
 
     def test_amount_below_min(self, borrower, agent_profile, borrower_wallet):
         with pytest.raises(ValueError, match="Minimum loan amount"):
@@ -143,6 +149,19 @@ class TestRequestLoan:
                 borrower=borrower,
                 agent_profile_id=str(agent_profile.pk),
                 amount=Decimal("1000.00"),
+                wallet_id=str(borrower_wallet.pk),
+                network="mtn",
+            )
+
+    def test_zero_max_limit_rejects_get_funds(self, borrower, agent_profile, borrower_wallet):
+        agent_profile.max_amount = Decimal("0.00")
+        agent_profile.save(update_fields=["max_amount"])
+
+        with pytest.raises(ValueError, match="not accepting get-funds"):
+            request_loan(
+                borrower=borrower,
+                agent_profile_id=str(agent_profile.pk),
+                amount=Decimal("100.00"),
                 wallet_id=str(borrower_wallet.pk),
                 network="mtn",
             )

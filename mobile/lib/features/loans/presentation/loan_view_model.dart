@@ -37,6 +37,13 @@ class LoanViewModel extends ChangeNotifier {
   List<Loan> get ongoingLoans => _loans.where((l) => l.isOngoing).toList();
   List<Loan> get historyLoans => _loans.where((l) => !l.isOngoing).toList();
 
+  /// Stable newest-first ordering for the home-page recent activity preview.
+  List<Loan> get recentLoans {
+    final recent = List<Loan>.from(_loans);
+    recent.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return recent;
+  }
+
   /// Switches this cache to [sessionId], clearing all data from the previous
   /// authenticated user before starting any requests for the new one.
   ///

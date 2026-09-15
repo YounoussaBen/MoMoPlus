@@ -13,6 +13,9 @@ void main() async {
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     anonKey: AppConfig.supabaseAnonKey,
+    // Supabase stores the session locally and refreshes it automatically.
+    // An explicit signOut is the only normal path that clears this session.
+    authOptions: const FlutterAuthClientOptions(autoRefreshToken: true),
   );
   final themeController = AppThemeController();
   runApp(MomoPlusApp(themeController: themeController));

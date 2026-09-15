@@ -1,8 +1,17 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../config/app_config.dart';
+
+class BackendApiException implements Exception {
+  final int statusCode;
+  final String message;
+
+  const BackendApiException(this.statusCode, this.message);
+
+  @override
+  String toString() => message;
+}
 
 /// Thin HTTP client for Django backend endpoints.
 ///
@@ -113,25 +122,25 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  /// Step 2: Upload bytes using Supabase's signed upload API.
+  /// Step 2: Upload bytes to the signed Supabase Storage URL issued by Django.
+  ///
+  /// Keeping this request on the URL returned by the backend makes the mobile
+  /// flow identical to the web flow and keeps storage configuration out of the
+  /// app. The app only ever receives a short-lived, single-object upload URL.
   Future<void> uploadToSignedUrl({
-    required String bucket,
-    required String path,
-    required String token,
+    required String signedUrl,
     required String contentType,
     required List<int> bytes,
   }) async {
-    try {
-      await _supabaseClient.storage
-          .from(bucket)
-          .uploadBinaryToSignedUrl(
-            path,
-            token,
-            Uint8List.fromList(bytes),
-            FileOptions(contentType: contentType),
-          );
-    } on StorageException catch (error) {
-      throw Exception('Direct upload to storage failed: ${error.message}');
+    final response = await http.put(
+      Uri.parse(signedUrl),
+      headers: {'Content-Type': contentType},
+      body: bytes,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'Direct upload to storage failed (HTTP ${response.statusCode}).',
+      );
     }
   }
 
@@ -528,7 +537,7 @@ class BackendApiService {
   }
 
   Future<List<dynamic>> getPhysicalTransactions({String? status}) async {
-    if (_accessToken == null) return [];
+    if (_accessToken == null) throw Exception('Not authenticated.');
     final params = <String, String>{};
     if (status != null) params['status'] = status;
     final uri = Uri.parse(
@@ -536,9 +545,11 @@ class BackendApiService {
     ).replace(queryParameters: params.isNotEmpty ? params : null);
     final response = await http.get(uri, headers: _headers);
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
+      final payload = jsonDecode(response.body);
+      if (payload is List<dynamic>) return payload;
+      throw Exception('The server returned an invalid cash-services response.');
     }
-    return [];
+    throw _buildApiException(response, 'Could not load cash services.');
   }
 
   Future<Map<String, dynamic>?> getPhysicalTransactionDetail(
@@ -664,7 +675,7 @@ class BackendApiService {
   }
 
   Future<List<dynamic>> getLoans({String? status}) async {
-    if (_accessToken == null) return [];
+    if (_accessToken == null) throw Exception('Not authenticated.');
     final params = <String, String>{};
     if (status != null) params['status'] = status;
     final uri = Uri.parse(
@@ -672,9 +683,11 @@ class BackendApiService {
     ).replace(queryParameters: params.isNotEmpty ? params : null);
     final response = await http.get(uri, headers: _headers);
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
+      final payload = jsonDecode(response.body);
+      if (payload is List<dynamic>) return payload;
+      throw Exception('The server returned an invalid get-funds response.');
     }
-    return [];
+    throw _buildApiException(response, 'Could not load get-funds activity.');
   }
 
   Future<Map<String, dynamic>?> getAgentEarnings({
@@ -693,6 +706,51 @@ class BackendApiService {
     final response = await http.get(uri, headers: _headers);
     if (response.statusCode != 200) {
       throw _buildApiException(response, 'Failed to load earnings.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  // ── Notifications ────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getNotifications() async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/notifications/');
+    final response = await http.get(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Could not load notifications.');
+    }
+    final payload = jsonDecode(response.body);
+    if (payload is Map<String, dynamic> && payload['notifications'] is List) {
+      return payload;
+    }
+    throw Exception('The server returned an invalid notifications response.');
+  }
+
+  Future<Map<String, dynamic>> setNotificationReadState(
+    String notificationId, {
+    required bool isRead,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final action = isRead ? 'read' : 'unread';
+    final uri = Uri.parse(
+      '$_baseUrl/api/notifications/$notificationId/$action/',
+    );
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Could not update notification.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> markAllNotificationsRead() async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse('$_baseUrl/api/notifications/read-all/');
+    final response = await http.post(uri, headers: _headers);
+    if (response.statusCode != 200) {
+      throw _buildApiException(
+        response,
+        'Could not mark notifications as read.',
+      );
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
@@ -787,7 +845,10 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Exception _buildApiException(http.Response response, String fallbackMessage) {
+  BackendApiException _buildApiException(
+    http.Response response,
+    String fallbackMessage,
+  ) {
     try {
       final body = jsonDecode(response.body);
       if (body is Map<String, dynamic>) {
@@ -797,11 +858,11 @@ class BackendApiService {
             body['error_description'] ??
             body['error'];
         if (detail is String && detail.isNotEmpty) {
-          return Exception(detail);
+          return BackendApiException(response.statusCode, detail);
         }
       }
     } catch (_) {}
-    return Exception(fallbackMessage);
+    return BackendApiException(response.statusCode, fallbackMessage);
   }
 
   String _formatQueryDate(DateTime value) {

@@ -144,15 +144,22 @@ class AuthViewModel extends ChangeNotifier {
       _appUser = AppUser.fromBackendProfile(profileData);
       _resolvedKycStatus ??= _appUser?.kycStatus;
       _hasConnectionError = false;
+      _errorMessage = null;
     } catch (e) {
-      if (_isNetworkError(e) && _isCurrentProfileRefresh(generation)) {
-        _hasConnectionError = true;
+      if (!_isCurrentProfileRefresh(generation)) return;
+      final invalidSession =
+          e is BackendApiException &&
+          (e.statusCode == 401 || e.statusCode == 403);
+      if (invalidSession) {
+        _errorMessage =
+            'Your session is no longer valid. Please sign in again.';
+        await _authRepository.signOut();
         return;
       }
-      if (!_isCurrentProfileRefresh(generation)) return;
+
+      _hasConnectionError = true;
       _errorMessage =
-          'We could not securely link this account. Please try again.';
-      await _authRepository.signOut();
+          'We could not reach the service. Your session is still saved; try again.';
       return;
     }
 

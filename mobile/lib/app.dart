@@ -13,6 +13,7 @@ import 'core/ui/theme/app_theme_controller.dart';
 import 'features/auth/presentation/auth_view_model.dart';
 import 'features/agent_profile/presentation/agent_profile_view_model.dart';
 import 'features/loans/presentation/loan_view_model.dart';
+import 'features/notifications/presentation/notifications_view_model.dart';
 import 'features/transactions/presentation/transaction_view_model.dart';
 import 'features/wallet/presentation/wallet_view_model.dart';
 
@@ -34,6 +35,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
   late final TransactionViewModel _transactionViewModel;
   late final WalletViewModel _walletViewModel;
   late final LoanViewModel _loanViewModel;
+  late final NotificationsViewModel _notificationsViewModel;
   late final AgentProfileViewModel _agentProfileViewModel;
   late final GoRouter _router;
 
@@ -61,6 +63,10 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
       autoStart: false,
     );
     _loanViewModel = LoanViewModel(_backendService, autoStart: false);
+    _notificationsViewModel = NotificationsViewModel(
+      _backendService,
+      autoStart: false,
+    );
     _agentProfileViewModel = AgentProfileViewModel(
       _backendService,
       autoStart: false,
@@ -80,6 +86,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
     _agentProfileViewModel.setSession(
       _authViewModel.appUser?.isAgent == true ? sessionId : null,
     );
+    _notificationsViewModel.setSession(sessionId);
   }
 
   @override
@@ -87,6 +94,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && _authViewModel.isAuthenticated) {
       _transactionViewModel.startAutoRefresh();
       _loanViewModel.startAutoRefresh();
+      _notificationsViewModel.startAutoRefresh();
       return;
     }
 
@@ -96,6 +104,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       _transactionViewModel.stopAutoRefresh();
       _loanViewModel.stopAutoRefresh();
+      _notificationsViewModel.stopAutoRefresh();
     }
   }
 
@@ -107,6 +116,7 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
     _transactionViewModel.dispose();
     _walletViewModel.dispose();
     _loanViewModel.dispose();
+    _notificationsViewModel.dispose();
     _agentProfileViewModel.dispose();
     _authViewModel.dispose();
     super.dispose();
@@ -128,6 +138,9 @@ class _MomoPlusAppState extends State<MomoPlusApp> with WidgetsBindingObserver {
         ),
         ChangeNotifierProvider<WalletViewModel>.value(value: _walletViewModel),
         ChangeNotifierProvider<LoanViewModel>.value(value: _loanViewModel),
+        ChangeNotifierProvider<NotificationsViewModel>.value(
+          value: _notificationsViewModel,
+        ),
         ChangeNotifierProvider<AgentProfileViewModel>.value(
           value: _agentProfileViewModel,
         ),

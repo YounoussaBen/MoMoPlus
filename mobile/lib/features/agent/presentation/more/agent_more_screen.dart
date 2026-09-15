@@ -13,6 +13,8 @@ import '../../../../core/ui/widgets/app_status.dart';
 import '../../../../core/ui/widgets/profile_avatar.dart';
 import '../../../../core/ui/widgets/sign_out_sheet.dart';
 import '../../../auth/presentation/auth_view_model.dart';
+import '../../../agent_profile/presentation/agent_profile_view_model.dart';
+import '../../../wallet/presentation/wallet_view_model.dart';
 
 class AgentMoreScreen extends StatefulWidget {
   const AgentMoreScreen({super.key});
@@ -34,6 +36,14 @@ class _AgentMoreScreenState extends State<AgentMoreScreen> {
   void _handleScroll() {
     final shouldShow = _scrollController.offset > 32;
     if (shouldShow != _showTitle) setState(() => _showTitle = shouldShow);
+  }
+
+  Future<void> _refresh() async {
+    await Future.wait([
+      context.read<AuthViewModel>().refreshProfile(loadKycDetails: true),
+      context.read<AgentProfileViewModel>().load(),
+      context.read<WalletViewModel>().loadWallets(),
+    ]);
   }
 
   @override
@@ -66,94 +76,102 @@ class _AgentMoreScreenState extends State<AgentMoreScreen> {
                 strokeWidth: 2,
               ),
             )
-          : ListView(
-              controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 112),
-              children: [
-                _ProfileHeader(appUser: appUser),
-                const SizedBox(height: AppSpacing.space5),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.person_outline,
-                      title: 'Profile',
-                      subtitle: 'Personal information and KYC documents',
-                      onTap: () => context.push('/profile'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.space6),
-                const AppSectionHeader(title: 'Agent tools'),
-                const SizedBox(height: AppSpacing.space2),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.tune_outlined,
-                      title: 'Limits',
-                      subtitle: 'Set minimum and maximum amounts',
-                      onTap: () => context.push('/agent/limits'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.location_on_outlined,
-                      title: 'Service area',
-                      subtitle: 'Manage your location and coverage',
-                      onTap: () => context.push('/agent/service-area'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.verified_outlined,
-                      title: 'Certification',
-                      subtitle: 'Manage your agent certification',
-                      onTap: () => context.push('/agent/certification'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.space6),
-                const AppSectionHeader(title: 'Activity'),
-                const SizedBox(height: AppSpacing.space2),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Wallet',
-                      subtitle: 'Manage your mobile money wallets',
-                      onTap: () => context.push('/wallet'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.people_outline,
-                      title: 'Loan guarantors',
-                      subtitle: 'Manage your guarantors',
-                      onTap: () => context.push('/guarantors/manage'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.space6),
-                const AppSectionHeader(title: 'Account'),
-                const SizedBox(height: AppSpacing.space2),
-                _SectionCard(
-                  children: [
-                    _MoreTile(
-                      icon: Icons.settings_outlined,
-                      title: 'Settings',
-                      subtitle: 'Appearance and app preferences',
-                      onTap: () => context.push('/settings'),
-                    ),
-                    _MoreTile(
-                      icon: Icons.help_outline,
-                      title: 'Support',
-                      subtitle: 'Get help with MoMo Plus',
-                      onTap: () => context.push('/support'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.space6),
-                AppButton(
-                  label: 'Sign out',
-                  variant: AppButtonVariant.destructive,
-                  onPressed: () async {
-                    await showSignOutDialog(context, onConfirm: authVm.signOut);
-                  },
-                ),
-              ],
+          : RefreshIndicator(
+              onRefresh: _refresh,
+              color: context.appColors.brandStrong,
+              child: ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 112),
+                children: [
+                  _ProfileHeader(appUser: appUser),
+                  const SizedBox(height: AppSpacing.space5),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.person_outline,
+                        title: 'Profile',
+                        subtitle: 'Personal information and KYC documents',
+                        onTap: () => context.push('/profile'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.space6),
+                  const AppSectionHeader(title: 'Agent tools'),
+                  const SizedBox(height: AppSpacing.space2),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.tune_outlined,
+                        title: 'Limits',
+                        subtitle: 'Set minimum and maximum amounts',
+                        onTap: () => context.push('/agent/limits'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.location_on_outlined,
+                        title: 'Service area',
+                        subtitle: 'Manage your location and coverage',
+                        onTap: () => context.push('/agent/service-area'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.verified_outlined,
+                        title: 'Certification',
+                        subtitle: 'Manage your agent certification',
+                        onTap: () => context.push('/agent/certification'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.space6),
+                  const AppSectionHeader(title: 'Activity'),
+                  const SizedBox(height: AppSpacing.space2),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'Wallet',
+                        subtitle: 'Manage your mobile money wallets',
+                        onTap: () => context.push('/wallet'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.people_outline,
+                        title: 'Loan guarantors',
+                        subtitle: 'Manage your guarantors',
+                        onTap: () => context.push('/guarantors/manage'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.space6),
+                  const AppSectionHeader(title: 'Account'),
+                  const SizedBox(height: AppSpacing.space2),
+                  _SectionCard(
+                    children: [
+                      _MoreTile(
+                        icon: Icons.settings_outlined,
+                        title: 'Settings',
+                        subtitle: 'Appearance and app preferences',
+                        onTap: () => context.push('/settings'),
+                      ),
+                      _MoreTile(
+                        icon: Icons.help_outline,
+                        title: 'Support',
+                        subtitle: 'Get help with MoMo Plus',
+                        onTap: () => context.push('/support'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.space6),
+                  AppButton(
+                    label: 'Sign out',
+                    variant: AppButtonVariant.destructive,
+                    onPressed: () async {
+                      await showSignOutDialog(
+                        context,
+                        onConfirm: authVm.signOut,
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
     );
   }
