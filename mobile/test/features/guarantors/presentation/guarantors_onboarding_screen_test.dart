@@ -24,8 +24,12 @@ void main() {
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.backgroundColor, AppTheme.dark.appColors.canvas);
     expect(find.text('Loan Guarantors'), findsOneWidget);
-    expect(find.text('Guarantor 1'), findsOneWidget);
-    expect(find.text('Guarantor 2'), findsOneWidget);
+    expect(find.text('Guarantor 1 of 2'), findsOneWidget);
+    expect(find.text('Guarantor 2'), findsNothing);
+    expect(
+      find.textContaining('We will verify one guarantor at a time.'),
+      findsOneWidget,
+    );
 
     final whiteSurfaces = tester
         .widgetList<Container>(find.byType(Container))
@@ -56,9 +60,9 @@ void main() {
       of: find.byType(GhanaPhoneField),
       matching: find.byType(TextFormField),
     );
-    expect(phoneFields, findsNWidgets(2));
-    expect(find.text('🇬🇭'), findsNWidgets(2));
-    expect(find.text('+233'), findsNWidgets(2));
+    expect(phoneFields, findsOneWidget);
+    expect(find.text('🇬🇭'), findsOneWidget);
+    expect(find.text('+233'), findsOneWidget);
 
     await tester.enterText(phoneFields.first, '0');
     var firstPhone = tester.widget<TextFormField>(phoneFields.first);

@@ -47,19 +47,29 @@ class GuarantorsOnboardingScreen extends StatefulWidget {
 
 class _GuarantorsOnboardingScreenState
     extends State<GuarantorsOnboardingScreen> {
-  final List<_GuarantorEntry> _entries = [_GuarantorEntry(), _GuarantorEntry()];
+  _GuarantorEntry _entry = _GuarantorEntry();
   bool _isSubmitting = false;
   bool _isLoadingExisting = true;
-  bool _hasCreatedGuarantors = false;
+  int _verifiedCount = 0;
   List<Guarantor> _pendingVerification = [];
+  Guarantor? _activeGuarantor;
   String? _errorMessage;
+
+  bool get _isComplete =>
+      _verifiedCount >= 2 &&
+      _pendingVerification.isEmpty &&
+      _activeGuarantor == null;
+
+  bool get _hasConsentToVerify =>
+      _pendingVerification.isNotEmpty || _activeGuarantor != null;
 
   bool get _canSubmit =>
       !_isSubmitting &&
       !_isLoadingExisting &&
-      (_pendingVerification.isNotEmpty ||
-          (!_hasCreatedGuarantors &&
-              _entries.where((e) => e.isValid).length >= 2));
+      !_isComplete &&
+      (_hasConsentToVerify || _entry.isValid);
+
+  int get _currentStep => _verifiedCount > 0 ? 2 : 1;
 
   @override
   void initState() {
@@ -71,12 +81,12 @@ class _GuarantorsOnboardingScreenState
     try {
       final data = await context.read<BackendApiService>().getGuarantors();
       if (!mounted) return;
+      final guarantors = data
+          .map((g) => Guarantor.fromJson(g as Map<String, dynamic>))
+          .toList();
       setState(() {
-        _pendingVerification = data
-            .map((g) => Guarantor.fromJson(g as Map<String, dynamic>))
-            .where((g) => !g.isVerified)
-            .toList();
-        _hasCreatedGuarantors = _pendingVerification.isNotEmpty;
+        _verifiedCount = guarantors.where((g) => g.isVerified).length;
+        _pendingVerification = guarantors.where((g) => !g.isVerified).toList();
         _isLoadingExisting = false;
       });
     } catch (_) {
@@ -86,74 +96,94 @@ class _GuarantorsOnboardingScreenState
 
   @override
   void dispose() {
-    for (final e in _entries) {
-      e.dispose();
-    }
+    _entry.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (!_canSubmit) return;
+
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
     });
+
     try {
       final api = context.read<BackendApiService>();
-      if (_pendingVerification.isEmpty && !_hasCreatedGuarantors) {
-        final validEntries = _entries
-            .where((e) => e.isValid)
-            .map((e) => e.toJson())
-            .toList();
-        final created = await api.bulkCreateGuarantors(validEntries);
-        _pendingVerification = created
-            .map((g) => Guarantor.fromJson(g as Map<String, dynamic>))
-            .where((g) => !g.isVerified)
-            .toList();
-        _hasCreatedGuarantors = true;
-      }
 
-      while (_pendingVerification.isNotEmpty) {
-        if (!mounted) return;
-        final guarantor = _pendingVerification.first;
-        final verified = await showGuarantorVerificationSheet(
-          context,
-          api: api,
-          guarantor: guarantor,
+      if (_pendingVerification.isNotEmpty) {
+        await _verifyGuarantor(
+          api,
+          _pendingVerification.first,
+          removeFromPending: true,
         );
-        if (verified != true) {
-          throw Exception('Verify each guarantor consent code to continue.');
+      } else {
+        var guarantor = _activeGuarantor;
+        if (guarantor == null) {
+          final details = _entry.toJson();
+          final created = await api.addGuarantor(
+            name: details['name']!,
+            phoneNumber: details['phone_number']!,
+          );
+          guarantor = Guarantor.fromJson(created);
+          if (mounted) setState(() => _activeGuarantor = guarantor);
         }
-        if (mounted) {
-          setState(() => _pendingVerification.removeAt(0));
-        }
+        await _verifyGuarantor(api, guarantor);
       }
 
-      if (mounted) {
+      if (!mounted) return;
+      if (_isComplete) {
         await context.read<AuthViewModel>().refreshProfile();
+      } else {
+        _resetEntry();
+        setState(() {});
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _errorMessage = friendlyErrorMessage(e));
-      }
+      if (mounted) setState(() => _errorMessage = friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  void _addEntry() {
-    setState(() => _entries.add(_GuarantorEntry()));
+  Future<void> _verifyGuarantor(
+    BackendApiService api,
+    Guarantor guarantor, {
+    bool removeFromPending = false,
+  }) async {
+    final verified = await showGuarantorVerificationSheet(
+      context,
+      api: api,
+      guarantor: guarantor,
+    );
+
+    if (verified != true) {
+      throw Exception(
+        'Confirm this guarantor\'s consent before continuing to the next one.',
+      );
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _verifiedCount += 1;
+      if (removeFromPending) {
+        _pendingVerification.removeAt(0);
+      } else {
+        _activeGuarantor = null;
+      }
+    });
   }
 
-  void _removeEntry(int index) {
-    if (_entries.length <= 2) return;
-    setState(() {
-      _entries[index].dispose();
-      _entries.removeAt(index);
-    });
+  void _resetEntry() {
+    _entry.dispose();
+    _entry = _GuarantorEntry();
   }
 
   @override
   Widget build(BuildContext context) {
+    final activeConsent =
+        _activeGuarantor ??
+        (_pendingVerification.isNotEmpty ? _pendingVerification.first : null);
+
     return Scaffold(
       backgroundColor: context.appColors.canvas,
       appBar: AppBar(
@@ -168,6 +198,8 @@ class _GuarantorsOnboardingScreenState
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
+                _buildProgress(context),
+                const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -175,6 +207,7 @@ class _GuarantorsOnboardingScreenState
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
                         Icons.info_outline,
@@ -184,7 +217,7 @@ class _GuarantorsOnboardingScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Add at least 2 guarantors. Each one will receive an SMS consent code that they must share with you. Codes expire in 5 minutes.',
+                          'We will verify one guarantor at a time. Their SMS code confirms that they consent to be your guarantor and expires in 5 minutes.',
                           style: TextStyle(
                             fontSize: 13,
                             color: context.appColors.textPrimary,
@@ -196,28 +229,16 @@ class _GuarantorsOnboardingScreenState
                   ),
                 ),
                 const SizedBox(height: 20),
-                for (var i = 0; i < _entries.length; i++) ...[
-                  _GuarantorCard(
-                    index: i,
-                    entry: _entries[i],
-                    canRemove: _entries.length > 2,
-                    onRemove: () => _removeEntry(i),
+                if (_isComplete)
+                  _buildCompleteState(context)
+                else if (activeConsent != null)
+                  _buildConsentState(context, activeConsent)
+                else
+                  _GuarantorFormCard(
+                    step: _currentStep,
+                    entry: _entry,
                     onChanged: () => setState(() {}),
                   ),
-                  const SizedBox(height: 12),
-                ],
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _addEntry,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Another Guarantor'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: context.appColors.brandStrong,
-                    ),
-                  ),
-                ),
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -227,6 +248,7 @@ class _GuarantorsOnboardingScreenState
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
                           Icons.error_outline,
@@ -250,24 +272,142 @@ class _GuarantorsOnboardingScreenState
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-            decoration: BoxDecoration(
-              color: context.appColors.surfaceSection,
-              boxShadow: [
-                BoxShadow(
-                  color: context.appColors.scrim.withValues(alpha: 0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
+          if (!_isComplete)
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              decoration: BoxDecoration(
+                color: context.appColors.surfaceSection,
+                boxShadow: [
+                  BoxShadow(
+                    color: context.appColors.scrim.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: AppButton(
+                label: _buttonLabel,
+                onPressed: _canSubmit ? _submit : null,
+                isLoading: _isSubmitting,
+              ),
             ),
-            child: AppButton(
-              label: _pendingVerification.isNotEmpty
-                  ? 'Verify guarantors'
-                  : 'Continue',
-              onPressed: _canSubmit ? _submit : null,
-              isLoading: _isSubmitting,
+        ],
+      ),
+    );
+  }
+
+  String get _buttonLabel {
+    if (_hasConsentToVerify) return 'Enter consent code';
+    return _currentStep == 1 ? 'Send consent code' : 'Send code to guarantor 2';
+  }
+
+  Widget _buildProgress(BuildContext context) {
+    final completed = _verifiedCount.clamp(0, 2) / 2;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _isComplete
+                    ? 'Guarantors confirmed'
+                    : 'Guarantor $_currentStep of 2',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: context.appColors.textPrimary,
+                ),
+              ),
+            ),
+            Text(
+              '$_verifiedCount/2 confirmed',
+              style: TextStyle(
+                fontSize: 13,
+                color: context.appColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: completed.toDouble(),
+            minHeight: 6,
+            backgroundColor: context.appColors.surfaceSubtle,
+            valueColor: AlwaysStoppedAnimation(context.appColors.brandStrong),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConsentState(BuildContext context, Guarantor guarantor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.appColors.surfaceSection,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.mark_email_read_outlined,
+            size: 42,
+            color: context.appColors.brandStrong,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Consent code sent',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: context.appColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ask ${guarantor.name} to share the 6-digit code sent to ${guarantor.phoneNumber}.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.appColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The code expires in 5 minutes.',
+            style: TextStyle(
+              fontSize: 12,
+              color: context.appColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompleteState(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.appColors.successContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_outline, color: context.appColors.success),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Both guarantors have confirmed their consent.',
+              style: TextStyle(
+                color: context.appColors.textPrimary,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -276,18 +416,14 @@ class _GuarantorsOnboardingScreenState
   }
 }
 
-class _GuarantorCard extends StatelessWidget {
-  final int index;
+class _GuarantorFormCard extends StatelessWidget {
+  final int step;
   final _GuarantorEntry entry;
-  final bool canRemove;
-  final VoidCallback onRemove;
   final VoidCallback onChanged;
 
-  const _GuarantorCard({
-    required this.index,
+  const _GuarantorFormCard({
+    required this.step,
     required this.entry,
-    required this.canRemove,
-    required this.onRemove,
     required this.onChanged,
   });
 
@@ -297,67 +433,38 @@ class _GuarantorCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: context.appColors.surfaceSection,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: context.appColors.brandSoft,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: context.appColors.brandStrong,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Guarantor ${index + 1}',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: context.appColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              if (canRemove)
-                GestureDetector(
-                  onTap: onRemove,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: context.appColors.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.close,
-                      size: 16,
-                      color: context.appColors.error,
-                    ),
-                  ),
-                ),
-            ],
+          Text(
+            'Guarantor $step details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: context.appColors.textPrimary,
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 6),
+          Text(
+            'Enter their details. We will send the consent code after you continue.',
+            style: TextStyle(
+              fontSize: 13,
+              color: context.appColors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
           TextFormField(
             controller: entry.nameController,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             onChanged: (_) => onChanged(),
             textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
               hintText: 'Full name',
-              prefixIcon: const Icon(Icons.person_outline, size: 20),
+              prefixIcon: Icon(Icons.person_outline, size: 20),
             ),
           ),
           const SizedBox(height: 10),
@@ -365,6 +472,7 @@ class _GuarantorCard extends StatelessWidget {
             controller: entry.phoneController,
             onChanged: (_) => onChanged(),
             autovalidateMode: AutovalidateMode.onUserInteraction,
+            textInputAction: TextInputAction.done,
           ),
         ],
       ),

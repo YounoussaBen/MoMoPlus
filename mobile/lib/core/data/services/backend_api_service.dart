@@ -254,22 +254,6 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> bulkCreateGuarantors(
-    List<Map<String, String>> guarantors,
-  ) async {
-    if (_accessToken == null) throw Exception('Not authenticated.');
-    final uri = Uri.parse('$_baseUrl/api/auth/guarantors/bulk/');
-    final response = await http.post(
-      uri,
-      headers: _headers,
-      body: jsonEncode({'guarantors': guarantors}),
-    );
-    if (response.statusCode != 201) {
-      throw _buildApiException(response, 'Failed to save guarantors.');
-    }
-    return jsonDecode(response.body) as List<dynamic>;
-  }
-
   Future<Map<String, dynamic>> updateGuarantor(
     String id, {
     String? name,
