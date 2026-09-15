@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from .models import PhysicalTransaction, TransactionType
+from .models import CashServiceRating, PhysicalTransaction, TransactionType
 
 
 class PhysicalTransactionSerializer(serializers.ModelSerializer):
@@ -12,6 +12,7 @@ class PhysicalTransactionSerializer(serializers.ModelSerializer):
     agent_id = serializers.UUIDField(source="agent.pk", read_only=True)
     wallet_phone_number = serializers.CharField(source="wallet.phone_number", read_only=True)
     wallet_network = serializers.CharField(source="wallet.network", read_only=True)
+    my_rating = serializers.SerializerMethodField()
 
     class Meta:
         model = PhysicalTransaction
@@ -32,6 +33,7 @@ class PhysicalTransactionSerializer(serializers.ModelSerializer):
             "agent_id",
             "wallet_phone_number",
             "wallet_network",
+            "my_rating",
             "cancellation_reason",
             "created_at",
             "updated_at",
@@ -53,6 +55,18 @@ class PhysicalTransactionSerializer(serializers.ModelSerializer):
         if request is not None and request.user.pk == obj.user_id and obj.status == "accepted":
             return obj.verification_code
         return ""
+
+    def get_my_rating(self, obj) -> int | None:
+        """Expose only the authenticated user's own rating for this service."""
+        request = self.context.get("request")
+        if request is None or not getattr(request.user, "is_authenticated", False):
+            return None
+        if request.user.pk != obj.user_id:
+            return None
+        try:
+            return obj.agent_rating.rating
+        except CashServiceRating.DoesNotExist:
+            return None
 
 
 class CreatePhysicalTransactionSerializer(serializers.Serializer):
@@ -85,3 +99,7 @@ class ConfirmTransactionSerializer(serializers.Serializer):
         allow_blank=True,
         error_messages={"invalid": "Enter the 6-digit code."},
     )
+
+
+class RateCashServiceSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)

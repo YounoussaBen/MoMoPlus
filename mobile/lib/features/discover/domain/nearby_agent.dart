@@ -8,6 +8,7 @@ class NearbyAgent {
   final double minAmount;
   final double rating;
   final int totalRatings;
+  final int completedServices;
   final String agentType;
   final double distanceKm;
   final String? selfieUrl;
@@ -22,6 +23,7 @@ class NearbyAgent {
     required this.minAmount,
     required this.rating,
     required this.totalRatings,
+    required this.completedServices,
     required this.agentType,
     required this.distanceKm,
     this.selfieUrl,
@@ -47,7 +49,8 @@ class NearbyAgent {
       maxAmount: _toDouble(json['max_amount']),
       minAmount: _toDouble(json['min_amount']) ?? 0,
       rating: _toDouble(json['rating']) ?? 0,
-      totalRatings: json['total_ratings'] as int? ?? 0,
+      totalRatings: _toInt(json['total_ratings']) ?? 0,
+      completedServices: _toInt(json['completed_services']) ?? 0,
       agentType: json['agent_type'] as String? ?? 'self_enrolled',
       distanceKm: _toDouble(json['distance_km']) ?? 0,
       selfieUrl: _readImageUrl(
@@ -71,6 +74,14 @@ class NearbyAgent {
     if (v == null) return null;
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
+    return null;
+  }
+
+  static int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
     return null;
   }
 }

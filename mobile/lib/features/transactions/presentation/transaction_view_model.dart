@@ -358,6 +358,30 @@ class TransactionViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> rateTransaction(String id, int rating) async {
+    if (!_isSessionActive || _isDisposed) return false;
+    final generation = _sessionGeneration;
+    _isSubmitting = true;
+    _errorMessage = null;
+    _notifyListeners();
+    try {
+      final data = await _api.ratePhysicalTransaction(id, rating: rating);
+      if (!_isCurrentSession(generation)) return false;
+      _currentTransaction = PhysicalTransaction.fromJson(data);
+      _updateInList(_currentTransaction!);
+      return true;
+    } catch (e) {
+      if (!_isCurrentSession(generation)) return false;
+      _errorMessage = friendlyErrorMessage(e);
+      return false;
+    } finally {
+      if (_isCurrentSession(generation)) {
+        _isSubmitting = false;
+        _notifyListeners();
+      }
+    }
+  }
+
   void startPolling(String transactionId) {
     if (!_isSessionActive || _isDisposed) return;
     stopPolling(resumeAutoRefresh: false);

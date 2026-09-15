@@ -1,3 +1,4 @@
+from django.db.models import Count, Q
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -79,7 +80,17 @@ def nearby_agents(request: Request) -> Response:
 def agent_detail(request: Request, pk: str) -> Response:
     """Get public details for a specific agent."""
     try:
-        profile = AgentProfile.objects.select_related("user__kyc_submission__selfie").get(pk=pk)
+        profile = (
+            AgentProfile.objects.annotate(
+                completed_services_count=Count(
+                    "physical_transactions",
+                    filter=Q(physical_transactions__status="completed"),
+                    distinct=True,
+                )
+            )
+            .select_related("user__kyc_submission__selfie")
+            .get(pk=pk)
+        )
     except AgentProfile.DoesNotExist:
         return Response({"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND)
 

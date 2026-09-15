@@ -101,6 +101,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                           const SizedBox(height: 12),
                           _MeetingCard(txn: txn),
                         ],
+                        if (txn.isCompleted && !isAgent) ...[
+                          const SizedBox(height: 12),
+                          _AgentRatingCard(
+                            agentName: txn.agentName,
+                            rating: txn.myRating,
+                            onRate: () =>
+                                _showCashServiceRatingSheet(context, _vm, txn),
+                          ),
+                        ],
                         if (txn.isActive) ...[
                           const SizedBox(height: 12),
                           _SafetyCard(
@@ -150,6 +159,111 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
       ),
     );
   }
+}
+
+Future<void> _showCashServiceRatingSheet(
+  BuildContext context,
+  TransactionViewModel vm,
+  PhysicalTransaction txn,
+) async {
+  var selectedRating = txn.myRating ?? 0;
+  final rating = await showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (context, setState) {
+        final colors = context.appColors;
+        return SafeArea(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            decoration: BoxDecoration(
+              color: colors.surfaceSection,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.surfaceInteractive,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Icon(
+                  Icons.star_rounded,
+                  size: 32,
+                  color: Colors.amber.shade600,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Rate ${txn.agentName}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'How was your cash service experience?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var value = 1; value <= 5; value++)
+                      IconButton(
+                        tooltip: '$value star${value == 1 ? '' : 's'}',
+                        onPressed: () => setState(() {
+                          selectedRating = value;
+                        }),
+                        icon: Icon(
+                          value <= selectedRating
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          size: 38,
+                          color: Colors.amber.shade600,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: selectedRating == 0
+                        ? null
+                        : () => Navigator.pop(sheetContext, selectedRating),
+                    child: Text(
+                      txn.myRating == null ? 'Submit rating' : 'Update rating',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+  if (rating == null || !context.mounted) return;
+  final saved = await vm.rateTransaction(txn.id, rating);
+  if (!saved || !context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Your rating was saved.'),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
 }
 
 // ─── In-person workflow ─────────────────────────────────────────────────────
@@ -1176,6 +1290,11 @@ class _ActionButtons extends StatelessWidget {
     final ok = await vm.confirmTransaction(txn.id);
     if (!ok || !context.mounted) return;
     await _refreshSharedTransactions(context);
+    if (!context.mounted) return;
+    final completedTxn = vm.currentTransaction;
+    if (completedTxn?.isCompleted == true && completedTxn?.myRating == null) {
+      await _showCashServiceRatingSheet(context, vm, completedTxn!);
+    }
   }
 
   Future<void> _openMeetingPointPicker(BuildContext context) async {
@@ -1394,6 +1513,78 @@ class _CodeSheetState extends State<_CodeSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AgentRatingCard extends StatelessWidget {
+  final String agentName;
+  final int? rating;
+  final VoidCallback onRate;
+
+  const _AgentRatingCard({
+    required this.agentName,
+    required this.rating,
+    required this.onRate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final hasRating = rating != null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colors.surfaceSection,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.surfaceSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hasRating ? 'Your rating' : 'Rate your cash service',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hasRating
+                ? 'You rated $agentName after this completed service.'
+                : 'Help other users choose a trusted certified agent.',
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (hasRating)
+                Row(
+                  children: [
+                    for (var value = 1; value <= 5; value++)
+                      Icon(
+                        value <= rating!
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        size: 22,
+                        color: Colors.amber.shade600,
+                      ),
+                  ],
+                )
+              else
+                Icon(Icons.star_outline_rounded, color: colors.brandStrong),
+              const Spacer(),
+              TextButton(
+                onPressed: onRate,
+                child: Text(hasRating ? 'Change' : 'Rate agent'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

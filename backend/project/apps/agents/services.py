@@ -4,6 +4,7 @@ import math
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from project.apps.accounts.models import AgentStatus, User, UserRole
@@ -42,17 +43,27 @@ def get_nearby_agents(
     delta_lat = radius_km / 111.0
     delta_lon = radius_km / (111.0 * max(math.cos(math.radians(lat)), 0.01))
 
-    qs = AgentProfile.objects.filter(
-        is_available=True,
-        latitude__isnull=False,
-        longitude__isnull=False,
-        latitude__gte=Decimal(str(lat - delta_lat)),
-        latitude__lte=Decimal(str(lat + delta_lat)),
-        longitude__gte=Decimal(str(lon - delta_lon)),
-        longitude__lte=Decimal(str(lon + delta_lon)),
-        user__role=UserRole.AGENT,
-        user__agent_status=AgentStatus.APPROVED,
-    ).select_related("user__kyc_submission__selfie")
+    qs = (
+        AgentProfile.objects.filter(
+            is_available=True,
+            latitude__isnull=False,
+            longitude__isnull=False,
+            latitude__gte=Decimal(str(lat - delta_lat)),
+            latitude__lte=Decimal(str(lat + delta_lat)),
+            longitude__gte=Decimal(str(lon - delta_lon)),
+            longitude__lte=Decimal(str(lon + delta_lon)),
+            user__role=UserRole.AGENT,
+            user__agent_status=AgentStatus.APPROVED,
+        )
+        .annotate(
+            completed_services_count=Count(
+                "physical_transactions",
+                filter=Q(physical_transactions__status="completed"),
+                distinct=True,
+            )
+        )
+        .select_related("user__kyc_submission__selfie")
+    )
 
     if min_amount is not None:
         qs = qs.filter(max_amount__gte=Decimal(str(min_amount)))

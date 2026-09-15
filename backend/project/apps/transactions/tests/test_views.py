@@ -283,3 +283,53 @@ class TestTransactionLifecycleView:
         response = user_api_client.get(reverse("transaction-detail", args=[data["id"]]))
         assert response.status_code == 200
         assert response.json()["id"] == data["id"]
+
+    def test_user_can_rate_completed_cash_service(
+        self,
+        user_api_client,
+        agent_api_client,
+        agent_claims,
+        user_claims,
+    ):
+        data = self._create_txn(user_api_client, agent_api_client, agent_claims, user_claims)
+        txn_id = data["id"]
+
+        agent_api_client.post(
+            reverse("transaction-accept", args=[txn_id]),
+            {"meeting_latitude": "5.6100", "meeting_longitude": "-0.1900"},
+            format="json",
+        )
+        code = user_api_client.get(reverse("transaction-detail", args=[txn_id])).json()["verification_code"]
+        agent_api_client.post(
+            reverse("transaction-confirm", args=[txn_id]),
+            {"verification_code": code},
+            format="json",
+        )
+        user_api_client.post(reverse("transaction-confirm", args=[txn_id]), {}, format="json")
+
+        response = user_api_client.post(
+            reverse("transaction-rate", args=[txn_id]),
+            {"rating": 5},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["my_rating"] == 5
+
+    def test_agent_cannot_rate_a_cash_service(
+        self,
+        user_api_client,
+        agent_api_client,
+        agent_claims,
+        user_claims,
+    ):
+        data = self._create_txn(user_api_client, agent_api_client, agent_claims, user_claims)
+
+        response = agent_api_client.post(
+            reverse("transaction-rate", args=[data["id"]]),
+            {"rating": 5},
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "completed" in response.json()["detail"] or "user" in response.json()["detail"]

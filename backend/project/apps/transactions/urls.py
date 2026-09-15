@@ -10,4 +10,5 @@ urlpatterns = [
     path("physical/<uuid:pk>/reject/", views.reject_transaction_view, name="transaction-reject"),
     path("physical/<uuid:pk>/confirm/", views.confirm_transaction_view, name="transaction-confirm"),
     path("physical/<uuid:pk>/cancel/", views.cancel_transaction_view, name="transaction-cancel"),
+    path("physical/<uuid:pk>/rate/", views.rate_cash_service_view, name="transaction-rate"),
 ]

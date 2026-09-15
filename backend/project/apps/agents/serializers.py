@@ -10,6 +10,7 @@ class AgentProfileSerializer(serializers.ModelSerializer):
 
     full_name = serializers.SerializerMethodField()
     email = serializers.CharField(source="user.email", read_only=True)
+    completed_services = serializers.SerializerMethodField()
 
     class Meta:
         model = AgentProfile
@@ -26,6 +27,7 @@ class AgentProfileSerializer(serializers.ModelSerializer):
             "bio",
             "rating",
             "total_ratings",
+            "completed_services",
             "agent_type",
             "created_at",
             "updated_at",
@@ -37,12 +39,19 @@ class AgentProfileSerializer(serializers.ModelSerializer):
             "rating",
             "total_ratings",
             "agent_type",
+            "completed_services",
             "created_at",
             "updated_at",
         ]
 
     def get_full_name(self, obj: AgentProfile) -> str:
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_completed_services(self, obj: AgentProfile) -> int:
+        annotated_count = getattr(obj, "completed_services_count", None)
+        if annotated_count is not None:
+            return annotated_count
+        return obj.physical_transactions.filter(status="completed").count()
 
 
 class UpdateAgentProfileSerializer(serializers.Serializer):
@@ -61,6 +70,7 @@ class NearbyAgentSerializer(serializers.ModelSerializer):
     full_name = serializers.SerializerMethodField()
     distance_km = serializers.FloatField(read_only=True)
     selfie_url = serializers.SerializerMethodField()
+    completed_services = serializers.SerializerMethodField()
 
     class Meta:
         model = AgentProfile
@@ -74,6 +84,7 @@ class NearbyAgentSerializer(serializers.ModelSerializer):
             "min_amount",
             "rating",
             "total_ratings",
+            "completed_services",
             "agent_type",
             "distance_km",
             "selfie_url",
@@ -81,6 +92,12 @@ class NearbyAgentSerializer(serializers.ModelSerializer):
 
     def get_full_name(self, obj: AgentProfile) -> str:
         return f"{obj.user.first_name} {obj.user.last_name}".strip()
+
+    def get_completed_services(self, obj: AgentProfile) -> int:
+        annotated_count = getattr(obj, "completed_services_count", None)
+        if annotated_count is not None:
+            return annotated_count
+        return obj.physical_transactions.filter(status="completed").count()
 
     def get_selfie_url(self, obj: AgentProfile) -> str | None:
         kyc = getattr(obj.user, "kyc_submission", None)

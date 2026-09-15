@@ -95,6 +95,10 @@ class AgentDetailSheet extends StatelessWidget {
                 color: context.appColors.textSecondary,
               ),
             ),
+            if (agent.isCertified) ...[
+              const SizedBox(height: 14),
+              _AgentTrustSummary(agent: agent),
+            ],
             const SizedBox(height: 24),
             Container(
               decoration: BoxDecoration(
@@ -471,6 +475,46 @@ class _StatItem extends StatelessWidget {
               color: context.appColors.textSecondary,
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AgentTrustSummary extends StatelessWidget {
+  final NearbyAgent agent;
+
+  const _AgentTrustSummary({required this.agent});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.appColors;
+    final ratingLabel = agent.totalRatings > 0
+        ? '★ ${agent.rating.toStringAsFixed(1)} (${agent.totalRatings} ratings)'
+        : '★ No ratings yet';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.brandSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            ratingLabel,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${agent.completedServices} completed services',
+            style: TextStyle(fontSize: 13, color: colors.textSecondary),
           ),
         ],
       ),

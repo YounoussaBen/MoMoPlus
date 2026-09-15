@@ -648,6 +648,25 @@ class BackendApiService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
+  Future<Map<String, dynamic>> ratePhysicalTransaction(
+    String transactionId, {
+    required int rating,
+  }) async {
+    if (_accessToken == null) throw Exception('Not authenticated.');
+    final uri = Uri.parse(
+      '$_baseUrl/api/transactions/physical/$transactionId/rate/',
+    );
+    final response = await http.post(
+      uri,
+      headers: _headers,
+      body: jsonEncode({'rating': rating}),
+    );
+    if (response.statusCode != 200) {
+      throw _buildApiException(response, 'Failed to submit rating.');
+    }
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  }
+
   // ── Loans ─────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> requestLoan({

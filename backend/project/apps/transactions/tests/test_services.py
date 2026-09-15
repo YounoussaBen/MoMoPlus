@@ -5,7 +5,7 @@ import pytest
 from project.apps.accounts.models import AgentStatus, UserRole
 from project.apps.agents.models import AgentProfile, AgentType
 from project.apps.notifications.models import Notification, NotificationKind
-from project.apps.transactions.models import TransactionStatus
+from project.apps.transactions.models import CashServiceRating, TransactionStatus
 from project.apps.transactions.services import (
     accept_transaction,
     cancel_transaction,
@@ -14,6 +14,7 @@ from project.apps.transactions.services import (
     get_agent_transactions,
     get_transaction_detail,
     get_user_transactions,
+    rate_cash_service,
     reject_transaction,
 )
 from project.apps.wallets.models import Wallet
@@ -482,3 +483,52 @@ class TestGetTransactionDetail:
         stranger = user_factory(username="stranger", email="stranger@example.com")
         with pytest.raises(ValueError, match="not found"):
             get_transaction_detail(transaction_id=str(pending_txn.pk), user=stranger)
+
+
+@pytest.mark.django_db
+class TestRateCashService:
+    def _complete(self, pending_txn, agent_user, borrower):
+        accept_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            meeting_latitude=Decimal("5.6100"),
+            meeting_longitude=Decimal("-0.1900"),
+        )
+        confirm_transaction(
+            txn=pending_txn,
+            user=agent_user,
+            verification_code=pending_txn.verification_code,
+        )
+        return confirm_transaction(txn=pending_txn, user=borrower)
+
+    def test_user_can_rate_completed_cash_service(self, pending_txn, agent_user, borrower, agent_profile):
+        completed = self._complete(pending_txn, agent_user, borrower)
+
+        rated = rate_cash_service(txn=completed, user=borrower, rating=5)
+
+        assert rated.agent_rating.rating == 5
+        agent_profile.refresh_from_db()
+        assert agent_profile.rating == Decimal("5.00")
+        assert agent_profile.total_ratings == 1
+        assert CashServiceRating.objects.filter(transaction=completed, user=borrower).count() == 1
+
+    def test_updating_rating_does_not_inflate_count(self, pending_txn, agent_user, borrower, agent_profile):
+        completed = self._complete(pending_txn, agent_user, borrower)
+
+        rate_cash_service(txn=completed, user=borrower, rating=5)
+        rate_cash_service(txn=completed, user=borrower, rating=3)
+
+        agent_profile.refresh_from_db()
+        assert agent_profile.rating == Decimal("3.00")
+        assert agent_profile.total_ratings == 1
+        assert CashServiceRating.objects.filter(agent=agent_profile).count() == 1
+
+    def test_only_participating_user_can_rate(self, pending_txn, agent_user, borrower):
+        completed = self._complete(pending_txn, agent_user, borrower)
+
+        with pytest.raises(ValueError, match="Only the user"):
+            rate_cash_service(txn=completed, user=agent_user, rating=5)
+
+    def test_rating_requires_completed_transaction(self, pending_txn, borrower):
+        with pytest.raises(ValueError, match="only after it is completed"):
+            rate_cash_service(txn=pending_txn, user=borrower, rating=5)

@@ -1795,7 +1795,7 @@ class _AgentCard extends StatelessWidget {
                           color: context.appColors.textSecondary,
                         ),
                       ),
-                      if (agent.rating > 0) ...[
+                      if (agent.isCertified && agent.totalRatings > 0) ...[
                         const SizedBox(width: 12),
                         Icon(
                           Icons.star,

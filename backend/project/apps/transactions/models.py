@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from project.apps.core.models import BaseModel
@@ -69,3 +70,35 @@ class PhysicalTransaction(BaseModel):
 
     def __str__(self):
         return f"PhysicalTransaction({self.transaction_type}, {self.status}, {self.amount})"
+
+
+class CashServiceRating(BaseModel):
+    """The participating user's rating for a completed cash service."""
+
+    transaction = models.OneToOneField(
+        PhysicalTransaction,
+        on_delete=models.CASCADE,
+        related_name="agent_rating",
+    )
+    agent = models.ForeignKey(
+        "agents.AgentProfile",
+        on_delete=models.CASCADE,
+        related_name="cash_service_ratings",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="cash_service_ratings_given",
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+
+    class Meta(BaseModel.Meta):
+        indexes = [
+            models.Index(fields=["agent", "created_at"]),
+            models.Index(fields=["user", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"CashServiceRating({self.agent_id}, {self.rating})"

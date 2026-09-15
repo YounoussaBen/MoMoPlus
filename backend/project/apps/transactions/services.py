@@ -5,6 +5,7 @@ from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
+from django.db.models import Avg, Count
 from django.utils import timezone
 
 from project.apps.accounts.models import User
@@ -13,7 +14,7 @@ from project.apps.notifications.models import NotificationKind
 from project.apps.notifications.services import create_notification
 from project.apps.wallets.models import Wallet
 
-from .models import PhysicalTransaction, TransactionStatus, TransactionType
+from .models import CashServiceRating, PhysicalTransaction, TransactionStatus, TransactionType
 
 TRANSACTION_EXPIRY_MINUTES = 60
 
@@ -155,7 +156,7 @@ def create_physical_transaction(
 
 def get_user_transactions(*, user: User, status: str | None = None) -> list[PhysicalTransaction]:
     """List physical transactions for a user."""
-    qs = PhysicalTransaction.objects.filter(user=user).select_related("agent__user", "wallet")
+    qs = PhysicalTransaction.objects.filter(user=user).select_related("agent__user", "wallet", "agent_rating")
     if status:
         qs = qs.filter(status=status)
     return list(qs)
@@ -163,7 +164,9 @@ def get_user_transactions(*, user: User, status: str | None = None) -> list[Phys
 
 def get_agent_transactions(*, user: User, status: str | None = None) -> list[PhysicalTransaction]:
     """List physical transactions for an agent."""
-    qs = PhysicalTransaction.objects.filter(agent__user=user).select_related("user", "agent__user", "wallet")
+    qs = PhysicalTransaction.objects.filter(agent__user=user).select_related(
+        "user", "agent__user", "wallet", "agent_rating"
+    )
     if status:
         qs = qs.filter(status=status)
     return list(qs)
@@ -172,7 +175,9 @@ def get_agent_transactions(*, user: User, status: str | None = None) -> list[Phy
 def get_transaction_detail(*, transaction_id: str, user: User) -> PhysicalTransaction:
     """Get a single transaction, validating the user is a party to it."""
     try:
-        txn = PhysicalTransaction.objects.select_related("user", "agent__user", "wallet").get(pk=transaction_id)
+        txn = PhysicalTransaction.objects.select_related("user", "agent__user", "wallet", "agent_rating").get(
+            pk=transaction_id
+        )
     except PhysicalTransaction.DoesNotExist:
         raise ValueError("Transaction not found.")
 
@@ -361,4 +366,46 @@ def cancel_transaction(
             else f"{actor_name} cancelled the {label} request for {_amount_label(txn.amount)}."
         ),
     )
+    return txn
+
+
+@transaction.atomic
+def rate_cash_service(
+    *,
+    txn: PhysicalTransaction,
+    user: User,
+    rating: int,
+) -> PhysicalTransaction:
+    """Record the user's rating for a completed certified-agent cash service."""
+    txn = PhysicalTransaction.objects.select_for_update().select_related("agent").get(pk=txn.pk)
+
+    if txn.user_id != user.pk:
+        raise ValueError("Only the user who completed this cash service can rate it.")
+    if txn.status != TransactionStatus.COMPLETED:
+        raise ValueError("You can rate a cash service only after it is completed.")
+    if txn.agent.agent_type != AgentType.CERTIFIED:
+        raise ValueError("Only certified-agent cash services can be rated.")
+    if rating < 1 or rating > 5:
+        raise ValueError("Rating must be between 1 and 5.")
+
+    # Lock the agent row while recalculating its denormalized public summary so
+    # concurrent ratings cannot overwrite each other's totals.
+    agent = AgentProfile.objects.select_for_update().get(pk=txn.agent_id)
+    CashServiceRating.objects.update_or_create(
+        transaction=txn,
+        defaults={
+            "agent": agent,
+            "user": user,
+            "rating": rating,
+        },
+    )
+    summary = CashServiceRating.objects.filter(agent=agent).aggregate(
+        average=Avg("rating"),
+        total=Count("id"),
+    )
+    average = Decimal(str(summary["average"] or "0.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    agent.rating = average
+    agent.total_ratings = summary["total"] or 0
+    agent.save(update_fields=["rating", "total_ratings", "updated_at"])
+    txn.agent = agent
     return txn

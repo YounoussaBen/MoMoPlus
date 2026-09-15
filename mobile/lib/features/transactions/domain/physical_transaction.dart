@@ -15,6 +15,7 @@ class PhysicalTransaction {
   final String agentId;
   final String walletPhoneNumber;
   final String walletNetwork;
+  final int? myRating;
   final String? cancellationReason;
   final DateTime createdAt;
   final DateTime? completedAt;
@@ -37,6 +38,7 @@ class PhysicalTransaction {
     required this.agentId,
     required this.walletPhoneNumber,
     required this.walletNetwork,
+    this.myRating,
     this.cancellationReason,
     required this.createdAt,
     this.completedAt,
@@ -88,6 +90,7 @@ class PhysicalTransaction {
       agentId: json['agent_id'] as String? ?? '',
       walletPhoneNumber: json['wallet_phone_number'] as String? ?? '',
       walletNetwork: json['wallet_network'] as String? ?? '',
+      myRating: _toInt(json['my_rating']),
       cancellationReason: json['cancellation_reason'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       completedAt: json['completed_at'] != null
@@ -101,6 +104,14 @@ class PhysicalTransaction {
     if (v == null) return null;
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
+    return null;
+  }
+
+  static int? _toInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
     return null;
   }
 }

@@ -14,6 +14,7 @@ from .serializers import (
     ConfirmTransactionSerializer,
     CreatePhysicalTransactionSerializer,
     PhysicalTransactionSerializer,
+    RateCashServiceSerializer,
     RejectTransactionSerializer,
 )
 from .services import (
@@ -24,13 +25,14 @@ from .services import (
     get_agent_transactions,
     get_transaction_detail,
     get_user_transactions,
+    rate_cash_service,
     reject_transaction,
 )
 
 
 def _get_txn_or_404(pk: str) -> PhysicalTransaction | None:
     try:
-        return PhysicalTransaction.objects.select_related("user", "agent__user", "wallet").get(pk=pk)
+        return PhysicalTransaction.objects.select_related("user", "agent__user", "wallet", "agent_rating").get(pk=pk)
     except PhysicalTransaction.DoesNotExist:
         return None
 
@@ -234,6 +236,39 @@ def cancel_transaction_view(request: Request, pk: str) -> Response:
             txn=txn,
             user=request.user,
             reason=serializer.validated_data.get("reason", ""),
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(_serialize(txn, request))
+
+
+@extend_schema(
+    tags=["Cash Services"],
+    request=RateCashServiceSerializer,
+    responses={
+        status.HTTP_200_OK: PhysicalTransactionSerializer,
+        status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
+        status.HTTP_404_NOT_FOUND: OpenApiResponse(description="Transaction not found"),
+    },
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def rate_cash_service_view(request: Request, pk: str) -> Response:
+    """Let the participating user rate a completed cash service once per transaction."""
+    try:
+        txn = get_transaction_detail(transaction_id=pk, user=request.user)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = RateCashServiceSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    try:
+        txn = rate_cash_service(
+            txn=txn,
+            user=request.user,
+            rating=serializer.validated_data["rating"],
         )
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
