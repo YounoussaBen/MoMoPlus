@@ -119,6 +119,7 @@ class _LimitsBodyState extends State<_LimitsBody> {
               ),
             )
           : ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
               children: [
                 Text(

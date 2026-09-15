@@ -371,6 +371,7 @@ class _GuarantorFormSheetState extends State<_GuarantorFormSheet> {
           const SizedBox(height: 20),
           TextFormField(
             controller: _nameCtrl,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             textCapitalization: TextCapitalization.words,
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(

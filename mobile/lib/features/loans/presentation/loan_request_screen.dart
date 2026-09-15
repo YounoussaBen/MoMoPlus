@@ -85,6 +85,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
         centerTitle: true,
       ),
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(20),
         children: [
           // Agent info
@@ -132,6 +133,7 @@ class _LoanRequestScreenState extends State<LoanRequestScreen> {
           const SizedBox(height: 8),
           TextField(
             controller: _amountController,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             onChanged: (_) => setState(() {}),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: TextStyle(

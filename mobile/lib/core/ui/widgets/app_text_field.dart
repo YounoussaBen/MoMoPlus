@@ -61,6 +61,7 @@ class AppTextField extends StatelessWidget {
       textInputAction: textInputAction,
       validator: validator,
       onChanged: onChanged,
+      onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       autofocus: autofocus,
       focusNode: focusNode,
       enabled: enabled,

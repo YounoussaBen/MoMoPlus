@@ -176,6 +176,7 @@ class _AddWalletScreenState extends State<AddWalletScreen> {
     return AppScreen(
       title: 'Add wallet',
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
         children: [
           Text(

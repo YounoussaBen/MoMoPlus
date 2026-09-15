@@ -125,6 +125,7 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
     return AppScreen(
       title: 'Verify wallet',
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
         children: [
           const SizedBox(height: 16),
@@ -193,6 +194,8 @@ class _VerifyWalletScreenBodyState extends State<_VerifyWalletScreenBody> {
                           child: TextField(
                             controller: _controllers[i],
                             focusNode: _focusNodes[i],
+                            onTapOutside: (_) =>
+                                FocusManager.instance.primaryFocus?.unfocus(),
                             textAlign: TextAlign.center,
                             keyboardType: TextInputType.number,
                             maxLength: 1,

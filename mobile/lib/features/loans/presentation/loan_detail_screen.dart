@@ -1408,6 +1408,8 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: _otherCtrl,
+                      onTapOutside: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       autofocus: true,
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(

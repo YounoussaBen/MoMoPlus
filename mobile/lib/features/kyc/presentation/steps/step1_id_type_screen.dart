@@ -89,73 +89,93 @@ class _Step1GhanaCardScreenState extends State<Step1GhanaCardScreen> {
   Widget build(BuildContext context) {
     final vm = context.watch<KycViewModel>();
     _syncCardNumberController(vm.ghanaCardNumber);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Verify your identity',
-          style: context.appTextTheme.headlineMedium,
-        ),
-        const SizedBox(height: AppSpacing.space1),
-        Text(
-          'Enter your Ghana Card number and upload clear photos of the front and back.',
-          style: context.appTextTheme.bodyMedium?.copyWith(
-            color: context.appColors.textSecondary,
+    void dismissKeyboard() => FocusManager.instance.primaryFocus?.unfocus();
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Verify your identity',
+                style: context.appTextTheme.headlineMedium,
+              ),
+              const SizedBox(height: AppSpacing.space1),
+              Text(
+                'Enter your Ghana Card number and upload clear photos of the front and back.',
+                style: context.appTextTheme.bodyMedium?.copyWith(
+                  color: context.appColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.space5),
+              AppTextField(
+                label: 'Ghana Card number',
+                hint: '123456789-0',
+                prefixText: 'GHA-',
+                controller: _cardNumberController,
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => dismissKeyboard(),
+                maxLength: 11,
+                inputFormatters: [
+                  TextInputFormatter.withFunction(_formatGhanaCardInput),
+                ],
+                onChanged: (value) {
+                  final formattedValue = _formatGhanaCardDigits(value);
+                  context.read<KycViewModel>().setGhanaCardNumber(
+                    formattedValue.isEmpty ? '' : 'GHA-$formattedValue',
+                  );
+                },
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) return null;
+                  return vm.isGhanaCardNumberValid
+                      ? null
+                      : 'Enter the 10 digits after GHA prefix';
+                },
+                autovalidateMode: AutovalidateMode.onUserInteraction,
+              ),
+              const SizedBox(height: AppSpacing.space4),
+              Text('Ghana Card photos', style: context.appTextTheme.titleSmall),
+              const SizedBox(height: AppSpacing.space2),
+              PhotoPickerTile(
+                label: 'Front of Ghana Card',
+                filePath: vm.idFront?.displayPath,
+                isUploading: vm.idFront?.uploading ?? false,
+                uploadError: vm.idFront?.error,
+                onTap: () {
+                  dismissKeyboard();
+                  context.read<KycViewModel>().pickIdFront();
+                },
+              ),
+              const SizedBox(height: AppSpacing.space3),
+              PhotoPickerTile(
+                label: 'Back of Ghana Card',
+                filePath: vm.idBack?.displayPath,
+                isUploading: vm.idBack?.uploading ?? false,
+                uploadError: vm.idBack?.error,
+                onTap: () {
+                  dismissKeyboard();
+                  context.read<KycViewModel>().pickIdBack();
+                },
+              ),
+              const SizedBox(height: AppSpacing.space5),
+              AppButton(
+                label: 'Continue',
+                onPressed: vm.canAdvanceStep1
+                    ? () {
+                        dismissKeyboard();
+                        context.read<KycViewModel>().nextStep();
+                      }
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.space1),
+            ],
           ),
         ),
-        const SizedBox(height: AppSpacing.space5),
-        AppTextField(
-          label: 'Ghana Card number',
-          hint: '123456789-0',
-          prefixText: 'GHA-',
-          controller: _cardNumberController,
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.done,
-          maxLength: 11,
-          inputFormatters: [
-            TextInputFormatter.withFunction(_formatGhanaCardInput),
-          ],
-          onChanged: (value) {
-            final formattedValue = _formatGhanaCardDigits(value);
-            context.read<KycViewModel>().setGhanaCardNumber(
-              formattedValue.isEmpty ? '' : 'GHA-$formattedValue',
-            );
-          },
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) return null;
-            return vm.isGhanaCardNumberValid
-                ? null
-                : 'Enter the 10 digits after GHA prefix';
-          },
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-        ),
-        const SizedBox(height: AppSpacing.space4),
-        Text('Ghana Card photos', style: context.appTextTheme.titleSmall),
-        const SizedBox(height: AppSpacing.space2),
-        PhotoPickerTile(
-          label: 'Front of Ghana Card',
-          filePath: vm.idFront?.displayPath,
-          isUploading: vm.idFront?.uploading ?? false,
-          uploadError: vm.idFront?.error,
-          onTap: () => context.read<KycViewModel>().pickIdFront(),
-        ),
-        const SizedBox(height: AppSpacing.space3),
-        PhotoPickerTile(
-          label: 'Back of Ghana Card',
-          filePath: vm.idBack?.displayPath,
-          isUploading: vm.idBack?.uploading ?? false,
-          uploadError: vm.idBack?.error,
-          onTap: () => context.read<KycViewModel>().pickIdBack(),
-        ),
-        const Spacer(),
-        AppButton(
-          label: 'Continue',
-          onPressed: vm.canAdvanceStep1
-              ? () => context.read<KycViewModel>().nextStep()
-              : null,
-        ),
-        const SizedBox(height: AppSpacing.space1),
-      ],
+      ),
     );
   }
 }

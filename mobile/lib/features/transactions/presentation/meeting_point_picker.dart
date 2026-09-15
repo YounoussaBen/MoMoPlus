@@ -271,6 +271,8 @@ class _MeetingPointPickerState extends State<MeetingPointPicker> {
                         const SizedBox(height: 16),
                         TextField(
                           controller: _descCtrl,
+                          onTapOutside: (_) =>
+                              FocusManager.instance.primaryFocus?.unfocus(),
                           decoration: InputDecoration(
                             hintText: 'e.g. By the market entrance',
                             prefixIcon: const Icon(

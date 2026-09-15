@@ -1359,6 +1359,8 @@ class _CodeSheetState extends State<_CodeSheet> {
               const SizedBox(height: 20),
               TextField(
                 controller: _controller,
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 textAlign: TextAlign.center,
@@ -1679,6 +1681,8 @@ class _ReasonPickerSheetState extends State<_ReasonPickerSheet> {
                     const SizedBox(height: 4),
                     TextField(
                       controller: _otherCtrl,
+                      onTapOutside: (_) =>
+                          FocusManager.instance.primaryFocus?.unfocus(),
                       autofocus: true,
                       onChanged: (_) => setState(() {}),
                       decoration: const InputDecoration(

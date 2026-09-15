@@ -107,6 +107,7 @@ class _GuarantorsOnboardingScreenState
         children: [
           Expanded(
             child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               children: [
                 Container(
@@ -291,6 +292,7 @@ class _GuarantorCard extends StatelessWidget {
           const SizedBox(height: 14),
           TextFormField(
             controller: entry.nameController,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
             onChanged: (_) => onChanged(),
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(

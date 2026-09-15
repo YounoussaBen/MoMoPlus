@@ -372,6 +372,7 @@ class _CertificationBodyState extends State<_CertificationBody> {
     bool canSubmit,
   ) {
     return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
       children: [
         if (previousCert != null && previousCert.isRejected) ...[

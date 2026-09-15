@@ -80,6 +80,7 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,6 +165,8 @@ class _CreateTransactionScreenState extends State<CreateTransactionScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _amountController,
+              onTapOutside: (_) =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
