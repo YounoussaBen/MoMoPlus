@@ -18,7 +18,6 @@ from .models import AgentStatus, LoanGuarantor, UserRole
 from .phone_numbers import InvalidPhoneNumber, normalize_ghana_phone
 from .serializers import (
     AuthSyncResponseSerializer,
-    GuarantorBulkCreateSerializer,
     GuarantorCreateSerializer,
     GuarantorSerializer,
     GuarantorUpdateSerializer,
@@ -31,7 +30,6 @@ from .serializers import (
 )
 from .services import (
     add_guarantor,
-    bulk_create_guarantors,
     delete_guarantor,
     resend_guarantor_otp,
     update_guarantor,
@@ -287,27 +285,12 @@ def guarantor_list(request: Request) -> Response:
 
 @extend_schema(
     tags=["Guarantors"],
-    request=GuarantorBulkCreateSerializer,
+    request=GuarantorSerializer,
     responses={
         status.HTTP_201_CREATED: GuarantorSerializer(many=True),
         status.HTTP_400_BAD_REQUEST: OpenApiResponse(description="Validation error"),
     },
 )
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def guarantor_bulk_create(request: Request) -> Response:
-    serializer = GuarantorBulkCreateSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    try:
-        guarantors = bulk_create_guarantors(
-            user=request.user,
-            guarantors_data=serializer.validated_data["guarantors"],
-        )
-    except ValueError as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    return Response(GuarantorSerializer(guarantors, many=True).data, status=status.HTTP_201_CREATED)
-
-
 @extend_schema(
     methods=["PUT"],
     tags=["Guarantors"],

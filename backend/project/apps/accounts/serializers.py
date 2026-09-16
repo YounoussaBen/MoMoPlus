@@ -127,15 +127,6 @@ class GuarantorCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(str(exc)) from exc
 
 
-class GuarantorBulkCreateSerializer(serializers.Serializer):
-    guarantors = GuarantorCreateSerializer(many=True)
-
-    def validate_guarantors(self, value: list[dict]) -> list[dict]:
-        if len(value) < 2:
-            raise serializers.ValidationError("At least 2 guarantors are required.")
-        return value
-
-
 class GuarantorUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200, required=False)
     phone_number = serializers.CharField(max_length=20, required=False)

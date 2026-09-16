@@ -216,41 +216,6 @@ class TestGuarantorCreate:
         assert verify_response.data["is_verified"] is True
 
 
-class TestGuarantorBulkCreate:
-    @pytest.mark.django_db
-    def test_bulk_creates_2_guarantors(self, auth_client_factory, user_factory):
-        client, user = _make_guarantor_client(auth_client_factory, user_factory)
-        payload = {
-            "guarantors": [
-                {"name": "A", "phone_number": "0241234567"},
-                {"name": "B", "phone_number": "0551234567"},
-            ]
-        }
-
-        response = client.post("/api/auth/guarantors/bulk/", payload, format="json")
-
-        assert response.status_code == status.HTTP_201_CREATED
-        assert len(response.data) == 2
-        assert user.loan_guarantors.count() == 2
-
-    @pytest.mark.django_db
-    def test_rejects_fewer_than_2(self, auth_client_factory, user_factory):
-        client, _ = _make_guarantor_client(auth_client_factory, user_factory)
-        payload = {"guarantors": [{"name": "Solo", "phone_number": "024"}]}
-
-        response = client.post("/api/auth/guarantors/bulk/", payload, format="json")
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    @pytest.mark.django_db
-    def test_rejects_empty_list(self, auth_client_factory, user_factory):
-        client, _ = _make_guarantor_client(auth_client_factory, user_factory)
-
-        response = client.post("/api/auth/guarantors/bulk/", {"guarantors": []}, format="json")
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-
 class TestGuarantorUpdate:
     @pytest.mark.django_db
     def test_updates_name(self, auth_client_factory, user_factory):
