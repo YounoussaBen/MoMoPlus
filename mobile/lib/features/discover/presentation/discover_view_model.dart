@@ -8,6 +8,11 @@ import '../domain/agent_route_preview.dart';
 import '../domain/nearby_agent.dart';
 
 const Duration _discoverRefreshInterval = Duration(seconds: 10);
+const Duration _discoverLocationTimeout = Duration(seconds: 12);
+
+// Match the agent service-area map so Discover can render before GPS resolves.
+const double discoverFallbackLatitude = 5.6037;
+const double discoverFallbackLongitude = -0.1870;
 
 class DiscoverViewModel extends ChangeNotifier {
   final BackendApiService _api;
@@ -20,6 +25,7 @@ class DiscoverViewModel extends ChangeNotifier {
   double? _userLon;
   double _radius = 10.0;
   bool _isLocating = false;
+  bool _usesPinnedLocation = false;
   final Map<String, AgentRoutePreview> _routeCache = {};
   Timer? _refreshTimer;
   Future<void>? _loadAgentsFuture;
@@ -27,6 +33,7 @@ class DiscoverViewModel extends ChangeNotifier {
   bool _isSessionActive = false;
   bool _isDisposed = false;
   int _sessionGeneration = 0;
+  int _locationGeneration = 0;
 
   DiscoverViewModel(this._api, {bool autoStart = true}) {
     if (autoStart) {
@@ -39,9 +46,13 @@ class DiscoverViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   double? get userLat => _userLat;
   double? get userLon => _userLon;
+  double get mapLatitude => _userLat ?? discoverFallbackLatitude;
+  double get mapLongitude => _userLon ?? discoverFallbackLongitude;
   double get radius => _radius;
   bool get isLocating => _isLocating;
   bool get hasLocation => _userLat != null && _userLon != null;
+  bool get usesPinnedLocation => hasLocation && _usesPinnedLocation;
+  bool get hasDeviceLocation => hasLocation && !_usesPinnedLocation;
   bool get isSessionActive => _isSessionActive;
 
   /// Switches discovery state to [sessionId] after clearing cached agents,
@@ -77,42 +88,109 @@ class DiscoverViewModel extends ChangeNotifier {
 
   Future<void> locateAndLoad() async {
     if (!_isSessionActive || _isDisposed) return;
-    final generation = _sessionGeneration;
+    final sessionGeneration = _sessionGeneration;
+    final locationGeneration = ++_locationGeneration;
+    _loadAgentsFuture = null;
+    _isLoading = false;
     _isLocating = true;
     _errorMessage = null;
     _notifyListeners();
     try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
+      if (!serviceEnabled) {
+        _errorMessage = 'Turn on Location Services to find agents near you.';
+        return;
+      }
+
       LocationPermission perm = await Geolocator.checkPermission();
-      if (!_isCurrentSession(generation)) return;
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
-        if (!_isCurrentSession(generation)) return;
+        if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+          return;
+        }
       }
       if (perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever) {
-        _errorMessage = 'Location permission denied';
+        _errorMessage = 'Allow location access to find agents near you.';
         return;
       }
 
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
+          timeLimit: _discoverLocationTimeout,
         ),
       );
-      if (!_isCurrentSession(generation)) return;
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
       _userLat = pos.latitude;
       _userLon = pos.longitude;
+      _usesPinnedLocation = false;
+      _agents = [];
+      _hasLoadedAgents = false;
       _routeCache.clear();
+      // Render the located map before waiting for nearby-agent data.
+      _isLocating = false;
+      _notifyListeners();
       await loadAgents();
+    } on TimeoutException {
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
+      _errorMessage = 'We could not determine your location.';
     } catch (e) {
-      if (!_isCurrentSession(generation)) return;
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
       _errorMessage = 'Could not get location';
     } finally {
-      if (_isCurrentSession(generation)) {
+      if (_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
         _isLocating = false;
         _notifyListeners();
       }
     }
+  }
+
+  Future<void> setSearchLocation({
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (!_isSessionActive || _isDisposed) return;
+    if (!latitude.isFinite || latitude < -90 || latitude > 90) {
+      throw ArgumentError.value(
+        latitude,
+        'latitude',
+        'Must be between -90 and 90.',
+      );
+    }
+    if (!longitude.isFinite || longitude < -180 || longitude > 180) {
+      throw ArgumentError.value(
+        longitude,
+        'longitude',
+        'Must be between -180 and 180.',
+      );
+    }
+
+    _locationGeneration++;
+    _loadAgentsFuture = null;
+    _isLoading = false;
+    _isLocating = false;
+    _usesPinnedLocation = true;
+    _userLat = latitude;
+    _userLon = longitude;
+    _agents = [];
+    _hasLoadedAgents = false;
+    _errorMessage = null;
+    _routeCache.clear();
+    _notifyListeners();
+    await loadAgents();
   }
 
   Future<void> loadAgents() async {
@@ -120,8 +198,9 @@ class DiscoverViewModel extends ChangeNotifier {
     final inFlight = _loadAgentsFuture;
     if (inFlight != null) return inFlight;
 
-    final generation = _sessionGeneration;
-    final future = _loadAgentsInternal(generation);
+    final sessionGeneration = _sessionGeneration;
+    final locationGeneration = _locationGeneration;
+    final future = _loadAgentsInternal(sessionGeneration, locationGeneration);
     _loadAgentsFuture = future;
     unawaited(
       future.whenComplete(() {
@@ -133,7 +212,10 @@ class DiscoverViewModel extends ChangeNotifier {
     return future;
   }
 
-  Future<void> _loadAgentsInternal(int generation) async {
+  Future<void> _loadAgentsInternal(
+    int sessionGeneration,
+    int locationGeneration,
+  ) async {
     if (_userLat == null || _userLon == null) return;
     _isLoading = !_hasLoadedAgents && _agents.isEmpty;
     _errorMessage = null;
@@ -144,15 +226,19 @@ class DiscoverViewModel extends ChangeNotifier {
         lon: _userLon!,
         radius: _radius,
       );
-      if (!_isCurrentSession(generation)) return;
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
       _agents = data
           .map((j) => NearbyAgent.fromJson(j as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      if (!_isCurrentSession(generation)) return;
+      if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+        return;
+      }
       _errorMessage = friendlyErrorMessage(e);
     } finally {
-      if (_isCurrentSession(generation)) {
+      if (_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
         _hasLoadedAgents = true;
         _isLoading = false;
         _notifyListeners();
@@ -171,7 +257,8 @@ class DiscoverViewModel extends ChangeNotifier {
     if (!_isSessionActive || _isDisposed || !hasLocation) {
       throw Exception('Your location is unavailable.');
     }
-    final generation = _sessionGeneration;
+    final sessionGeneration = _sessionGeneration;
+    final locationGeneration = _locationGeneration;
 
     final cacheKey = [
       agent.id,
@@ -189,8 +276,8 @@ class DiscoverViewModel extends ChangeNotifier {
       destinationLatitude: agent.latitude,
       destinationLongitude: agent.longitude,
     );
-    if (!_isCurrentSession(generation)) {
-      throw StateError('The signed-in session changed.');
+    if (!_isCurrentLocationRequest(sessionGeneration, locationGeneration)) {
+      throw StateError('The search location changed.');
     }
     final route = AgentRoutePreview.fromJson(data);
     final normalizedRoute = route.hasGeometry
@@ -214,6 +301,7 @@ class DiscoverViewModel extends ChangeNotifier {
   void _resetSessionState() {
     stopAutoRefresh();
     _sessionGeneration++;
+    _locationGeneration++;
     _sessionId = null;
     _isSessionActive = false;
     _loadAgentsFuture = null;
@@ -225,11 +313,19 @@ class DiscoverViewModel extends ChangeNotifier {
     _userLon = null;
     _radius = 10.0;
     _isLocating = false;
+    _usesPinnedLocation = false;
     _routeCache.clear();
   }
 
   bool _isCurrentSession(int generation) =>
       !_isDisposed && _isSessionActive && generation == _sessionGeneration;
+
+  bool _isCurrentLocationRequest(
+    int sessionGeneration,
+    int locationGeneration,
+  ) =>
+      _isCurrentSession(sessionGeneration) &&
+      locationGeneration == _locationGeneration;
 
   void _notifyListeners() {
     if (!_isDisposed) notifyListeners();

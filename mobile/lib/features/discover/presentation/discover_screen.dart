@@ -226,14 +226,13 @@ class _DiscoverBodyState extends State<_DiscoverBody>
 
     return Scaffold(
       backgroundColor: context.appColors.canvas,
-      body: vm.isLocating
-          ? _buildLocatingState()
-          : !vm.hasLocation
-          ? _buildNoLocation(vm)
-          : _buildContent(vm, activeTransactions, ongoingLoans),
+      body: _buildContent(vm, activeTransactions, ongoingLoans),
     );
   }
 
+  // Retained for a future full-screen refresh treatment; initial discovery now
+  // keeps the map interactive while location resolves.
+  // ignore: unused_element
   Widget _buildLocatingState() {
     final mediaQuery = MediaQuery.of(context);
     final safeTop = mediaQuery.padding.top;
@@ -448,6 +447,8 @@ class _DiscoverBodyState extends State<_DiscoverBody>
     );
   }
 
+  // Retained for contexts that may require a blocking permission screen.
+  // ignore: unused_element
   Widget _buildNoLocation(DiscoverViewModel vm) {
     return Center(
       child: Padding(
@@ -505,16 +506,16 @@ class _DiscoverBodyState extends State<_DiscoverBody>
           child: GoogleMap(
             style: AppMapStyle.forBrightness(Theme.of(context).brightness),
             initialCameraPosition: CameraPosition(
-              target: LatLng(vm.userLat!, vm.userLon!),
+              target: LatLng(vm.mapLatitude, vm.mapLongitude),
               zoom: 13,
             ),
             onMapCreated: (controller) => _onMapCreated(controller, vm),
-            onTap: (_) => _resetFocus(vm),
+            onTap: (location) => _setPinnedLocation(vm, location),
             markers: _buildMarkers(vm),
             circles: _buildCircles(vm),
             polylines: _buildPolylines(),
             padding: EdgeInsets.only(top: safeTop + 88, bottom: bottomInset),
-            myLocationEnabled: true,
+            myLocationEnabled: vm.hasDeviceLocation,
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
@@ -537,7 +538,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                 child: _MapInfoCard(
                   title: _mapPanelTitle(vm, selectedAgent),
                   subtitle: _mapPanelSubtitle(vm, selectedAgent),
-                  isLoading: vm.isLoading || _isRouteLoading,
+                  isLoading: vm.isLocating || vm.isLoading || _isRouteLoading,
                 ),
               ),
               const SizedBox(width: 12),
@@ -549,8 +550,14 @@ class _DiscoverBodyState extends State<_DiscoverBody>
               ),
               const SizedBox(width: 12),
               _MapActionButton(
-                icon: Icons.my_location,
-                onTap: () => _resetFocus(vm),
+                icon: vm.hasLocation
+                    ? Icons.my_location
+                    : Icons.location_searching,
+                onTap: vm.isLocating
+                    ? null
+                    : vm.hasDeviceLocation
+                    ? () => _resetFocus(vm)
+                    : () => vm.locateAndLoad(),
               ),
             ],
           ),
@@ -662,10 +669,49 @@ class _DiscoverBodyState extends State<_DiscoverBody>
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (vm.isLoading)
+                  if (vm.isLocating || vm.isLoading)
                     Padding(
                       padding: EdgeInsets.symmetric(vertical: 48),
                       child: _LoadingAgentList(animation: _skeletonPulse),
+                    )
+                  else if (!vm.hasLocation)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.location_off_outlined,
+                            size: 48,
+                            color: context.appColors.textMuted,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Location unavailable',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: context.appColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            vm.errorMessage == null
+                                ? 'Tap the map to pin a search location.'
+                                : '${vm.errorMessage} Tap the map to choose a location instead.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: context.appColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: vm.locateAndLoad,
+                            icon: const Icon(Icons.my_location),
+                            label: const Text('Try Again'),
+                          ),
+                        ],
+                      ),
                     )
                   else if (vm.agents.isEmpty)
                     Padding(
@@ -730,14 +776,26 @@ class _DiscoverBodyState extends State<_DiscoverBody>
 
   String _mapPanelTitle(DiscoverViewModel vm, NearbyAgent? selectedAgent) {
     if (selectedAgent == null) {
-      return '${vm.agents.length} agent${vm.agents.length == 1 ? '' : 's'} nearby';
+      if (vm.isLocating) return 'Finding your location';
+      if (!vm.hasLocation) return 'Explore the map';
+      final suffix = vm.usesPinnedLocation ? ' near your pin' : ' nearby';
+      return '${vm.agents.length} agent${vm.agents.length == 1 ? '' : 's'}$suffix';
     }
     return 'Route to ${selectedAgent.fullName}';
   }
 
   String _mapPanelSubtitle(DiscoverViewModel vm, NearbyAgent? selectedAgent) {
     if (selectedAgent == null) {
-      return 'Searching within ${vm.radius.toStringAsFixed(0)} km of your location';
+      if (vm.isLocating) {
+        return 'Tap the map to pin a location, or wait for GPS.';
+      }
+      if (!vm.hasLocation) {
+        return vm.errorMessage ?? 'Tap the map to choose a search location.';
+      }
+      final locationLabel = vm.usesPinnedLocation
+          ? 'your pinned location'
+          : 'your location';
+      return 'Searching within ${vm.radius.toStringAsFixed(0)} km of $locationLabel';
     }
     if (_isRouteLoading) {
       return '...';
@@ -967,6 +1025,21 @@ class _DiscoverBodyState extends State<_DiscoverBody>
     await _fitMapToVisiblePoints(vm);
   }
 
+  void _setPinnedLocation(DiscoverViewModel vm, LatLng location) {
+    setState(() {
+      _selectedAgentId = null;
+      _activeRoute = null;
+      _isRouteLoading = false;
+      _routeErrorMessage = null;
+    });
+    unawaited(
+      vm.setSearchLocation(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      ),
+    );
+  }
+
   void _handleAgentTap(
     DiscoverViewModel vm,
     NearbyAgent agent,
@@ -983,15 +1056,24 @@ class _DiscoverBodyState extends State<_DiscoverBody>
   Set<Marker> _buildMarkers(DiscoverViewModel vm) {
     _initMarkerIcons();
 
-    final markers = <Marker>{
-      Marker(
-        markerId: const MarkerId('current_user'),
-        position: LatLng(vm.userLat!, vm.userLon!),
-        zIndexInt: 2,
-        infoWindow: const InfoWindow(title: 'Your location'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-      ),
-    };
+    final markers = <Marker>{};
+    if (vm.hasLocation) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId('current_user'),
+          position: LatLng(vm.userLat!, vm.userLon!),
+          zIndexInt: 2,
+          infoWindow: InfoWindow(
+            title: vm.usesPinnedLocation
+                ? 'Pinned search location'
+                : 'Your location',
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
+        ),
+      );
+    }
 
     for (final agent in vm.agents) {
       final isSelected = _selectedAgentId == agent.id;
@@ -1033,6 +1115,7 @@ class _DiscoverBodyState extends State<_DiscoverBody>
   }
 
   Set<Circle> _buildCircles(DiscoverViewModel vm) {
+    if (!vm.hasLocation) return const {};
     return {
       Circle(
         circleId: const CircleId('search_radius'),
@@ -1491,7 +1574,7 @@ class _MapInfoCard extends StatelessWidget {
 
 class _MapActionButton extends StatelessWidget {
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _MapActionButton({required this.icon, required this.onTap});
 
@@ -1506,7 +1589,13 @@ class _MapActionButton extends StatelessWidget {
         child: SizedBox(
           width: 52,
           height: 52,
-          child: Icon(icon, color: context.appColors.brandStrong, size: 22),
+          child: Icon(
+            icon,
+            color: onTap == null
+                ? context.appColors.textMuted
+                : context.appColors.brandStrong,
+            size: 22,
+          ),
         ),
       ),
     );

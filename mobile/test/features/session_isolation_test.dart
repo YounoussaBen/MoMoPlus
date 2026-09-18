@@ -53,6 +53,11 @@ void main() {
     final viewModel = DiscoverViewModel(api, autoStart: false);
     addTearDown(viewModel.dispose);
 
+    expect(viewModel.hasLocation, isFalse);
+    expect(viewModel.usesPinnedLocation, isFalse);
+    expect(viewModel.mapLatitude, discoverFallbackLatitude);
+    expect(viewModel.mapLongitude, discoverFallbackLongitude);
+
     viewModel.setSession('user-a');
     viewModel.setRadius(25);
     expect(viewModel.isSessionActive, isTrue);
@@ -63,9 +68,46 @@ void main() {
     expect(viewModel.isSessionActive, isFalse);
     expect(viewModel.agents, isEmpty);
     expect(viewModel.hasLocation, isFalse);
+    expect(viewModel.usesPinnedLocation, isFalse);
+    expect(viewModel.mapLatitude, discoverFallbackLatitude);
+    expect(viewModel.mapLongitude, discoverFallbackLongitude);
     expect(viewModel.radius, 10);
     expect(viewModel.errorMessage, isNull);
   });
+
+  test(
+    'DiscoverViewModel uses a manually pinned location to load nearby agents',
+    () async {
+      final api = _ControlledFinancialApi();
+      final viewModel = DiscoverViewModel(api, autoStart: false);
+      addTearDown(viewModel.dispose);
+
+      viewModel.setSession('user-a');
+      expect(viewModel.usesPinnedLocation, isFalse);
+
+      await viewModel.setSearchLocation(latitude: 5.5601, longitude: -0.2057);
+
+      expect(viewModel.userLat, 5.5601);
+      expect(viewModel.userLon, -0.2057);
+      expect(viewModel.mapLatitude, 5.5601);
+      expect(viewModel.mapLongitude, -0.2057);
+      expect(viewModel.hasLocation, isTrue);
+      expect(viewModel.usesPinnedLocation, isTrue);
+      expect(api.nearbyAgentRequests, hasLength(1));
+      expect(api.nearbyAgentRequests.single.lat, 5.5601);
+      expect(api.nearbyAgentRequests.single.lon, -0.2057);
+      expect(api.nearbyAgentRequests.single.radius, 10);
+
+      viewModel.clearSession();
+
+      expect(viewModel.userLat, isNull);
+      expect(viewModel.userLon, isNull);
+      expect(viewModel.mapLatitude, discoverFallbackLatitude);
+      expect(viewModel.mapLongitude, discoverFallbackLongitude);
+      expect(viewModel.hasLocation, isFalse);
+      expect(viewModel.usesPinnedLocation, isFalse);
+    },
+  );
 
   test('AgentProfileViewModel ignores an old account response', () async {
     final api = _ControlledFinancialApi();
@@ -154,6 +196,7 @@ class _ControlledFinancialApi extends BackendApiService {
   final List<Completer<List<dynamic>>> loanRequests = [];
   final List<Completer<List<dynamic>>> transactionRequests = [];
   final List<Completer<Map<String, dynamic>?>> agentProfileRequests = [];
+  final List<_NearbyAgentRequest> nearbyAgentRequests = [];
   Map<String, dynamic>? updatedAgentProfile;
   List<dynamic> wallets = const [];
 
@@ -169,6 +212,21 @@ class _ControlledFinancialApi extends BackendApiService {
     final request = Completer<List<dynamic>>();
     transactionRequests.add(request);
     return request.future;
+  }
+
+  @override
+  Future<List<dynamic>> getNearbyAgents({
+    required double lat,
+    required double lon,
+    double radius = 10.0,
+    double? minAmount,
+    double? maxAmount,
+    String sortBy = 'distance',
+  }) async {
+    nearbyAgentRequests.add(
+      _NearbyAgentRequest(lat: lat, lon: lon, radius: radius),
+    );
+    return const [];
   }
 
   @override
@@ -188,6 +246,18 @@ class _ControlledFinancialApi extends BackendApiService {
   Future<Map<String, dynamic>> updateAgentProfile(
     Map<String, dynamic> fields,
   ) async => updatedAgentProfile!;
+}
+
+class _NearbyAgentRequest {
+  const _NearbyAgentRequest({
+    required this.lat,
+    required this.lon,
+    required this.radius,
+  });
+
+  final double lat;
+  final double lon;
+  final double radius;
 }
 
 Map<String, dynamic> _agentProfileJson(
